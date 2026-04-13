@@ -1,0 +1,117 @@
+import React, { useState } from 'react';
+import { NavLink } from 'react-router-dom';
+import { CSSTransition } from 'react-transition-group';
+import classNames from 'classnames';
+import { Ripple } from "primereact/ripple";
+import './AppMenu.css';
+import { SystemConfig } from './config/SystemConfig';
+
+const AppSubmenu = (props) => {
+
+    const [activeIndex, setActiveIndex] = useState(null)
+
+    const onMenuItemClick = (event, item, index) => {
+        //avoid processing disabled items
+        if (item.disabled) {
+            event.preventDefault();
+            return true;
+        }
+
+        //execute command
+        if (item.command) {
+            item.command({ originalEvent: event, item: item });
+        }
+
+        if (index === activeIndex)
+            setActiveIndex(null);
+        else
+            setActiveIndex(index);
+
+        if (props.onMenuItemClick) {
+            props.onMenuItemClick({
+                originalEvent: event,
+                item: item
+            });
+        }
+    }
+
+    const renderLinkContent = (item) => {
+        let submenuIcon = item.items && <i className="pi pi-fw pi-angle-down menuitem-toggle-icon"></i>;
+        let badge = item.badge && <span className="menuitem-badge">{item.badge}</span>;
+
+        return (
+            <React.Fragment>
+                <i className={item.icon}></i>
+                <span>{item.label}</span>
+                {submenuIcon}
+                {badge}
+                <Ripple />
+            </React.Fragment>
+        );
+    }
+
+    const renderLink = (item, i) => {
+        let content = renderLinkContent(item);
+
+        if (item.to) {
+            return (
+                <NavLink className={({ isActive }) => "p-ripple" + (isActive ? " router-link-active router-link-exact-active" : "")} to={item.to} onClick={(e) => onMenuItemClick(e, item, i)} target={item.target} end="true">
+                    {content}
+                </NavLink>
+            )
+        }
+        else {
+            return (
+                <a href={item.url} className="p-ripple" onClick={(e) => onMenuItemClick(e, item, i)} target={item.target}>
+                    {content}
+                </a>
+            );
+        }
+    }
+
+    let items = props.items && props.items.map((item, i) => {
+        let active = activeIndex === i;
+        let styleClass = classNames(item.badgeStyleClass, { 'layout-menuitem-category': props.root, 'active-menuitem': active && !item.to });
+
+        if (props.root) {
+            return (
+                <li className={styleClass} key={i}>
+                    {props.root === true && <React.Fragment>
+                        <div className="layout-menuitem-root-text">{item.label}</div>
+                        <AppSubmenu items={item.items} onMenuItemClick={props.onMenuItemClick} />
+                    </React.Fragment>}
+                </li>
+            );
+        }
+        else {
+            return (
+                <li className={styleClass} key={i}>
+                    {renderLink(item, i)}
+                    <CSSTransition classNames="layout-submenu-wrapper" timeout={{ enter: 1000, exit: 450 }} in={active} unmountOnExit>
+                        <AppSubmenu items={item.items} onMenuItemClick={props.onMenuItemClick} />
+                    </CSSTransition>
+                </li>
+            );
+        }
+    });
+
+    return items ? <ul className={props.className}>{items}</ul> : null;
+}
+
+export const AppMenu = (props) => {
+    return (
+        <div className="layout-sidebar">
+            <div className="layout-menu-container">
+                {/* Contenido del menú */}
+                <AppSubmenu items={props.model} className="layout-menu" onMenuItemClick={props.onMenuItemClick} root={true} />
+
+                {/* Footer pegado al final */}
+                {/* Footer pegado al final */}
+                <div className="layout-menu-footer flex align-items-center justify-content-center mt-3">
+                    <img src={SystemConfig.logoPath} alt="Logo" height="20" className="mr-2" />
+                    <span className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>{SystemConfig.footerText.replace('{year}', new Date().getFullYear())}</span>
+                </div>
+            </div>
+        </div>
+    );
+}

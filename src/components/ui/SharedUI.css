@@ -1,0 +1,116 @@
+/* Estilos Globales para Componentes UI Compartidos */
+
+.page-header {
+    background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-primary-dark) 100%);
+    padding: 2rem;
+    color: var(--topbar-text);
+    box-shadow: var(--shadow-md);
+    border-radius: 12px;
+    margin-bottom: 2rem;
+}
+
+.page-header .header-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.page-header .header-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.page-header .header-icon i {
+    font-size: 2rem;
+    color: var(--topbar-text);
+}
+
+.page-header h1 {
+    margin: 0;
+    font-size: 1.75rem;
+    font-weight: 600;
+}
+
+.page-header p {
+    margin: 0.25rem 0 0 0;
+    opacity: 0.9;
+    font-size: 0.95rem;
+}
+
+/* Dialog Header */
+.custom-dialog-header {
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.custom-dialog-header .dialog-title {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.custom-dialog-header .dialog-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    background: var(--theme-primary-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--theme-primary);
+}
+
+.custom-dialog-header .dialog-info h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.custom-dialog-header .dialog-info p {
+    margin: 0.2rem 0 0 0;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+/* Action Toolbar */
+.action-toolbar {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.action-toolbar .p-input-icon-left>i {
+    left: 1rem !important;
+}
+
+.action-toolbar .search-input {
+    padding-left: 2.75rem !important;
+}
+
+
+.btn-primary-custom {
+    background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-primary-dark) 100%) !important;
+    color: var(--topbar-text) !important;
+    border: none !important;
+    padding: 0.75rem 1.5rem !important;
+    font-weight: 500 !important;
+    border-radius: 8px !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+
+.btn-primary-custom:hover {
+    filter: brightness(1.1);
+}

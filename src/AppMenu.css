@@ -1,0 +1,208 @@
+.layout-menu-container {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 5.5rem);
+}
+
+.layout-sidebar {
+    position: fixed;
+    width: 300px;
+    height: calc(100vh - 5.5rem);
+    z-index: 999;
+    overflow-y: auto;
+    user-select: none;
+    top: 5.5rem;
+    left: 0;
+    transition: transform 0.2s, left 0.2s;
+    background-color: var(--bg-card);
+    padding: 1.5rem;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+    border-right: 1px solid var(--border-color);
+}
+
+.layout-menu {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    flex: 1;
+}
+
+.layout-menu li {
+    margin-bottom: 0.25rem;
+}
+
+.layout-menu li.layout-menuitem-category {
+    margin-top: 1.5rem;
+}
+
+.layout-menu li.layout-menuitem-category:first-child {
+    margin-top: 0;
+}
+
+.layout-menu .layout-menuitem-root-text {
+    text-transform: uppercase;
+    color: var(--text-secondary) !important;
+    opacity: 1 !important;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+    margin-top: 2rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    padding-left: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+}
+
+.layout-menu li a {
+    cursor: pointer;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    color: var(--text-primary);
+    transition: all 0.2s ease;
+    border-radius: 8px;
+    padding: 0.875rem 1rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+.layout-menu li a span {
+    margin-left: 0.75rem;
+}
+
+.layout-menu li a .menuitem-toggle-icon {
+    margin-left: auto;
+    font-size: 0.85rem;
+    transition: transform 0.3s ease;
+}
+
+.layout-menu li a i {
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    transition: color 0.2s ease;
+}
+
+.layout-menu li a:hover {
+    background-color: var(--theme-primary-soft);
+    color: var(--theme-primary);
+    transform: translateX(4px);
+}
+
+.layout-menu li a:hover i {
+    color: var(--theme-primary);
+}
+
+.layout-menu li a.router-link-exact-active {
+    background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-primary-dark) 100%);
+    color: #ffffff;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
+}
+
+.layout-menu li a.router-link-exact-active i {
+    color: #ffffff;
+}
+
+.layout-menu li a.router-link-exact-active:hover {
+    background: linear-gradient(135deg, var(--theme-primary-dark) 0%, var(--theme-primary-dark) 100%);
+    transform: translateX(4px);
+}
+
+.layout-menu li.active-menuitem>a .menuitem-toggle-icon:before {
+    content: '\e933';
+}
+
+.layout-menu li ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+.layout-menu li ul.layout-submenu-wrapper-enter {
+    max-height: 0;
+}
+
+.layout-menu li ul.layout-submenu-wrapper-enter-active {
+    overflow: hidden;
+    max-height: 1000px;
+    transition: max-height 1s ease-in-out;
+}
+
+.layout-menu li ul.layout-submenu-wrapper-enter-done {
+    transform: none;
+}
+
+.layout-menu li ul.layout-submenu-wrapper-exit {
+    max-height: 1000px;
+}
+
+.layout-menu li ul.layout-submenu-wrapper-exit-active {
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.45s cubic-bezier(0.86, 0, 0.07, 1);
+}
+
+.layout-menu li ul ul {
+    padding-left: 1rem;
+}
+
+.layout-menu li ul li a {
+    padding-left: 2.5rem;
+    font-size: 0.9rem;
+}
+
+.layout-menu .p-badge {
+    margin-left: auto;
+}
+
+.layout-menu-footer {
+    margin-top: auto;
+    padding: 1.5rem 1rem;
+    width: 100%;
+    border-top: 1px solid var(--border-color);
+    text-align: center;
+}
+
+.menu-footer-text {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+}
+
+/* Scrollbar personalizado */
+.layout-sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.layout-sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.layout-sidebar::-webkit-scrollbar-thumb {
+    background: #e3eaf3;
+    border-radius: 3px;
+}
+
+.layout-sidebar::-webkit-scrollbar-thumb:hover {
+    background: #6c757d;
+}
+
+/* Responsive */
+@media (max-width: 991px) {
+    .layout-sidebar {
+        width: 250px;
+    }
+}
+
+@media (max-width: 768px) {
+    .layout-sidebar {
+        transform: translateX(-100%);
+    }
+
+    .layout-sidebar.active {
+        transform: translateX(0);
+    }
+}

@@ -1,0 +1,175 @@
+/* Permisos.css */
+
+/* --- OrderList Cleanup --- */
+.custom-orderlist .p-orderlist-controls {
+    display: none !important;
+}
+
+.custom-orderlist .p-orderlist-header {
+    display: none !important;
+}
+
+.custom-orderlist .p-orderlist-list {
+    padding: 0.5rem !important;
+    border: none !important;
+    max-height: 60vh !important;
+    background-color: transparent !important;
+}
+
+.custom-orderlist .p-orderlist-item {
+    padding: 0 !important;
+    margin-bottom: 0.75rem !important;
+    background-color: transparent !important;
+    color: inherit !important;
+    border: none !important;
+    border-radius: 8px !important;
+}
+
+.custom-orderlist .p-orderlist-item.p-highlight {
+    background-color: transparent !important;
+    color: inherit !important;
+}
+
+.custom-orderlist .p-orderlist-item:hover {
+    background-color: transparent !important;
+}
+
+/* --- Role Card Styles --- */
+.role-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    /* Ensure content stays inside */
+}
+
+.role-card:hover {
+    border-color: var(--theme-primary);
+    background-color: var(--theme-primary-soft);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.role-card.selected {
+    border-color: var(--theme-primary);
+    background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-primary-dark) 100%);
+    box-shadow: var(--shadow-sm);
+    transform: translateX(5px);
+}
+
+.role-card.selected * {
+    color: #ffffff !important;
+}
+
+.role-card.selected .pi-shield {
+    color: #ffffff !important;
+}
+
+
+.role-icon-container {
+    background: var(--bg-page);
+    color: var(--theme-primary);
+    transition: all 0.2s ease;
+}
+
+.role-card.selected .role-icon-container {
+    background: rgba(255, 255, 255, 0.2) !important;
+    color: #ffffff !important;
+}
+
+.role-card.locked {
+    background: var(--bg-page);
+    border-color: var(--border-color);
+    opacity: 0.8;
+    /* Keep fully visible but distinct */
+}
+
+/* --- Layout fix helpers --- */
+.role-list-container {
+    padding-right: 1rem;
+    height: 100%;
+    overflow-y: auto;
+}
+
+.permissions-container {
+    height: 100%;
+    border-left: 1px solid var(--surface-border);
+    padding-left: 1.5rem;
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 768px) {
+    .role-list-container {
+        padding-right: 0;
+        border-right: none;
+        margin-bottom: 2rem;
+    }
+
+    .permissions-container {
+        border-left: none;
+        padding-left: 0;
+        border-top: 1px solid var(--surface-border);
+        padding-top: 1.5rem;
+    }
+}
+
+/* --- Permission Checkbox Card --- */
+.permission-checkbox-card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    transition: background-color 0.2s;
+}
+
+.permission-checkbox-card:hover {
+    background-color: var(--theme-primary-soft);
+}
+
+.permission-checkbox-card.active {
+    background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-primary-dark) 100%);
+    border-color: var(--theme-primary);
+    box-shadow: var(--shadow-sm);
+}
+
+.permission-checkbox-card.active label {
+    color: #ffffff !important;
+}
+
+.permission-checkbox-card.active .p-checkbox .p-checkbox-box {
+    border-color: #ffffff;
+    background: #ffffff;
+}
+
+.permission-checkbox-card.active .p-checkbox .p-checkbox-box .p-checkbox-icon {
+    color: var(--theme-primary);
+}
+
+
+.permission-checkbox-card.disabled {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+/* --- Action Buttons Pulido --- */
+.btn-new-role {
+    background: var(--theme-primary) !important;
+    border: none !important;
+    color: #ffffff !important;
+}
+
+.btn-new-role .p-button-label,
+.btn-new-role .p-button-icon {
+    color: #ffffff !important;
+}
+
+.role-card .p-button.text-blue-600 {
+    color: var(--theme-primary) !important;
+}
+
+.role-card .p-button.text-gray-700 {
+    color: #dc3545 !important;
+    /* Rojo para eliminar */
+}

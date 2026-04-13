@@ -1,0 +1,137 @@
+/* Global Overrides for PrimeReact Components */
+
+/* Paginator Visibility Fix - Force Dark Gray for better contrast against white backgrounds */
+.p-paginator .p-paginator-pages .p-paginator-page,
+.p-paginator .p-paginator-first,
+.p-paginator .p-paginator-prev,
+.p-paginator .p-paginator-next,
+.p-paginator .p-paginator-last {
+    color: #6c757d !important;
+    font-weight: 600;
+    opacity: 0.8;
+}
+
+.p-paginator .p-paginator-pages .p-paginator-page:hover,
+.p-paginator .p-paginator-first:not(.p-disabled):hover,
+.p-paginator .p-paginator-prev:not(.p-disabled):hover,
+.p-paginator .p-paginator-next:not(.p-disabled):hover,
+.p-paginator .p-paginator-last:not(.p-disabled):hover {
+    background-color: #e9ecef;
+    color: #2c3e50 !important;
+    opacity: 1;
+}
+
+.p-paginator .p-paginator-pages .p-paginator-page.p-highlight {
+    background: var(--theme-primary) !important;
+    color: #ffffff !important;
+    opacity: 1;
+}
+
+/* PrimeFlex Dark Mode Consistency */
+.surface-card {
+    background-color: var(--bg-card) !important;
+    color: var(--text-primary) !important;
+}
+
+.surface-ground {
+    background-color: var(--bg-page) !important;
+}
+
+.text-900 {
+    color: var(--text-primary) !important;
+    opacity: 1 !important;
+}
+
+.text-700 {
+    color: var(--text-primary) !important;
+}
+
+.text-500 {
+    color: var(--text-secondary) !important;
+}
+
+.border-300,
+.border-400 {
+    border-color: var(--border-color) !important;
+}
+
+/* Layout Consistency */
+body {
+    background-color: var(--bg-page);
+    color: var(--text-primary);
+    margin: 0;
+}
+
+/* DataTable Consistency */
+.p-datatable .p-datatable-tbody>tr>td {
+    background-color: var(--bg-card) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+}
+
+.p-paginator {
+    background-color: var(--bg-page) !important;
+    border-color: var(--border-color) !important;
+}
+
+/* Global Input Consistency for Dynamic Themes */
+.p-inputtext,
+.p-dropdown,
+.p-password .p-inputtext,
+.p-multiselect,
+.p-calendar .p-inputtext,
+.p-inputnumber .p-inputtext {
+    background: var(--bg-card) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+}
+
+.p-inputtext:enabled:focus,
+.p-dropdown.p-focus,
+.p-multiselect.p-focus {
+    border-color: var(--accent-color) !important;
+    box-shadow: 0 0 0 0.1rem var(--accent-color) !important;
+}
+
+.p-inputtext::placeholder {
+    color: var(--text-secondary) !important;
+    opacity: 0.7;
+}
+
+.p-dropdown .p-dropdown-label.p-placeholder {
+    color: var(--text-secondary) !important;
+}
+
+.p-dropdown-panel,
+.p-multiselect-panel,
+.p-autocomplete-panel {
+    background: var(--bg-card) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+}
+
+.p-dropdown-items .p-dropdown-item,
+.p-multiselect-items .p-multiselect-item {
+    color: var(--text-primary) !important;
+}
+
+.p-dropdown-items .p-dropdown-item:hover,
+.p-multiselect-items .p-multiselect-item:hover {
+    background: var(--theme-primary-soft) !important;
+}
+
+.p-dropdown-items .p-dropdown-item.p-highlight,
+.p-multiselect-items .p-multiselect-item.p-highlight {
+    background: var(--accent-color) !important;
+    color: var(--text-on-primary) !important;
+}
+
+/* Password eye icon consistency */
+.p-password-icon {
+    color: var(--text-secondary) !important;
+}
+
+/* Ensure labels in all forms follow the theme */
+label {
+    color: var(--text-primary) !important;
+}

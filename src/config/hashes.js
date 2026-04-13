@@ -1,0 +1,3 @@
+export const TRUSTED_HASHES = {
+  APP_FOOTER: '4072620a53c8b52bc73bed2d77159e9a1ed36128babc8442aeae9beb4c041c9f',
+};
