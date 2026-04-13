@@ -26,13 +26,13 @@ export const SystemConfig = {
     // ============================================
     // CONFIGURACIÓN DEL NAVEGADOR
     // ============================================
-    browserTitle: "Sistema Gestión",
+    browserTitle: "Sistema Gestión de Clientes",
 
     // ============================================
     // INFORMACIÓN DEL SISTEMA
     // ============================================
-    appName: "Sistema Base",
-    appDescription: "Sistema de Gestión de Usuarios",
+    appName: "Sistema de Gestion de Clientes",
+    appDescription: "Sistema de Gestión de Clientes",
 
     // ============================================
     // RECURSOS (logos, imágenes)
@@ -42,7 +42,7 @@ export const SystemConfig = {
     // ============================================
     // FOOTER
     // ============================================
-    footerText: "Sistema Base - © {year}",
+    footerText: "Sistema de Gestión de Clientes - © {year}",
 
     // ============================================
     // TEMA ACTUAL (objeto completo)

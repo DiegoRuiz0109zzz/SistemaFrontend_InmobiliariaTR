@@ -4,6 +4,7 @@ import { environment } from './baseUrl';
 
 const api = axios.create({
     baseURL: environment.baseUrl,
+    withCredentials: true 
 });
 
 api.interceptors.request.use(
