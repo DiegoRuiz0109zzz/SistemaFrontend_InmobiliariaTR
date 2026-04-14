@@ -18,11 +18,16 @@ import './GlobalOverrides.css';
 import Menu from './pages/Menu';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import Usuario from './pages/Usuario';
-import Permisos from './pages/Permisos';
+import Usuario from './pages/configuracion/Usuario';
+import Permisos from './pages/configuracion/Permisos';
 import Perfil from './pages/Perfil';
 import Dashboard from './pages/Dashboard';
 import Temas from './pages/Temas';
+import Empresas from './pages/Empresas';
+import Clientes from './pages/mantenimiento/Clientes';
+import Interesados from './pages/mantenimiento/Interesados';
+import Vendedores from './pages/mantenimiento/Vendedores';
+import Lotes from './pages/mantenimiento/Lotes';
 
 function App() {
   return (
@@ -36,6 +41,11 @@ function App() {
               <Route exact path="/perfil" element={<Perfil />} />
               <Route exact path="/dashboard" element={<Dashboard />} />
               <Route exact path="/temas" element={<Temas />} />
+              <Route exact path="/empresas" element={<Empresas />} />
+              <Route exact path="/clientes" element={<Clientes />} />
+              <Route exact path="/interesados" element={<Interesados />} />
+              <Route exact path="/vendedores" element={<Vendedores />} />
+              <Route exact path="/lotes" element={<Lotes />} />
             </Route>
             <Route exact path="/login" element={<Login />} />
             <Route exact path="/register" element={<Register />} />

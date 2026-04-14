@@ -18,7 +18,7 @@ const Menu = () => {
 
     const perfilBase = [
         {
-            label: 'Home',
+            label: 'Inicio',
             items: [
                 { label: 'Dashboard', icon: 'pi pi-fw pi-home', to: 'dashboard' },
                 { label: 'Mi Perfil', icon: 'pi pi-fw pi-user', to: 'perfil' }
@@ -27,33 +27,65 @@ const Menu = () => {
     ];
 
     function Acceder() {
-        const perms = user?.permissions || [];
-        //console.log('Menu - User:', user);
-        //console.log('Menu - Perms:', perms);
-        const menu = [...perfilBase];
+        const role = user?.role;
+        const isSuperAdmin = role === 'SUPER_ADMINISTRADOR';
+        const configRoles = ['SUPER_ADMINISTRADOR', 'GERENTE_GENERAL', 'JEFE_ADMINISTRACION'];
+        const maintenanceRoles = [
+            'SUPER_ADMINISTRADOR',
+            'GERENTE_GENERAL',
+            'JEFE_ADMINISTRACION',
+            'ASISTENTE_ADMINISTRATIVO',
+            'JEFE_VENTAS',
+            'ADMINISTRADORA',
+            'CONTADORA',
+            'ABOGADA'
+        ];
+        const canSeeEmpresas = configRoles.includes(role);
+
+        // Sección Inicio (siempre presente)
+        const inicioItems = [...perfilBase[0].items];
+        if (canSeeEmpresas) {
+            inicioItems.push({ label: 'Empresas', icon: 'pi pi-fw pi-building', to: 'empresas' });
+        }
+
+        const menu = [
+            { ...perfilBase[0], items: inicioItems }
+        ];
 
         const usuariosItems = [];
-        if (perms.includes('GESTION_USUARIOS')) {
+        if (configRoles.includes(role)) {
             usuariosItems.push({ label: 'Gestión de Usuarios', icon: 'pi pi-fw pi-users', to: 'usuario' });
-        }
-        if (perms.includes('GESTION_ROLES')) {
             usuariosItems.push({ label: 'Gestión de Permisos', icon: 'pi pi-fw pi-lock', to: 'permisos' });
         }
 
-        if (usuariosItems.length > 0) {
+        const mantenimientoItems = [];
+
+        if (maintenanceRoles.includes(role)) {
+            mantenimientoItems.push({ label: 'Clientes', icon: 'pi pi-fw pi-users', to: 'clientes' });
+            mantenimientoItems.push({ label: 'Interesados', icon: 'pi pi-fw pi-user-plus', to: 'interesados' });
+            mantenimientoItems.push({ label: 'Vendedores', icon: 'pi pi-fw pi-id-card', to: 'vendedores' });
+            mantenimientoItems.push({ label: 'Lotes / Terrenos', icon: 'pi pi-fw pi-map', to: 'lotes' });
+        }
+
+        if (mantenimientoItems.length > 0) {
             menu.push({
-                label: 'Usuarios del Sistema',
-                items: usuariosItems
+                label: 'Mantenimiento',
+                items: mantenimientoItems
             });
         }
 
-        // Opción de Temas solo para SUPER_ADMINISTRADOR
-        if (user?.role === 'SUPER_ADMINISTRADOR') {
+        const configuracionItems = [];
+
+        if (isSuperAdmin) {
+            configuracionItems.push({ label: 'Temas', icon: 'pi pi-fw pi-palette', to: 'temas' });
+        }
+
+        usuariosItems.forEach((item) => configuracionItems.push(item));
+
+        if (configRoles.includes(role) && configuracionItems.length > 0) {
             menu.push({
                 label: 'Configuración',
-                items: [
-                    { label: 'Temas', icon: 'pi pi-fw pi-palette', to: 'temas' }
-                ]
+                items: configuracionItems
             });
         }
 
