@@ -1,0 +1,121 @@
+.empresa-page .main-content {
+  padding-top: 1.5rem;
+}
+
+.empresa-page .empresa-tabview {
+  margin-top: 1.5rem;
+}
+
+.empresa-page .empresa-tabview .p-tabview-nav {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.empresa-page .empresa-tabview .p-tabview-nav-link {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  font-weight: 500;
+  padding: 0.75rem 1.5rem;
+}
+
+.empresa-page .empresa-tabview .p-tabview-nav li.p-highlight .p-tabview-nav-link {
+  color: var(--theme-primary);
+  border-bottom-color: var(--theme-primary);
+  background: transparent;
+}
+
+.empresa-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.empresa-card-left,
+.empresa-card-right,
+.empresa-config-card {
+  padding: 1.75rem;
+}
+
+.empresa-section-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 0 0 1.5rem 0;
+  color: var(--text-primary);
+}
+
+.empresa-label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.35rem;
+}
+
+.empresa-hint {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.empresa-logo-header {
+  background: var(--theme-primary-soft);
+  padding: 1rem 1.25rem;
+  border-radius: 12px 12px 0 0;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.empresa-logo-body {
+  padding: 2rem 1.5rem 1.75rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.empresa-logo-circle {
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: var(--bg-page);
+  border: 2px dashed var(--border-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  gap: 0.5rem;
+}
+
+.empresa-logo-circle i {
+  font-size: 2.5rem;
+  color: var(--theme-primary);
+}
+
+.empresa-logo-circle span {
+  font-size: 0.9rem;
+}
+
+.empresa-config-card {
+  margin-top: 1.5rem;
+}
+
+.empresa-config-text {
+  margin-top: 0.75rem;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+@media (max-width: 960px) {
+  .empresa-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .empresa-logo-circle {
+    width: 180px;
+    height: 180px;
+  }
+}

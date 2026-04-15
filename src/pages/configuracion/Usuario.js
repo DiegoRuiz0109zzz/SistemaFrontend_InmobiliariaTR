@@ -3,7 +3,7 @@ import axios from 'axios';
 import classNames from 'classnames';
 
 // Nuevo metodo de llamada a Backend
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
@@ -14,11 +14,11 @@ import { Dialog } from 'primereact/dialog';
 import { Dropdown } from 'primereact/dropdown';
 import { confirmDialog, ConfirmDialog } from 'primereact/confirmdialog';
 
-import { UsuarioEntity } from '../entity/UsuarioEntity';
-import PageHeader from '../components/ui/PageHeader';
-import DialogHeader from '../components/ui/DialogHeader';
-import ActionToolbar from '../components/ui/ActionToolbar';
-import './Usuario.css';
+import { UsuarioEntity } from '../../entity/UsuarioEntity';
+import PageHeader from '../../components/ui/PageHeader';
+import DialogHeader from '../../components/ui/DialogHeader';
+import ActionToolbar from '../../components/ui/ActionToolbar';
+import '../Usuario.css';
 
 export const Usuario = () => {
 

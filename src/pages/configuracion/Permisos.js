@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { OrderList } from 'primereact/orderlist';
 import { Checkbox } from 'primereact/checkbox';
 import { Toast } from 'primereact/toast';
@@ -7,10 +7,10 @@ import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
-import PageHeader from '../components/ui/PageHeader';
-import DialogHeader from '../components/ui/DialogHeader';
-import './Usuario.css';
-import './Permisos.css';
+import PageHeader from '../../components/ui/PageHeader';
+import DialogHeader from '../../components/ui/DialogHeader';
+import '../Usuario.css';
+import '../Permisos.css';
 
 const Permisos = () => {
     const { axiosInstance } = useAuth();
