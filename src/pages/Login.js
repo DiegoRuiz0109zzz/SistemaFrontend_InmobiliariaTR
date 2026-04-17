@@ -186,7 +186,7 @@ function Login() {
             <div className="login-content">
                 <div className="login-header">
                     <img src={SystemConfig.logoPath} alt="Logo" className="login-brand-logo" />
-                    <h1 className="login-title" style={{ marginBottom: '0rem', marginTop: '0' }}>
+                    <h1 className="login-title" style={{ marginBottom: '0rem', marginTop: '3rem' }}>
                         {SystemConfig.appName}
                     </h1>
                     {/* <p className="login-subtitle">{SystemConfig.appDescription}</p> */}

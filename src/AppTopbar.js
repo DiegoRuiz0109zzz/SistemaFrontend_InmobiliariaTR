@@ -69,7 +69,7 @@ export const AppTopbar = (props) => {
                     onClick={props.onToggleMenuClick}
                 />
                 <div className="logo-container">
-                    <img src={SystemConfig.logoPath} alt="Logo" height="40" />
+                    <img src={SystemConfig.logoPath} alt="Logo" className="topbar-brand-logo" />
                 </div>
                 <span className="logo-text" style={{ color: 'var(--topbar-text)' }}>{SystemConfig.appName}</span>
             </div>
