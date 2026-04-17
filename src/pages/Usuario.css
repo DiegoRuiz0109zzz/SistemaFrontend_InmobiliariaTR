@@ -341,3 +341,114 @@
     color: var(--text-secondary) !important;
     border-color: var(--border-color) !important;
 }
+
+/* Shared dialog styling (used in Usuarios/Clientes) */
+.custom-profile-dialog {
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+}
+
+.custom-profile-dialog .p-dialog-header {
+    background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-primary-dark) 100%);
+    color: #ffffff;
+    border-radius: 0;
+    padding: 1.5rem 2rem;
+    border: none;
+}
+
+.custom-profile-dialog .p-dialog-header .p-dialog-title {
+    font-weight: 600;
+    font-size: 1.25rem;
+    color: #ffffff;
+}
+
+.custom-profile-dialog .p-dialog-header .p-dialog-header-icon {
+    color: rgba(255, 255, 255, 0.8);
+    width: 2.5rem;
+    height: 2.5rem;
+    transition: all 0.2s ease;
+}
+
+.custom-profile-dialog .p-dialog-header .p-dialog-header-icon:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+}
+
+.custom-profile-dialog .p-dialog-content {
+    padding: 2rem 2rem 1rem 2rem;
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+
+.custom-profile-dialog .p-dialog-footer {
+    padding: 1.5rem 2rem;
+    background: var(--bg-page);
+    border-radius: 0;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+}
+
+.custom-profile-dialog .field {
+    margin-bottom: 1.5rem;
+}
+
+.custom-profile-dialog label {
+    color: var(--text-primary);
+    font-weight: 600;
+    margin-bottom: 0.6rem;
+    display: block;
+    font-size: 0.9rem;
+}
+
+.custom-profile-dialog .p-inputtext {
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    border: 1px solid #d1dce6;
+    transition: all 0.3s ease;
+    font-size: 0.95rem;
+    width: 100%;
+}
+
+.custom-profile-dialog .p-inputtext:enabled:focus {
+    border-color: var(--theme-primary);
+    box-shadow: 0 0 0 0.2rem var(--theme-primary-soft);
+    outline: none;
+}
+
+.custom-profile-dialog .p-button {
+    border-radius: 8px;
+    padding: 0.75rem 1.5rem;
+    font-weight: 500;
+    font-size: 0.95rem;
+    transition: all 0.3s ease;
+    min-width: 110px;
+}
+
+.custom-profile-dialog .p-button:not(.p-button-text):not(.p-button-secondary) {
+    background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-primary-dark) 100%);
+    border: none;
+    color: #ffffff;
+    box-shadow: var(--shadow-sm);
+}
+
+.custom-profile-dialog .p-button:not(.p-button-text):not(.p-button-secondary):hover {
+    background: linear-gradient(135deg, #357ABD 0%, #2868A8 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(74, 144, 226, 0.3);
+}
+
+.custom-profile-dialog .p-button.p-button-text.p-button-secondary {
+    color: var(--text-secondary) !important;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color) !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.custom-profile-dialog .p-button.p-button-text.p-button-secondary:hover {
+    background: var(--theme-primary-soft);
+    border-color: var(--theme-primary) !important;
+    color: var(--theme-primary) !important;
+}
