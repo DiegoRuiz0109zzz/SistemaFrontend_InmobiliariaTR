@@ -1,6 +1,6 @@
 .usuario-page {
     padding: 0;
-    background: var(--bg-page);
+    background: transparent;
     min-height: calc(100vh - 5.5rem);
 }
 
