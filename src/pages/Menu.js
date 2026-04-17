@@ -101,15 +101,6 @@ const Menu = () => {
     // const isValid = useValidator(footerRef);
     const menu = Acceder();
 
-    const stylespj = {
-        body: {
-            height: '100%',
-            width: '100%',
-            backgroundColor: 'var(--bg-page)',
-            backgroundImage: 'none',
-        }
-    }
-
     const [layoutMode] = useState('static');
     const [layoutColorMode] = useState('light');
     const [inputStyle] = useState('outlined');
@@ -208,7 +199,7 @@ const Menu = () => {
     });
 
     return (
-        <div className={wrapperClass} onClick={onWrapperClick} style={stylespj.body} >
+        <div className={wrapperClass} onClick={onWrapperClick} >
             <Toast ref={toast} />
             <Tooltip target=".block-action-copy" position="bottom" content="Copied to clipboard" event="focus" />
             <AppTopbar onToggleMenuClick={onToggleMenuClick} layoutColorMode={layoutColorMode}
