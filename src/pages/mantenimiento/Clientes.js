@@ -15,6 +15,7 @@ import { ClienteEntity } from '../../entity/ClienteEntity';
 import { ClienteService } from '../../service/ClienteService';
 import { UbigeoService } from '../../service/UbigeoService';
 import '../Usuario.css';
+import './Clientes.css';
 
 const Clientes = () => {
     const { axiosInstance } = useAuth();
@@ -270,7 +271,7 @@ const Clientes = () => {
     );
 
     return (
-        <div className="usuario-page">
+        <div className="usuario-page clientes-page">
             <div className="container">
                 <PageHeader
                     title="Clientes"
