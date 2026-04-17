@@ -185,7 +185,7 @@ function Login() {
             <Toast ref={toast} />
             <div className="login-content">
                 <div className="login-header">
-                    <img src={SystemConfig.logoPath} alt="Logo" style={{ height: '250px', marginBottom: '0' }} />
+                    <img src={SystemConfig.logoPath} alt="Logo" className="login-brand-logo" />
                     <h1 className="login-title" style={{ marginBottom: '0rem', marginTop: '0' }}>
                         {SystemConfig.appName}
                     </h1>

@@ -1,5 +1,10 @@
 /* Global Overrides for PrimeReact Components */
 
+:root {
+    --app-background-image: url('./assets/images/backgrounds/fondo-logo.png');
+    --app-corner-logo: url('./assets/images/backgrounds/logo-corner.png');
+}
+
 /* Paginator Visibility Fix - Force Dark Gray for better contrast against white backgrounds */
 .p-paginator .p-paginator-pages .p-paginator-page,
 .p-paginator .p-paginator-first,
@@ -34,7 +39,7 @@
 }
 
 .surface-ground {
-    background-color: var(--bg-page) !important;
+    background-color: transparent !important;
 }
 
 .text-900 {
@@ -58,9 +63,45 @@
 /* Layout Consistency */
 body {
     background-color: var(--bg-page);
+    background-image: linear-gradient(rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.12)), var(--app-background-image);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
     color: var(--text-primary);
     margin: 0;
 }
+
+.layout-wrapper {
+    position: relative;
+    background-image: linear-gradient(rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.42)), var(--app-corner-logo), var(--app-background-image);
+    background-size: auto, clamp(150px, 13vw, 250px), cover;
+    background-position: center center, right 1.8rem bottom -4.5rem, center center;
+    background-repeat: no-repeat, no-repeat, no-repeat;
+    background-attachment: fixed;
+    min-height: 100vh;
+}
+
+.layout-main-container {
+    background: transparent;
+}
+
+.layout-main-container .container {
+    background: transparent;
+}
+
+@media (max-width: 991px) {
+    body {
+        background-attachment: scroll;
+    }
+
+    .layout-wrapper {
+        background-attachment: scroll;
+        background-size: auto, clamp(120px, 24vw, 180px), cover;
+        background-position: center center, right 1rem bottom -0.45rem, center center;
+    }
+}
+
 
 /* DataTable Consistency */
 .p-datatable .p-datatable-tbody>tr>td {
