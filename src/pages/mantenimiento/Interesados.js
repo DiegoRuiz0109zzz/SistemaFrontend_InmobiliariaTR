@@ -225,8 +225,8 @@ const Interesados = () => {
                     footer={dialogFooter}
                     onHide={hideDialog}
                 >
-                    <div className="formgrid grid mt-4 dialog-content-specific">
-                        <div className="field col-12 md:col-6">
+                    <div className="formgrid grid dialog-content-specific">
+                        <div className="field col-12 md:col-6 ">
                             <label htmlFor="nombres">Nombres</label>
                             <InputText
                                 id="nombres"

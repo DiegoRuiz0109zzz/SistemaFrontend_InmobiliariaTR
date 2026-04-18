@@ -363,6 +363,20 @@
     color: #ffffff;
 }
 
+.custom-profile-dialog .custom-dialog-header .dialog-info h3 {
+    color: #ffffff;
+}
+
+.custom-profile-dialog .custom-dialog-header .dialog-info p {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.custom-profile-dialog .custom-dialog-header .dialog-icon {
+    background: rgba(255, 255, 255, 0.18);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
 .custom-profile-dialog .p-dialog-header .p-dialog-header-icon {
     color: rgba(255, 255, 255, 0.8);
     width: 2.5rem;
@@ -410,6 +424,12 @@
     transition: all 0.3s ease;
     font-size: 0.95rem;
     width: 100%;
+}
+
+.custom-profile-dialog .p-dropdown .p-dropdown-label.p-inputtext {
+    border: none;
+    box-shadow: none;
+    background: transparent;
 }
 
 .custom-profile-dialog .p-inputtext:enabled:focus {
