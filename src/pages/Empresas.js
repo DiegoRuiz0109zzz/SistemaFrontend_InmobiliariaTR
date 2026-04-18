@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { InputText } from 'primereact/inputtext';
 import { Dropdown } from 'primereact/dropdown';
 import { Button } from 'primereact/button';
@@ -26,13 +26,6 @@ const Empresas = () => {
 
     const isFormDisabled = !!empresa.id && !isEditing;
 
-    const empresaOptions = useMemo(
-        () => empresas.map((item) => ({
-            label: `${item.ruc || 'Sin RUC'} - ${item.razonSocial || 'Sin razon social'}`,
-            value: item.id
-        })),
-        [empresas]
-    );
 
     const normalizarTexto = (value) => (value || '').trim();
 
@@ -154,21 +147,6 @@ const Empresas = () => {
         fetchInitialData();
     }, [cargarDepartamentos, axiosInstance, hidratarUbigeo]);
 
-    const seleccionarEmpresa = async (id) => {
-        if (!id) {
-            limpiarFormulario();
-            return;
-        }
-
-        try {
-            const data = await EmpresaService.obtenerPorId(id, axiosInstance);
-            setEmpresa({ ...EmpresaEntity, ...data });
-            await hidratarUbigeo(data);
-        } catch (error) {
-            console.error(error);
-            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar la empresa seleccionada.', life: 3500 });
-        }
-    };
 
     const onDepartamentoChange = async (value) => {
         setEmpresa((prev) => ({

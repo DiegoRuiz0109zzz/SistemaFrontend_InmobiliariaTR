@@ -35,7 +35,7 @@ const Clientes = () => {
     const toast = useRef(null);
     const dt = useRef(null);
 
-    const cargarClientes = async () => {
+    const cargarClientes = useCallback(async () => {
         try {
             const response = await ClienteService.listar(axiosInstance);
             setClientes(response || []);
@@ -43,7 +43,7 @@ const Clientes = () => {
             console.error(error);
             toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar los clientes.', life: 3500 });
         }
-    };
+    }, [axiosInstance]);
 
     const mapTextOptions = (items) => items.map((item) => ({ label: item, value: item }));
 
@@ -115,7 +115,7 @@ const Clientes = () => {
 
     useEffect(() => {
         cargarClientes();
-    }, [axiosInstance]);
+    }, [cargarClientes]);
 
     const openNew = () => {
         setCliente(emptyCliente);

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Toast } from 'primereact/toast';
@@ -30,7 +30,7 @@ const Interesados = () => {
     const toast = useRef(null);
     const dt = useRef(null);
 
-    const cargarInteresados = async () => {
+    const cargarInteresados = useCallback(async () => {
         try {
             const response = await InteresadoService.listar(axiosInstance);
             setInteresados(response || []);
@@ -38,11 +38,11 @@ const Interesados = () => {
             console.error(error);
             toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar los interesados.', life: 3500 });
         }
-    };
+    }, [axiosInstance]);
 
     useEffect(() => {
         cargarInteresados();
-    }, [axiosInstance]);
+    }, [cargarInteresados]);
 
     const openNew = () => {
         setInteresado(emptyInteresado);

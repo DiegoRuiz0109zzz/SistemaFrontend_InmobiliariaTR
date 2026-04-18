@@ -1,0 +1,133 @@
+.lotizacion-page .main-content {
+  padding-top: 1rem;
+}
+
+.lotizacion-page .lotizacion-entity-tabs {
+  margin-top: 0.5rem;
+}
+
+.lotizacion-page .content-card {
+  background: var(--bg-card);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-color);
+}
+
+.lotizacion-page .lotizacion-form-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 1.5rem;
+}
+
+.lotizacion-page .lotizacion-form-layout--stack {
+  grid-template-columns: 1fr;
+}
+
+.lotizacion-page .lotizacion-form-card {
+  padding: 1.5rem;
+}
+
+.lotizacion-page .lotizacion-form-card--grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.1rem 1.5rem;
+}
+
+.lotizacion-page .lotizacion-form-card--grid .field {
+  margin-bottom: 0;
+}
+
+.lotizacion-page .lotizacion-form-card--grid .lotizacion-actions {
+  grid-column: 1 / -1;
+  margin-top: 0.25rem;
+}
+
+.lotizacion-page .lotizacion-form-card .field {
+  margin-bottom: 1.1rem;
+}
+
+.lotizacion-page .lotizacion-form-card label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.45rem;
+  color: var(--text-primary);
+}
+
+.lotizacion-page .lotizacion-form-card .p-inputtext,
+.lotizacion-page .lotizacion-form-card .p-dropdown {
+  width: 100%;
+  border-radius: 8px;
+  height: 40px;
+}
+
+.lotizacion-page .lotizacion-form-card .p-dropdown {
+  overflow: hidden;
+  background: var(--bg-card);
+}
+
+.lotizacion-page .lotizacion-form-card .p-dropdown .p-dropdown-label {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 0.75rem;
+  background: transparent;
+}
+
+.lotizacion-page .lotizacion-form-card .p-dropdown .p-dropdown-trigger {
+  width: 2.5rem;
+  background: transparent;
+}
+
+.lotizacion-page .lotizacion-list-card {
+  padding: 0.5rem 0 0 0;
+}
+
+.lotizacion-page .lotizacion-list-card .p-datatable {
+  padding: 0.25rem 1rem 1rem 1rem;
+}
+
+.lotizacion-page .lotizacion-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+
+.lotizacion-page .lotizacion-actions .p-button {
+  border-radius: 8px;
+  padding: 0.65rem 1.4rem;
+  font-weight: 500;
+}
+
+.lotizacion-page .lotizacion-actions .p-button:not(.p-button-outlined) {
+  background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-primary-dark) 100%);
+  border: none;
+  color: #ffffff;
+  box-shadow: var(--shadow-sm);
+}
+
+.lotizacion-page .lotizacion-actions .p-button:not(.p-button-outlined):hover {
+  filter: brightness(1.06);
+}
+
+.lotizacion-page .lotizacion-actions .p-button-outlined {
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.lotizacion-page .lotizacion-actions .p-button-outlined:hover {
+  background: var(--theme-primary-soft);
+  color: var(--theme-primary);
+  border-color: var(--theme-primary);
+}
+
+@media (max-width: 960px) {
+  .lotizacion-page .lotizacion-form-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .lotizacion-page .lotizacion-form-card--grid {
+    grid-template-columns: 1fr;
+  }
+}
