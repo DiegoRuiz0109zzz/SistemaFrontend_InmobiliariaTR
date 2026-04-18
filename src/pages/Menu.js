@@ -52,6 +52,22 @@ const Menu = () => {
             { ...perfilBase[0], items: inicioItems }
         ];
 
+        const operacionesItems = [
+            {
+                label: 'Contrato',
+                icon: 'pi pi-fw pi-file',
+                items: [
+                    { label: 'Nuevo Contrato', icon: 'pi pi-fw pi-file-edit', to: 'contrato/nuevo' },
+                    { label: 'Lista de Contratos', icon: 'pi pi-fw pi-list', to: 'contrato/lista' }
+                ]
+            }
+        ];
+
+        menu.push({
+            label: 'Operaciones',
+            items: operacionesItems
+        });
+
         const usuariosItems = [];
         if (configRoles.includes(role)) {
             usuariosItems.push({ label: 'Gestión de Usuarios', icon: 'pi pi-fw pi-users', to: 'usuario' });

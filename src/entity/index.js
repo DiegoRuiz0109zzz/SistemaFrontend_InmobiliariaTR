@@ -8,3 +8,6 @@ export { EtapaEntity } from './EtapaEntity';
 export { ManzanaEntity } from './ManzanaEntity';
 export { LoteEntity } from './LoteEntity';
 export { EstadoLote, EstadoLoteOptions } from './EstadoLote';
+export { ContratoEntity } from './ContratoEntity';
+export { CuotaEntity } from './CuotaEntity';
+export { EstadoCuota, EstadoCuotaOptions } from './EstadoCuota';
