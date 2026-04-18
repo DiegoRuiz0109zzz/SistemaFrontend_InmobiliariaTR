@@ -52,6 +52,22 @@ const Menu = () => {
             { ...perfilBase[0], items: inicioItems }
         ];
 
+        const operacionesItems = [
+            {
+                label: 'Contrato',
+                icon: 'pi pi-fw pi-file',
+                items: [
+                    { label: 'Nuevo Contrato', icon: 'pi pi-fw pi-file-edit', to: 'contrato/nuevo' },
+                    { label: 'Lista de Contratos', icon: 'pi pi-fw pi-list', to: 'contrato/lista' }
+                ]
+            }
+        ];
+
+        menu.push({
+            label: 'Operaciones',
+            items: operacionesItems
+        });
+
         const usuariosItems = [];
         if (configRoles.includes(role)) {
             usuariosItems.push({ label: 'Gestión de Usuarios', icon: 'pi pi-fw pi-users', to: 'usuario' });
@@ -64,7 +80,7 @@ const Menu = () => {
             mantenimientoItems.push({ label: 'Clientes', icon: 'pi pi-fw pi-users', to: 'clientes' });
             mantenimientoItems.push({ label: 'Interesados', icon: 'pi pi-fw pi-user-plus', to: 'interesados' });
             mantenimientoItems.push({ label: 'Vendedores', icon: 'pi pi-fw pi-id-card', to: 'vendedores' });
-            mantenimientoItems.push({ label: 'Lotes / Terrenos', icon: 'pi pi-fw pi-map', to: 'lotes' });
+            mantenimientoItems.push({ label: 'Lotizacion', icon: 'pi pi-fw pi-sitemap', to: 'lotizacion' });
         }
 
         if (mantenimientoItems.length > 0) {

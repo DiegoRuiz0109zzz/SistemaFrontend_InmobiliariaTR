@@ -362,6 +362,8 @@ export const Usuario = () => {
         );
     }
 
+    const indexBodyTemplate = (_, options) => (options.rowIndex ?? 0) + 1;
+
     const deleteUser = (rowData) => {
         confirmDialog({
             message: `¿Está seguro de eliminar al usuario "${rowData.nombres} ${rowData.apellidos}"?`,
@@ -463,6 +465,7 @@ export const Usuario = () => {
                             currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords} usuarios"
                             emptyMessage="No se encontraron usuarios."
                         >
+                            <Column header="N°" body={indexBodyTemplate} style={{ width: '80px', textAlign: 'center' }}></Column>
                             <Column field="id" header="Documento" body={idBody} style={{ minWidth: '120px' }}></Column>
                             <Column field="nombre" header="Nombre Completo" body={nombreBody} style={{ minWidth: '220px' }}></Column>
                             <Column field="username" header="Usuario" body={usernameBody} style={{ minWidth: '150px' }}></Column>

@@ -1,0 +1,211 @@
+.contrato-page .main-content {
+  padding-top: 1rem;
+}
+
+.contrato-page .contrato-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: 1.5rem;
+}
+
+.contrato-page .contrato-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.contrato-page .content-card {
+  background: var(--bg-card);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-color);
+}
+
+.contrato-page .contrato-card {
+  padding: 1.5rem 1.75rem;
+}
+
+.contrato-page .card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-bottom: 1.25rem;
+}
+
+.contrato-page .card-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.contrato-page .card-header p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.contrato-page .contrato-form .p-inputtext,
+.contrato-page .contrato-form .p-dropdown,
+.contrato-page .contrato-form .p-calendar,
+.contrato-page .contrato-form .p-inputnumber {
+  width: 100%;
+}
+
+.contrato-page .contrato-form .p-inputtext,
+.contrato-page .contrato-form .p-dropdown,
+.contrato-page .contrato-form .p-inputnumber-input,
+.contrato-page .contrato-form .p-calendar .p-inputtext {
+  height: 40px;
+  border-radius: 8px;
+}
+
+.contrato-page .contrato-form label {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.4rem;
+  display: block;
+  font-size: 0.9rem;
+}
+
+.contrato-page .contrato-table {
+  padding: 0.25rem 0.25rem 0.5rem 0.25rem;
+}
+
+.contrato-page .contrato-table .p-datatable {
+  padding: 0.25rem 0.5rem 0.75rem 0.5rem;
+}
+
+.contrato-page .lote-detail {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.contrato-page .lote-detail .detail-label {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.contrato-page .cliente-hint {
+  display: inline-block;
+  margin-top: 0.35rem;
+  color: var(--theme-primary);
+  font-weight: 600;
+}
+
+.contrato-page .contrato-simular {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.contrato-page .contrato-simular .p-button {
+  width: fit-content;
+}
+
+.contrato-page .helper-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.contrato-page .contrato-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.contrato-page .contrato-actions .p-button {
+  border-radius: 8px;
+  padding: 0.65rem 1.4rem;
+}
+
+.contrato-page .contrato-actions .p-button:not(.p-button-outlined) {
+  background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-primary-dark) 100%);
+  border: none;
+  color: #ffffff;
+  box-shadow: var(--shadow-sm);
+}
+
+.contrato-page .contrato-actions .p-button:not(.p-button-outlined):hover {
+  filter: brightness(1.06);
+}
+
+.contrato-page .contrato-summary .summary-card {
+  background: #ffffff;
+}
+
+.contrato-page .summary-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.contrato-page .summary-section:last-child {
+  border-bottom: none;
+}
+
+.contrato-page .summary-label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.contrato-page .summary-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.contrato-page .summary-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.contrato-page .summary-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.contrato-page .summary-list i {
+  color: var(--theme-primary);
+}
+
+.contrato-page .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1rem;
+  border: 1px dashed var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-page);
+  color: var(--text-secondary);
+  gap: 0.75rem;
+}
+
+.contrato-page .empty-state i {
+  font-size: 2rem;
+  color: var(--theme-primary);
+}
+
+@media (max-width: 1024px) {
+  .contrato-page .contrato-grid {
+    grid-template-columns: 1fr;
+  }
+}

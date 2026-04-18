@@ -1,0 +1,36 @@
+.clientes-page .content-card {
+  padding: 0.5rem 0 0 0;
+}
+
+.clientes-page .p-datatable {
+  padding: 0.25rem 1.25rem 1.25rem 1.25rem;
+}
+
+.clientes-page .p-datatable .p-datatable-thead > tr > th,
+.clientes-page .p-datatable .p-datatable-tbody > tr > td {
+  padding-top: 0.65rem;
+  padding-bottom: 0.65rem;
+}
+
+.clientes-page .custom-profile-dialog .p-dialog-content {
+  padding: 1.5rem 1.75rem 0.75rem 1.75rem;
+}
+
+.clientes-page .custom-profile-dialog .field {
+  margin-bottom: 1rem;
+}
+
+.clientes-page .custom-profile-dialog .p-inputtext,
+.clientes-page .custom-profile-dialog .p-dropdown,
+.clientes-page .custom-profile-dialog .p-inputgroup > .p-inputtext {
+  height: 40px;
+}
+
+.clientes-page .custom-profile-dialog .p-inputgroup > .p-button {
+  height: 40px;
+  width: 44px;
+}
+
+.clientes-page .custom-profile-dialog .p-dialog-footer {
+  padding: 1rem 1.75rem;
+}

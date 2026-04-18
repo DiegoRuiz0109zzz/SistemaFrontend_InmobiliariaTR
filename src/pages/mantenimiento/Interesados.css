@@ -1,0 +1,30 @@
+.interesados-page .content-card {
+  padding: 0.5rem 0 0 0;
+}
+
+.interesados-page .p-datatable {
+  padding: 0.25rem 1.25rem 1.25rem 1.25rem;
+}
+
+.interesados-page .p-datatable .p-datatable-thead > tr > th,
+.interesados-page .p-datatable .p-datatable-tbody > tr > td {
+  padding-top: 0.65rem;
+  padding-bottom: 0.65rem;
+}
+
+.interesados-page .custom-profile-dialog .p-dialog-content {
+  padding: 1.5rem 1.75rem 0.75rem 1.75rem;
+}
+
+.interesados-page .custom-profile-dialog .field {
+  margin-bottom: 1rem;
+}
+
+.interesados-page .custom-profile-dialog .p-inputtext,
+.interesados-page .custom-profile-dialog .p-inputgroup > .p-inputtext {
+  height: 40px;
+}
+
+.interesados-page .custom-profile-dialog .p-dialog-footer {
+  padding: 1rem 1.75rem;
+}

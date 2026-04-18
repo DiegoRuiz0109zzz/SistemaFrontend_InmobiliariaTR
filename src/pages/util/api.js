@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { getAuthContext } from '../context/AuthContext';
+import { getAuthContext } from '../../context/AuthContext';
 import { environment } from './baseUrl';
 
 const api = axios.create({

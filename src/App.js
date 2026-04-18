@@ -27,7 +27,9 @@ import Empresas from './pages/Empresas';
 import Clientes from './pages/mantenimiento/Clientes';
 import Interesados from './pages/mantenimiento/Interesados';
 import Vendedores from './pages/mantenimiento/Vendedores';
-import Lotes from './pages/mantenimiento/Lotes';
+import Lotizacion from './pages/mantenimiento/Lotizacion';
+import Contrato from './pages/operaciones/Contrato';
+import ListaContratos from './pages/operaciones/ListaContratos';
 
 function App() {
   return (
@@ -45,7 +47,9 @@ function App() {
               <Route exact path="/clientes" element={<Clientes />} />
               <Route exact path="/interesados" element={<Interesados />} />
               <Route exact path="/vendedores" element={<Vendedores />} />
-              <Route exact path="/lotes" element={<Lotes />} />
+              <Route exact path="/lotizacion" element={<Lotizacion />} />
+              <Route exact path="/contrato/nuevo" element={<Contrato />} />
+              <Route exact path="/contrato/lista" element={<ListaContratos />} />
             </Route>
             <Route exact path="/login" element={<Login />} />
             <Route exact path="/register" element={<Register />} />
