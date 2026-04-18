@@ -263,6 +263,8 @@ const Clientes = () => {
         </div>
     );
 
+    const indexBodyTemplate = (_, options) => (options.rowIndex ?? 0) + 1;
+
     const dialogFooter = (
         <div className="dialog-footer-buttons">
             <Button label="Cancelar" icon="pi pi-times" className="p-button-text p-button-secondary" onClick={hideDialog} />
@@ -313,6 +315,7 @@ const Clientes = () => {
                             globalFilterFields={['numeroDocumento', 'nombres', 'apellidos', 'telefono', 'email', 'direccion']}
                             emptyMessage="No se encontraron clientes."
                         >
+                            <Column header="N°" body={indexBodyTemplate} style={{ width: '80px', textAlign: 'center' }} />
                             <Column field="numeroDocumento" header="Documento" style={{ minWidth: '140px' }} />
                             <Column field="nombres" header="Nombres" style={{ minWidth: '180px' }} />
                             <Column field="apellidos" header="Apellidos" style={{ minWidth: '180px' }} />

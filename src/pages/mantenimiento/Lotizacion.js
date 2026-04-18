@@ -412,6 +412,8 @@ const Lotizacion = () => {
         </div>
     );
 
+    const indexBodyTemplate = (_, options) => (options.rowIndex ?? 0) + 1;
+
     const formatNumber = (value) => {
         if (value === null || value === undefined || value === '') {
             return '';
@@ -478,6 +480,7 @@ const Lotizacion = () => {
                                 </div>
                                 <div className="content-card lotizacion-list-card">
                                     <DataTable value={urbanizaciones} dataKey="id" rows={6} paginator>
+                                        <Column header="N°" body={indexBodyTemplate} style={{ width: '80px', textAlign: 'center' }} />
                                         <Column field="nombre" header="Nombre" style={{ minWidth: '200px' }} />
                                         <Column field="ubicacion" header="Ubicacion" style={{ minWidth: '200px' }} />
                                         <Column header="Acciones" body={(rowData) => actionBodyTemplate(rowData, editUrbanizacion, (data) => confirmDelete('Eliminar urbanizacion?', () => deleteUrbanizacion(data)))} style={{ minWidth: '140px', textAlign: 'center' }} />
@@ -516,6 +519,7 @@ const Lotizacion = () => {
                                 </div>
                                 <div className="content-card lotizacion-list-card">
                                     <DataTable value={etapas} dataKey="id" rows={6} paginator>
+                                        <Column header="N°" body={indexBodyTemplate} style={{ width: '80px', textAlign: 'center' }} />
                                         <Column field="nombre" header="Nombre" style={{ minWidth: '200px' }} />
                                         <Column field="urbanizacion.nombre" header="Urbanizacion" style={{ minWidth: '200px' }} />
                                         <Column header="Acciones" body={(rowData) => actionBodyTemplate(rowData, editEtapa, (data) => confirmDelete('Eliminar etapa?', () => deleteEtapa(data)))} style={{ minWidth: '140px', textAlign: 'center' }} />
@@ -554,6 +558,7 @@ const Lotizacion = () => {
                                 </div>
                                 <div className="content-card lotizacion-list-card">
                                     <DataTable value={manzanas} dataKey="id" rows={6} paginator>
+                                        <Column header="N°" body={indexBodyTemplate} style={{ width: '80px', textAlign: 'center' }} />
                                         <Column field="nombre" header="Nombre" style={{ minWidth: '200px' }} />
                                         <Column field="etapa.nombre" header="Etapa" style={{ minWidth: '200px' }} />
                                         <Column header="Acciones" body={(rowData) => actionBodyTemplate(rowData, editManzana, (data) => confirmDelete('Eliminar manzana?', () => deleteManzana(data)))} style={{ minWidth: '140px', textAlign: 'center' }} />
@@ -621,6 +626,7 @@ const Lotizacion = () => {
                                 </div>
                                 <div className="content-card lotizacion-list-card">
                                     <DataTable value={lotes} dataKey="id" rows={6} paginator>
+                                        <Column header="N°" body={indexBodyTemplate} style={{ width: '80px', textAlign: 'center' }} />
                                         <Column field="numero" header="Numero" style={{ minWidth: '120px' }} />
                                         <Column field="manzana.etapa.urbanizacion.nombre" header="Urbanizacion" style={{ minWidth: '200px' }} />
                                         <Column field="manzana.etapa.nombre" header="Etapa" style={{ minWidth: '160px' }} />

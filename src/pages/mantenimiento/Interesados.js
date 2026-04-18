@@ -148,6 +148,8 @@ const Interesados = () => {
         </div>
     );
 
+    const indexBodyTemplate = (_, options) => (options.rowIndex ?? 0) + 1;
+
     const dialogFooter = (
         <div className="dialog-footer-buttons">
             <Button label="Cancelar" icon="pi pi-times" className="p-button-text p-button-secondary" onClick={hideDialog} />
@@ -198,6 +200,7 @@ const Interesados = () => {
                             globalFilterFields={['nombres', 'apellidos', 'telefono', 'email']}
                             emptyMessage="No se encontraron interesados."
                         >
+                            <Column header="N°" body={indexBodyTemplate} style={{ width: '80px', textAlign: 'center' }} />
                             <Column field="nombres" header="Nombres" style={{ minWidth: '200px' }} />
                             <Column field="apellidos" header="Apellidos" style={{ minWidth: '200px' }} />
                             <Column field="telefono" header="Teléfono" style={{ minWidth: '140px' }} />
