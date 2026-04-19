@@ -5,5 +5,6 @@ export const VendedorEntity = {
     apellidos: '',
     telefono: '',
     email: '',
+    tipoDocumento: 'DNI',
     enabled: true
 };

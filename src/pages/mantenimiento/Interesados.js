@@ -4,6 +4,7 @@ import { Column } from 'primereact/column';
 import { Toast } from 'primereact/toast';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
+import { Dropdown } from 'primereact/dropdown';
 import { Dialog } from 'primereact/dialog';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import PageHeader from '../../components/ui/PageHeader';
@@ -12,6 +13,7 @@ import ActionToolbar from '../../components/ui/ActionToolbar';
 import { useAuth } from '../../context/AuthContext';
 import { InteresadoEntity } from '../../entity/InteresadoEntity';
 import { InteresadoService } from '../../service/InteresadoService';
+import { ReniecService } from '../../service/ReniecService';
 import '../Usuario.css';
 import './Interesados.css';
 
@@ -62,23 +64,70 @@ const Interesados = () => {
 
     const normalizeText = (value) => (value || '').trim();
 
+    const mapReniecData = (data) => {
+        if (!data) {
+            return {};
+        }
+        const nombres = data.nombres || data.nombre || '';
+        const apellidoPaterno = data.apellidoPaterno || data.apellido_paterno || '';
+        const apellidoMaterno = data.apellidoMaterno || data.apellido_materno || '';
+        const apellidos = data.apellidos || `${apellidoPaterno} ${apellidoMaterno}`.trim();
+        return {
+            nombres,
+            apellidos
+        };
+    };
+
+    const buscarDni = async () => {
+        if (interesado.tipoDocumento && interesado.tipoDocumento !== 'DNI') {
+            toast.current?.show({ severity: 'warn', summary: 'Validacion', detail: 'La consulta RENIEC aplica solo para DNI.', life: 3000 });
+            return;
+        }
+        const dni = normalizeText(interesado.numeroDocumento);
+        if (dni.length !== 8) {
+            toast.current?.show({ severity: 'warn', summary: 'Validacion', detail: 'El DNI debe tener 8 digitos.', life: 3000 });
+            return;
+        }
+
+        try {
+            const response = await ReniecService.consultarDNI(dni, axiosInstance);
+            if (!response?.success) {
+                const message = response?.message || 'No se encontraron datos para el DNI.';
+                toast.current?.show({ severity: 'warn', summary: 'RENIEC', detail: message, life: 3500 });
+                return;
+            }
+
+            const mapped = mapReniecData(response.data);
+            setInteresado((prev) => ({ ...prev, ...mapped }));
+            toast.current?.show({ severity: 'success', summary: 'RENIEC', detail: 'Datos cargados correctamente.', life: 3000 });
+        } catch (error) {
+            console.error(error);
+            const detail = error?.response?.data?.message || error?.message || 'No se pudo consultar RENIEC.';
+            toast.current?.show({ severity: 'error', summary: 'Error', detail, life: 4500 });
+        }
+    };
+
     const saveInteresado = async () => {
         setSubmitted(true);
 
+        const numeroDocumento = normalizeText(interesado.numeroDocumento);
+        const tipoDocumento = normalizeText(interesado.tipoDocumento || 'DNI');
         const nombres = normalizeText(interesado.nombres);
         const apellidos = normalizeText(interesado.apellidos);
         const telefono = normalizeText(interesado.telefono);
 
-        if (!nombres || !apellidos || !telefono) {
-            toast.current?.show({ severity: 'warn', summary: 'Validacion', detail: 'Nombres, apellidos y telefono son obligatorios.', life: 3000 });
+        if (!numeroDocumento || !tipoDocumento || !nombres || !apellidos || !telefono) {
+            toast.current?.show({ severity: 'warn', summary: 'Validacion', detail: 'Documento, tipo, nombres, apellidos y telefono son obligatorios.', life: 3000 });
             return;
         }
 
         const payload = {
             ...interesado,
+            numeroDocumento,
             nombres,
             apellidos,
             telefono,
+            tipoDocumento,
             email: normalizeText(interesado.email)
         };
 
@@ -197,10 +246,12 @@ const Interesados = () => {
                             paginator
                             rows={10}
                             globalFilter={globalFilter}
-                            globalFilterFields={['nombres', 'apellidos', 'telefono', 'email']}
+                            globalFilterFields={['numeroDocumento', 'tipoDocumento', 'nombres', 'apellidos', 'telefono', 'email']}
                             emptyMessage="No se encontraron interesados."
                         >
                             <Column header="N°" body={indexBodyTemplate} style={{ width: '80px', textAlign: 'center' }} />
+                            <Column field="numeroDocumento" header="Documento" style={{ minWidth: '140px' }} />
+                            <Column field="tipoDocumento" header="Tipo" style={{ minWidth: '120px' }} />
                             <Column field="nombres" header="Nombres" style={{ minWidth: '200px' }} />
                             <Column field="apellidos" header="Apellidos" style={{ minWidth: '200px' }} />
                             <Column field="telefono" header="Teléfono" style={{ minWidth: '140px' }} />
@@ -226,7 +277,36 @@ const Interesados = () => {
                     onHide={hideDialog}
                 >
                     <div className="formgrid grid dialog-content-specific">
-                        <div className="field col-12 md:col-6 ">
+                        <div className="field col-12 md:col-6">
+                            <label htmlFor="tipoDocumento">Tipo Documento</label>
+                            <Dropdown
+                                id="tipoDocumento"
+                                value={interesado.tipoDocumento || 'DNI'}
+                                options={[
+                                    { label: 'DNI', value: 'DNI' },
+                                    { label: 'Carnet de Extranjeria', value: 'CE' },
+                                    { label: 'RUC', value: 'RUC' }
+                                ]}
+                                onChange={(e) => onInputChange(e, 'tipoDocumento')}
+                                placeholder="Seleccione tipo"
+                                className="w-full"
+                            />
+                        </div>
+
+                        <div className="field col-12 md:col-6">
+                            <label htmlFor="numeroDocumento">Documento</label>
+                            <div className="p-inputgroup">
+                                <InputText
+                                    id="numeroDocumento"
+                                    value={interesado.numeroDocumento}
+                                    onChange={(e) => onInputChange(e, 'numeroDocumento')}
+                                    placeholder="Ingrese DNI"
+                                />
+                                <Button icon="pi pi-search" className="p-button-outlined" type="button" onClick={buscarDni} />
+                            </div>
+                        </div>
+
+                        <div className="field col-12 md:col-6">
                             <label htmlFor="nombres">Nombres</label>
                             <InputText
                                 id="nombres"

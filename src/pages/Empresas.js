@@ -8,6 +8,7 @@ import PageHeader from '../components/ui/PageHeader';
 import { useAuth } from '../context/AuthContext';
 import { EmpresaEntity } from '../entity/EmpresaEntity';
 import { EmpresaService } from '../service/EmpresaService';
+import { RucService } from '../service/RucService';
 import { UbigeoService } from '../service/UbigeoService';
 import './Usuario.css';
 import './Empresas.css';
@@ -227,6 +228,58 @@ const Empresas = () => {
         }
     };
 
+    const mapRucData = (data) => {
+        if (!data) {
+            return {};
+        }
+
+        return {
+            ruc: data.ruc || data.numeroDocumento || data.numeroRuc || empresa.ruc,
+            razonSocial: data.razonSocial || data.nombre || data.nombreRazonSocial || empresa.razonSocial,
+            nombreComercial: data.nombreComercial || data.nombreComercial1 || data.nombreComercial2 || empresa.nombreComercial,
+            direccion: data.direccion || data.direccionFiscal || data.domicilioFiscal || empresa.direccion,
+            departamento: data.departamento || data.departamentoNombre || empresa.departamento,
+            provincia: data.provincia || data.provinciaNombre || empresa.provincia,
+            distrito: data.distrito || data.distritoNombre || empresa.distrito,
+            ubigeo: data.ubigeo || data.codigoUbigeo || empresa.ubigeo,
+            telefono: data.telefono || data.telefonos || empresa.telefono,
+            email: data.email || data.correo || empresa.email
+        };
+    };
+
+    const buscarRuc = async () => {
+        const ruc = normalizarTexto(empresa.ruc);
+        if (ruc.length !== 11) {
+            toast.current?.show({ severity: 'warn', summary: 'Validacion', detail: 'El RUC debe tener 11 digitos.', life: 3000 });
+            return;
+        }
+
+        try {
+            const response = await RucService.consultarRUC(ruc, axiosInstance);
+            if (!response?.success) {
+                const message = response?.message || 'No se encontraron datos para el RUC.';
+                toast.current?.show({ severity: 'warn', summary: 'RUC', detail: message, life: 3500 });
+                return;
+            }
+
+            const mapped = mapRucData(response.data);
+            setEmpresa((prev) => ({ ...prev, ...mapped }));
+            if (mapped.departamento) {
+                await hidratarUbigeo({
+                    departamento: mapped.departamento,
+                    provincia: mapped.provincia,
+                    distrito: mapped.distrito
+                });
+            }
+            setIsEditing(true);
+            toast.current?.show({ severity: 'success', summary: 'RUC', detail: 'Datos cargados correctamente.', life: 3000 });
+        } catch (error) {
+            console.error(error);
+            const detail = error?.response?.data?.message || error?.message || 'No se pudo consultar el RUC.';
+            toast.current?.show({ severity: 'error', summary: 'Error', detail, life: 4500 });
+        }
+    };
+
     const eliminarEmpresa = async () => {
         if (!empresa.id) {
             toast.current?.show({ severity: 'warn', summary: 'Validacion', detail: 'Selecciona una empresa para eliminar.', life: 3000 });
@@ -279,7 +332,7 @@ const Empresas = () => {
                                                             className="w-full"
                                                             disabled={isFormDisabled}
                                                         />
-                                                        <Button icon="pi pi-search" className="p-button-outlined" type="button" disabled={isFormDisabled} />
+                                                        <Button icon="pi pi-search" className="p-button-outlined" type="button" onClick={buscarRuc} disabled={isFormDisabled} />
                                                     </div>
                                                     <small className="empresa-hint">Busque el comprobante de 11 digitos</small>
                                                 </div>

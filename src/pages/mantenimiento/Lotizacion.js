@@ -49,16 +49,32 @@ const Lotizacion = () => {
     const [manzanaDialog, setManzanaDialog] = useState(false);
     const [manzanaSubmitted, setManzanaSubmitted] = useState(false);
     const [manzanaEdit, setManzanaEdit] = useState(emptyManzana);
+    const [manzanaUrbanizacion, setManzanaUrbanizacion] = useState(null);
+    const [manzanaEtapas, setManzanaEtapas] = useState([]);
+    const [manzanaDialogUrbanizacion, setManzanaDialogUrbanizacion] = useState(null);
+    const [manzanaDialogEtapas, setManzanaDialogEtapas] = useState([]);
 
     const [lotes, setLotes] = useState([]);
     const [lote, setLote] = useState(emptyLote);
     const [loteDialog, setLoteDialog] = useState(false);
     const [loteSubmitted, setLoteSubmitted] = useState(false);
     const [loteEdit, setLoteEdit] = useState(emptyLote);
+    const [loteUrbanizacion, setLoteUrbanizacion] = useState(null);
+    const [loteEtapa, setLoteEtapa] = useState(null);
+    const [loteEtapas, setLoteEtapas] = useState([]);
+    const [loteManzanas, setLoteManzanas] = useState([]);
+    const [loteDialogUrbanizacion, setLoteDialogUrbanizacion] = useState(null);
+    const [loteDialogEtapa, setLoteDialogEtapa] = useState(null);
+    const [loteDialogEtapas, setLoteDialogEtapas] = useState([]);
+    const [loteDialogManzanas, setLoteDialogManzanas] = useState([]);
 
     const urbanizacionOptions = urbanizaciones.map((item) => ({ label: item.nombre, value: item }));
-    const etapaOptions = etapas.map((item) => ({ label: item.nombre, value: item }));
-    const manzanaOptions = manzanas.map((item) => ({ label: item.nombre, value: item }));
+    const manzanaEtapaOptions = manzanaEtapas.map((item) => ({ label: item.nombre, value: item }));
+    const manzanaDialogEtapaOptions = manzanaDialogEtapas.map((item) => ({ label: item.nombre, value: item }));
+    const loteEtapaOptions = loteEtapas.map((item) => ({ label: item.nombre, value: item }));
+    const loteManzanaOptions = loteManzanas.map((item) => ({ label: item.nombre, value: item }));
+    const loteDialogEtapaOptions = loteDialogEtapas.map((item) => ({ label: item.nombre, value: item }));
+    const loteDialogManzanaOptions = loteDialogManzanas.map((item) => ({ label: item.nombre, value: item }));
 
     const hideUrbanizacionDialog = () => {
         setUrbanizacionDialog(false);
@@ -76,12 +92,18 @@ const Lotizacion = () => {
         setManzanaDialog(false);
         setManzanaSubmitted(false);
         setManzanaEdit(emptyManzana);
+        setManzanaDialogUrbanizacion(null);
+        setManzanaDialogEtapas([]);
     };
 
     const hideLoteDialog = () => {
         setLoteDialog(false);
         setLoteSubmitted(false);
         setLoteEdit(emptyLote);
+        setLoteDialogUrbanizacion(null);
+        setLoteDialogEtapa(null);
+        setLoteDialogEtapas([]);
+        setLoteDialogManzanas([]);
     };
 
     const cargarUrbanizaciones = useCallback(async () => {
@@ -124,12 +146,176 @@ const Lotizacion = () => {
         }
     }, [axiosInstance]);
 
+    const cargarEtapasPorUrbanizacion = useCallback(
+        async (urbanizacionId) => {
+            try {
+                const response = await EtapaService.listarPorUrbanizacion(urbanizacionId, axiosInstance);
+                return response || [];
+            } catch (error) {
+                console.error(error);
+                toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar etapas filtradas.', life: 3500 });
+                return [];
+            }
+        },
+        [axiosInstance]
+    );
+
+    const cargarManzanasPorEtapa = useCallback(
+        async (etapaId) => {
+            try {
+                const response = await ManzanaService.listarPorEtapa(etapaId, axiosInstance);
+                return response || [];
+            } catch (error) {
+                console.error(error);
+                toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar manzanas filtradas.', life: 3500 });
+                return [];
+            }
+        },
+        [axiosInstance]
+    );
+
     useEffect(() => {
         cargarUrbanizaciones();
         cargarEtapas();
         cargarManzanas();
         cargarLotes();
     }, [cargarUrbanizaciones, cargarEtapas, cargarManzanas, cargarLotes]);
+
+    useEffect(() => {
+        let active = true;
+
+        const loadEtapas = async () => {
+            if (!manzanaUrbanizacion?.id) {
+                setManzanaEtapas([]);
+                setManzana((prev) => ({ ...prev, etapa: null }));
+                return;
+            }
+            const response = await cargarEtapasPorUrbanizacion(manzanaUrbanizacion.id);
+            if (active) {
+                setManzanaEtapas(response);
+            }
+        };
+
+        loadEtapas();
+
+        return () => {
+            active = false;
+        };
+    }, [manzanaUrbanizacion, cargarEtapasPorUrbanizacion]);
+
+    useEffect(() => {
+        let active = true;
+
+        const loadEtapas = async () => {
+            if (!manzanaDialogUrbanizacion?.id) {
+                setManzanaDialogEtapas([]);
+                setManzanaEdit((prev) => ({ ...prev, etapa: null }));
+                return;
+            }
+            const response = await cargarEtapasPorUrbanizacion(manzanaDialogUrbanizacion.id);
+            if (active) {
+                setManzanaDialogEtapas(response);
+            }
+        };
+
+        loadEtapas();
+
+        return () => {
+            active = false;
+        };
+    }, [manzanaDialogUrbanizacion, cargarEtapasPorUrbanizacion]);
+
+    useEffect(() => {
+        let active = true;
+
+        const loadEtapas = async () => {
+            if (!loteUrbanizacion?.id) {
+                setLoteEtapas([]);
+                setLoteEtapa(null);
+                setLoteManzanas([]);
+                setLote((prev) => ({ ...prev, manzana: null }));
+                return;
+            }
+            const response = await cargarEtapasPorUrbanizacion(loteUrbanizacion.id);
+            if (active) {
+                setLoteEtapas(response);
+            }
+        };
+
+        loadEtapas();
+
+        return () => {
+            active = false;
+        };
+    }, [loteUrbanizacion, cargarEtapasPorUrbanizacion]);
+
+    useEffect(() => {
+        let active = true;
+
+        const loadManzanas = async () => {
+            if (!loteEtapa?.id) {
+                setLoteManzanas([]);
+                setLote((prev) => ({ ...prev, manzana: null }));
+                return;
+            }
+            const response = await cargarManzanasPorEtapa(loteEtapa.id);
+            if (active) {
+                setLoteManzanas(response);
+            }
+        };
+
+        loadManzanas();
+
+        return () => {
+            active = false;
+        };
+    }, [loteEtapa, cargarManzanasPorEtapa]);
+
+    useEffect(() => {
+        let active = true;
+
+        const loadEtapas = async () => {
+            if (!loteDialogUrbanizacion?.id) {
+                setLoteDialogEtapas([]);
+                setLoteDialogEtapa(null);
+                setLoteDialogManzanas([]);
+                setLoteEdit((prev) => ({ ...prev, manzana: null }));
+                return;
+            }
+            const response = await cargarEtapasPorUrbanizacion(loteDialogUrbanizacion.id);
+            if (active) {
+                setLoteDialogEtapas(response);
+            }
+        };
+
+        loadEtapas();
+
+        return () => {
+            active = false;
+        };
+    }, [loteDialogUrbanizacion, cargarEtapasPorUrbanizacion]);
+
+    useEffect(() => {
+        let active = true;
+
+        const loadManzanas = async () => {
+            if (!loteDialogEtapa?.id) {
+                setLoteDialogManzanas([]);
+                setLoteEdit((prev) => ({ ...prev, manzana: null }));
+                return;
+            }
+            const response = await cargarManzanasPorEtapa(loteDialogEtapa.id);
+            if (active) {
+                setLoteDialogManzanas(response);
+            }
+        };
+
+        loadManzanas();
+
+        return () => {
+            active = false;
+        };
+    }, [loteDialogEtapa, cargarManzanasPorEtapa]);
 
     const saveUrbanizacionForm = async () => {
         setUrbanizacionSubmitted(true);
@@ -243,6 +429,8 @@ const Lotizacion = () => {
             }
             await cargarManzanas();
             setManzana(emptyManzana);
+            setManzanaUrbanizacion(null);
+            setManzanaEtapas([]);
         } catch (error) {
             console.error(error);
             const detail = error?.response?.data?.message || 'No se pudo guardar la manzana.';
@@ -267,6 +455,8 @@ const Lotizacion = () => {
             await cargarManzanas();
             setManzanaDialog(false);
             setManzanaEdit(emptyManzana);
+            setManzanaDialogUrbanizacion(null);
+            setManzanaDialogEtapas([]);
         } catch (error) {
             console.error(error);
             const detail = error?.response?.data?.message || 'No se pudo guardar la manzana.';
@@ -290,6 +480,10 @@ const Lotizacion = () => {
             }
             await cargarLotes();
             setLote(emptyLote);
+            setLoteUrbanizacion(null);
+            setLoteEtapa(null);
+            setLoteEtapas([]);
+            setLoteManzanas([]);
         } catch (error) {
             console.error(error);
             const detail = error?.response?.data?.message || 'No se pudo guardar el lote.';
@@ -314,6 +508,10 @@ const Lotizacion = () => {
             await cargarLotes();
             setLoteDialog(false);
             setLoteEdit(emptyLote);
+            setLoteDialogUrbanizacion(null);
+            setLoteDialogEtapa(null);
+            setLoteDialogEtapas([]);
+            setLoteDialogManzanas([]);
         } catch (error) {
             console.error(error);
             const detail = error?.response?.data?.message || 'No se pudo guardar el lote.';
@@ -335,12 +533,15 @@ const Lotizacion = () => {
 
     const editManzana = (rowData) => {
         setManzanaEdit({ ...rowData });
+        setManzanaDialogUrbanizacion(rowData?.etapa?.urbanizacion || null);
         setManzanaSubmitted(false);
         setManzanaDialog(true);
     };
 
     const editLote = (rowData) => {
         setLoteEdit({ ...rowData });
+        setLoteDialogUrbanizacion(rowData?.manzana?.etapa?.urbanizacion || null);
+        setLoteDialogEtapa(rowData?.manzana?.etapa || null);
         setLoteSubmitted(false);
         setLoteDialog(true);
     };
@@ -542,19 +743,39 @@ const Lotizacion = () => {
                                         {manzanaSubmitted && !manzana.nombre && <small className="p-error">Nombre requerido.</small>}
                                     </div>
                                     <div className="field">
+                                        <label htmlFor="manzanaUrbanizacion">Urbanizacion</label>
+                                        <Dropdown
+                                            id="manzanaUrbanizacion"
+                                            value={manzanaUrbanizacion}
+                                            options={urbanizacionOptions}
+                                            onChange={(e) => {
+                                                setManzanaUrbanizacion(e.value);
+                                                setManzana((prev) => ({ ...prev, etapa: null }));
+                                            }}
+                                            placeholder="Seleccione urbanizacion"
+                                            className="w-full"
+                                            showClear
+                                        />
+                                    </div>
+                                    <div className="field">
                                         <label htmlFor="manzanaEtapa">Etapa</label>
                                         <Dropdown
                                             id="manzanaEtapa"
                                             value={manzana.etapa}
-                                            options={etapaOptions}
+                                            options={manzanaEtapaOptions}
                                             onChange={(e) => setManzana((prev) => ({ ...prev, etapa: e.value }))}
                                             placeholder="Seleccione etapa"
                                             className="w-full"
                                             showClear
+                                            disabled={!manzanaUrbanizacion}
                                         />
                                         {manzanaSubmitted && !manzana.etapa && <small className="p-error">Etapa requerida.</small>}
                                     </div>
-                                    {formActions(saveManzanaForm, () => setManzana(emptyManzana))}
+                                    {formActions(saveManzanaForm, () => {
+                                        setManzana(emptyManzana);
+                                        setManzanaUrbanizacion(null);
+                                        setManzanaEtapas([]);
+                                    })}
                                 </div>
                                 <div className="content-card lotizacion-list-card">
                                     <DataTable value={manzanas} dataKey="id" rows={6} paginator>
@@ -581,15 +802,48 @@ const Lotizacion = () => {
                                         {loteSubmitted && !lote.numero && <small className="p-error">Numero requerido.</small>}
                                     </div>
                                     <div className="field">
+                                        <label htmlFor="loteUrbanizacion">Urbanizacion</label>
+                                        <Dropdown
+                                            id="loteUrbanizacion"
+                                            value={loteUrbanizacion}
+                                            options={urbanizacionOptions}
+                                            onChange={(e) => {
+                                                setLoteUrbanizacion(e.value);
+                                                setLoteEtapa(null);
+                                                setLote((prev) => ({ ...prev, manzana: null }));
+                                            }}
+                                            placeholder="Seleccione urbanizacion"
+                                            className="w-full"
+                                            showClear
+                                        />
+                                    </div>
+                                    <div className="field">
+                                        <label htmlFor="loteEtapa">Etapa</label>
+                                        <Dropdown
+                                            id="loteEtapa"
+                                            value={loteEtapa}
+                                            options={loteEtapaOptions}
+                                            onChange={(e) => {
+                                                setLoteEtapa(e.value);
+                                                setLote((prev) => ({ ...prev, manzana: null }));
+                                            }}
+                                            placeholder="Seleccione etapa"
+                                            className="w-full"
+                                            showClear
+                                            disabled={!loteUrbanizacion}
+                                        />
+                                    </div>
+                                    <div className="field">
                                         <label htmlFor="loteManzana">Manzana</label>
                                         <Dropdown
                                             id="loteManzana"
                                             value={lote.manzana}
-                                            options={manzanaOptions}
+                                            options={loteManzanaOptions}
                                             onChange={(e) => setLote((prev) => ({ ...prev, manzana: e.value }))}
                                             placeholder="Seleccione manzana"
                                             className="w-full"
                                             showClear
+                                            disabled={!loteEtapa}
                                         />
                                         {loteSubmitted && !lote.manzana && <small className="p-error">Manzana requerida.</small>}
                                     </div>
@@ -622,7 +876,13 @@ const Lotizacion = () => {
                                             className="w-full"
                                         />
                                     </div>
-                                    {formActions(saveLoteForm, () => setLote(emptyLote))}
+                                    {formActions(saveLoteForm, () => {
+                                        setLote(emptyLote);
+                                        setLoteUrbanizacion(null);
+                                        setLoteEtapa(null);
+                                        setLoteEtapas([]);
+                                        setLoteManzanas([]);
+                                    })}
                                 </div>
                                 <div className="content-card lotizacion-list-card">
                                     <DataTable value={lotes} dataKey="id" rows={6} paginator>
@@ -753,15 +1013,31 @@ const Lotizacion = () => {
                         {manzanaSubmitted && !manzanaEdit.nombre && <small className="p-error">Nombre requerido.</small>}
                     </div>
                     <div className="field col-12 md:col-6">
+                        <label htmlFor="manzanaUrbanizacionDialog">Urbanizacion</label>
+                        <Dropdown
+                            id="manzanaUrbanizacionDialog"
+                            value={manzanaDialogUrbanizacion}
+                            options={urbanizacionOptions}
+                            onChange={(e) => {
+                                setManzanaDialogUrbanizacion(e.value);
+                                setManzanaEdit((prev) => ({ ...prev, etapa: null }));
+                            }}
+                            placeholder="Seleccione urbanizacion"
+                            className="w-full"
+                            showClear
+                        />
+                    </div>
+                    <div className="field col-12 md:col-6">
                         <label htmlFor="manzanaEtapaDialog">Etapa</label>
                         <Dropdown
                             id="manzanaEtapaDialog"
                             value={manzanaEdit.etapa}
-                            options={etapaOptions}
+                            options={manzanaDialogEtapaOptions}
                             onChange={(e) => setManzanaEdit((prev) => ({ ...prev, etapa: e.value }))}
                             placeholder="Seleccione etapa"
                             className="w-full"
                             showClear
+                            disabled={!manzanaDialogUrbanizacion}
                         />
                         {manzanaSubmitted && !manzanaEdit.etapa && <small className="p-error">Etapa requerida.</small>}
                     </div>
@@ -796,15 +1072,48 @@ const Lotizacion = () => {
                         {loteSubmitted && !loteEdit.numero && <small className="p-error">Numero requerido.</small>}
                     </div>
                     <div className="field col-12 md:col-6">
+                        <label htmlFor="loteUrbanizacionDialog">Urbanizacion</label>
+                        <Dropdown
+                            id="loteUrbanizacionDialog"
+                            value={loteDialogUrbanizacion}
+                            options={urbanizacionOptions}
+                            onChange={(e) => {
+                                setLoteDialogUrbanizacion(e.value);
+                                setLoteDialogEtapa(null);
+                                setLoteEdit((prev) => ({ ...prev, manzana: null }));
+                            }}
+                            placeholder="Seleccione urbanizacion"
+                            className="w-full"
+                            showClear
+                        />
+                    </div>
+                    <div className="field col-12 md:col-6">
+                        <label htmlFor="loteEtapaDialog">Etapa</label>
+                        <Dropdown
+                            id="loteEtapaDialog"
+                            value={loteDialogEtapa}
+                            options={loteDialogEtapaOptions}
+                            onChange={(e) => {
+                                setLoteDialogEtapa(e.value);
+                                setLoteEdit((prev) => ({ ...prev, manzana: null }));
+                            }}
+                            placeholder="Seleccione etapa"
+                            className="w-full"
+                            showClear
+                            disabled={!loteDialogUrbanizacion}
+                        />
+                    </div>
+                    <div className="field col-12 md:col-6">
                         <label htmlFor="loteManzanaDialog">Manzana</label>
                         <Dropdown
                             id="loteManzanaDialog"
                             value={loteEdit.manzana}
-                            options={manzanaOptions}
+                            options={loteDialogManzanaOptions}
                             onChange={(e) => setLoteEdit((prev) => ({ ...prev, manzana: e.value }))}
                             placeholder="Seleccione manzana"
                             className="w-full"
                             showClear
+                            disabled={!loteDialogEtapa}
                         />
                         {loteSubmitted && !loteEdit.manzana && <small className="p-error">Manzana requerida.</small>}
                     </div>
