@@ -70,6 +70,7 @@ body {
     background-attachment: fixed;
     color: var(--text-primary);
     margin: 0;
+    overflow-x: hidden;
 }
 
 .layout-wrapper {
@@ -80,14 +81,19 @@ body {
     background-repeat: no-repeat, no-repeat, no-repeat;
     background-attachment: fixed;
     min-height: 100vh;
+    overflow-x: hidden;
 }
 
 .layout-main-container {
     background: transparent;
+    overflow-x: hidden;
 }
 
 .layout-main-container .container {
     background: transparent;
+    max-width: 100%;
+    width: 100%;
+    padding: 0;
 }
 
 @media (max-width: 991px) {
@@ -102,6 +108,16 @@ body {
     }
 }
 
+@media (max-width: 768px) {
+    .layout-main-container {
+        padding: 0.9rem 0.9rem 1.1rem 0.9rem !important;
+    }
+
+    .layout-main-container .container {
+        padding: 0 !important;
+    }
+}
+
 
 /* DataTable Consistency */
 .p-datatable .p-datatable-tbody>tr>td {
@@ -113,6 +129,17 @@ body {
 .p-paginator {
     background-color: var(--bg-page) !important;
     border-color: var(--border-color) !important;
+}
+
+@media (max-width: 768px) {
+    .p-datatable .p-datatable-wrapper {
+        overflow-x: auto;
+    }
+
+    .p-datatable table {
+        min-width: 0;
+        width: 100%;
+    }
 }
 
 /* Global Input Consistency for Dynamic Themes */

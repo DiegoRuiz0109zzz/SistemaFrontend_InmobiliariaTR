@@ -100,17 +100,12 @@ const AppSubmenu = (props) => {
 
 export const AppMenu = (props) => {
     return (
-        <div className="layout-sidebar">
-            <div className="layout-menu-container">
-                {/* Contenido del menú */}
-                <AppSubmenu items={props.model} className="layout-menu" onMenuItemClick={props.onMenuItemClick} root={true} />
+        <div className="layout-menu-container">
+            <AppSubmenu items={props.model} className="layout-menu" onMenuItemClick={props.onMenuItemClick} root={true} />
 
-                {/* Footer pegado al final */}
-                {/* Footer pegado al final */}
-                <div className="layout-menu-footer flex align-items-center justify-content-center mt-3">
-                    <img src={SystemConfig.logoPath} alt="Logo" height="20" className="mr-2" />
-                    <span className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>{SystemConfig.footerText.replace('{year}', new Date().getFullYear())}</span>
-                </div>
+            <div className="layout-menu-footer flex align-items-center justify-content-center mt-3">
+                <img src={SystemConfig.logoPath} alt="Logo" height="20" className="mr-2" />
+                <span className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>{SystemConfig.footerText.replace('{year}', new Date().getFullYear())}</span>
             </div>
         </div>
     );

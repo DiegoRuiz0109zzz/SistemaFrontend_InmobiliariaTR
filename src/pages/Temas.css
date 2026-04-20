@@ -5,9 +5,16 @@
 }
 
 .temas-page .container {
-    max-width: 1400px;
+    max-width: 100%;
+    width: 100%;
     margin: 0 auto;
-    padding: 2rem;
+    padding: 1.25rem;
+}
+
+@media (max-width: 768px) {
+    .temas-page .container {
+        padding: 0.85rem;
+    }
 }
 
 /* Contenido principal */

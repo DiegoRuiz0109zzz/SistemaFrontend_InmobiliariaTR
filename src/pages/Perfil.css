@@ -1,11 +1,18 @@
 .perfil-page {
   min-height: calc(100vh - 5.5rem);
   background: var(--bg-page);
-  padding: 2rem;
+  padding: 1.25rem;
+}
+
+@media (max-width: 768px) {
+  .perfil-page {
+    padding: 0.85rem;
+  }
 }
 
 .perfil-page .perfil-container {
-  max-width: 1400px;
+  max-width: 100%;
+  width: 100%;
   margin: 0 auto;
 }
 

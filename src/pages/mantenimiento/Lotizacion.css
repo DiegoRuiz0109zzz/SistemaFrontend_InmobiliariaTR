@@ -194,3 +194,26 @@
     grid-template-columns: 1fr;
   }
 }
+
+@media (max-width: 768px) {
+  .lotizacion-page .main-content {
+    padding-top: 0.5rem;
+  }
+
+  .lotizacion-page .lotizacion-form-card {
+    padding: 1rem;
+  }
+
+  .lotizacion-page .lotizacion-list-card .p-datatable {
+    padding: 0.25rem 0.5rem 0.75rem 0.5rem;
+  }
+
+  .lotizacion-page .lotizacion-entity-tabs .p-tabview-nav {
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .lotizacion-page .lotizacion-entity-tabs .p-tabview-nav::-webkit-scrollbar {
+    height: 6px;
+  }
+}

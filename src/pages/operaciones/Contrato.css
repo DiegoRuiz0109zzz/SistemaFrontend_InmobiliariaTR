@@ -6,12 +6,14 @@
   display: grid;
   grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
   gap: 1.5rem;
+  width: 100%;
 }
 
 .contrato-page .contrato-column {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  min-width: 0;
 }
 
 .contrato-page .content-card {
@@ -19,6 +21,8 @@
   border-radius: 12px;
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--border-color);
+  overflow: hidden;
+  min-width: 0;
 }
 
 .contrato-page .contrato-card {
@@ -52,6 +56,28 @@
   width: 100%;
 }
 
+.contrato-page .contrato-form .p-calendar {
+  width: 100%;
+}
+
+.contrato-page .contrato-form .p-inputgroup {
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.contrato-page .contrato-form .p-inputgroup > * {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.contrato-page .contrato-form .p-inputgroup .p-inputtext {
+  min-width: 0;
+}
+
+.contrato-page .contrato-form .p-inputgroup .p-button {
+  min-width: 0;
+}
+
 .contrato-page .contrato-form .p-inputtext,
 .contrato-page .contrato-form .p-dropdown,
 .contrato-page .contrato-form .p-inputnumber-input,
@@ -83,6 +109,7 @@
   margin-top: 0.75rem;
   font-size: 0.9rem;
   color: var(--text-secondary);
+  word-break: break-word;
 }
 
 .contrato-page .lote-detail .detail-label {
@@ -163,6 +190,7 @@
   font-size: 1rem;
   font-weight: 600;
   color: var(--text-primary);
+  word-break: break-word;
 }
 
 .contrato-page .summary-list {
@@ -207,5 +235,125 @@
 @media (max-width: 1024px) {
   .contrato-page .contrato-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+    .contrato-page .contrato-form.formgrid.grid {
+      margin-left: 0;
+      margin-right: 0;
+    }
+
+    .contrato-page .contrato-form.formgrid.grid > .field {
+      padding-left: 0;
+      padding-right: 0;
+    }
+  .contrato-page .main-content {
+    padding-top: 0.5rem;
+  }
+
+  .contrato-page .contrato-grid {
+    gap: 1rem;
+  }
+
+  .contrato-page .contrato-column {
+    gap: 1rem;
+  }
+
+  .contrato-page .contrato-card {
+    padding: 0.9rem;
+  }
+
+  .contrato-page .content-card {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .contrato-page .card-header {
+    margin-bottom: 0.85rem;
+  }
+
+  .contrato-page .card-header h3 {
+    font-size: 1rem;
+  }
+
+  .contrato-page .card-header p {
+    font-size: 0.8rem;
+  }
+
+  .contrato-page .contrato-form label {
+    font-size: 0.85rem;
+  }
+
+  .contrato-page .contrato-form .p-inputtext,
+  .contrato-page .contrato-form .p-dropdown,
+  .contrato-page .contrato-form .p-inputnumber-input,
+  .contrato-page .contrato-form .p-calendar .p-inputtext {
+    height: 38px;
+  }
+
+  .contrato-page .contrato-form .formgrid.grid {
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .contrato-page .contrato-form .formgrid.grid > .field {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .contrato-page .contrato-form .p-inputgroup {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .contrato-page .contrato-form .p-inputgroup .p-button {
+    width: 100%;
+  }
+
+  .contrato-page .contrato-form .p-inputgroup .p-inputtext {
+    width: 100%;
+  }
+
+  .contrato-page .contrato-form .p-inputgroup > .p-button,
+  .contrato-page .contrato-form .p-inputgroup > .p-inputtext {
+    flex: 0 0 auto;
+  }
+
+  .contrato-page .contrato-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .contrato-page .contrato-actions .p-button {
+    width: 100%;
+  }
+
+  .contrato-page .contrato-simular .p-button {
+    width: 100%;
+  }
+
+  .contrato-page .contrato-table .p-datatable {
+    padding: 0.25rem 0 0.75rem 0;
+  }
+
+  .contrato-page .lote-detail {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .contrato-page .contrato-card {
+    padding: 0.8rem;
+  }
+
+  .contrato-page .card-header h3 {
+    font-size: 0.95rem;
+  }
+
+  .contrato-page .card-header p {
+    font-size: 0.78rem;
   }
 }
