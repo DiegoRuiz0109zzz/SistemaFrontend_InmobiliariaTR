@@ -10,6 +10,7 @@ import { Dropdown } from 'primereact/dropdown';
 import { confirmDialog } from 'primereact/confirmdialog';
 import PageHeader from '../../components/ui/PageHeader';
 import DialogHeader from '../../components/ui/DialogHeader';
+import ActionToolbar from '../../components/ui/ActionToolbar';
 import { useAuth } from '../../context/AuthContext';
 import { UrbanizacionEntity } from '../../entity/UrbanizacionEntity';
 import { EtapaEntity } from '../../entity/EtapaEntity';
@@ -37,18 +38,21 @@ const Lotizacion = () => {
     const [urbanizacionDialog, setUrbanizacionDialog] = useState(false);
     const [urbanizacionSubmitted, setUrbanizacionSubmitted] = useState(false);
     const [urbanizacionEdit, setUrbanizacionEdit] = useState(emptyUrbanizacion);
+    const [urbanizacionFilter, setUrbanizacionFilter] = useState('');
 
     const [etapas, setEtapas] = useState([]);
     const [etapa, setEtapa] = useState(emptyEtapa);
     const [etapaDialog, setEtapaDialog] = useState(false);
     const [etapaSubmitted, setEtapaSubmitted] = useState(false);
     const [etapaEdit, setEtapaEdit] = useState(emptyEtapa);
+    const [etapaFilter, setEtapaFilter] = useState('');
 
     const [manzanas, setManzanas] = useState([]);
     const [manzana, setManzana] = useState(emptyManzana);
     const [manzanaDialog, setManzanaDialog] = useState(false);
     const [manzanaSubmitted, setManzanaSubmitted] = useState(false);
     const [manzanaEdit, setManzanaEdit] = useState(emptyManzana);
+    const [manzanaFilter, setManzanaFilter] = useState('');
     const [manzanaUrbanizacion, setManzanaUrbanizacion] = useState(null);
     const [manzanaEtapas, setManzanaEtapas] = useState([]);
     const [manzanaDialogUrbanizacion, setManzanaDialogUrbanizacion] = useState(null);
@@ -59,6 +63,7 @@ const Lotizacion = () => {
     const [loteDialog, setLoteDialog] = useState(false);
     const [loteSubmitted, setLoteSubmitted] = useState(false);
     const [loteEdit, setLoteEdit] = useState(emptyLote);
+    const [loteFilter, setLoteFilter] = useState('');
     const [loteUrbanizacion, setLoteUrbanizacion] = useState(null);
     const [loteEtapa, setLoteEtapa] = useState(null);
     const [loteEtapas, setLoteEtapas] = useState([]);
@@ -658,6 +663,7 @@ const Lotizacion = () => {
                         <TabPanel header="Urbanizacion" leftIcon="pi pi-home mr-2">
                             <div className="lotizacion-form-layout">
                                 <div className="content-card lotizacion-form-card">
+                                    <h5 className="lotizacion-form-title">Registro de urbanizacion</h5>
                                     <div className="field">
                                         <label htmlFor="urbanizacionNombre">Nombre</label>
                                         <InputText
@@ -680,7 +686,20 @@ const Lotizacion = () => {
                                     {formActions(saveUrbanizacionForm, () => setUrbanizacion(emptyUrbanizacion))}
                                 </div>
                                 <div className="content-card lotizacion-list-card">
-                                    <DataTable value={urbanizaciones} dataKey="id" rows={6} paginator>
+                                    <ActionToolbar
+                                        onSearch={setUrbanizacionFilter}
+                                        searchValue={urbanizacionFilter}
+                                        searchPlaceholder="Buscar urbanizaciones..."
+                                    />
+                                    <DataTable
+                                        value={urbanizaciones}
+                                        dataKey="id"
+                                        rows={6}
+                                        paginator
+                                        globalFilter={urbanizacionFilter}
+                                        globalFilterFields={['nombre', 'ubicacion']}
+                                        emptyMessage="No se encontraron urbanizaciones."
+                                    >
                                         <Column header="N°" body={indexBodyTemplate} style={{ width: '80px', textAlign: 'center' }} />
                                         <Column field="nombre" header="Nombre" style={{ minWidth: '200px' }} />
                                         <Column field="ubicacion" header="Ubicacion" style={{ minWidth: '200px' }} />
@@ -693,16 +712,7 @@ const Lotizacion = () => {
                         <TabPanel header="Etapa" leftIcon="pi pi-clone mr-2">
                             <div className="lotizacion-form-layout">
                                 <div className="content-card lotizacion-form-card">
-                                    <div className="field">
-                                        <label htmlFor="etapaNombre">Nombre</label>
-                                        <InputText
-                                            id="etapaNombre"
-                                            value={etapa.nombre}
-                                            onChange={(e) => setEtapa((prev) => ({ ...prev, nombre: e.target.value }))}
-                                            placeholder="Nombre de etapa"
-                                        />
-                                        {etapaSubmitted && !etapa.nombre && <small className="p-error">Nombre requerido.</small>}
-                                    </div>
+                                    <h5 className="lotizacion-form-title">Registro de etapa</h5>
                                     <div className="field">
                                         <label htmlFor="etapaUrbanizacion">Urbanizacion</label>
                                         <Dropdown
@@ -716,10 +726,33 @@ const Lotizacion = () => {
                                         />
                                         {etapaSubmitted && !etapa.urbanizacion && <small className="p-error">Urbanizacion requerida.</small>}
                                     </div>
+                                    <div className="field">
+                                        <label htmlFor="etapaNombre">Nombre</label>
+                                        <InputText
+                                            id="etapaNombre"
+                                            value={etapa.nombre}
+                                            onChange={(e) => setEtapa((prev) => ({ ...prev, nombre: e.target.value }))}
+                                            placeholder="Nombre de etapa"
+                                        />
+                                        {etapaSubmitted && !etapa.nombre && <small className="p-error">Nombre requerido.</small>}
+                                    </div>
                                     {formActions(saveEtapaForm, () => setEtapa(emptyEtapa))}
                                 </div>
                                 <div className="content-card lotizacion-list-card">
-                                    <DataTable value={etapas} dataKey="id" rows={6} paginator>
+                                    <ActionToolbar
+                                        onSearch={setEtapaFilter}
+                                        searchValue={etapaFilter}
+                                        searchPlaceholder="Buscar etapas..."
+                                    />
+                                    <DataTable
+                                        value={etapas}
+                                        dataKey="id"
+                                        rows={6}
+                                        paginator
+                                        globalFilter={etapaFilter}
+                                        globalFilterFields={['nombre', 'urbanizacion.nombre']}
+                                        emptyMessage="No se encontraron etapas."
+                                    >
                                         <Column header="N°" body={indexBodyTemplate} style={{ width: '80px', textAlign: 'center' }} />
                                         <Column field="nombre" header="Nombre" style={{ minWidth: '200px' }} />
                                         <Column field="urbanizacion.nombre" header="Urbanizacion" style={{ minWidth: '200px' }} />
@@ -732,16 +765,7 @@ const Lotizacion = () => {
                         <TabPanel header="Manzana" leftIcon="pi pi-th-large mr-2">
                             <div className="lotizacion-form-layout">
                                 <div className="content-card lotizacion-form-card">
-                                    <div className="field">
-                                        <label htmlFor="manzanaNombre">Nombre</label>
-                                        <InputText
-                                            id="manzanaNombre"
-                                            value={manzana.nombre}
-                                            onChange={(e) => setManzana((prev) => ({ ...prev, nombre: e.target.value }))}
-                                            placeholder="Nombre de manzana"
-                                        />
-                                        {manzanaSubmitted && !manzana.nombre && <small className="p-error">Nombre requerido.</small>}
-                                    </div>
+                                    <h5 className="lotizacion-form-title">Registro de manzana</h5>
                                     <div className="field">
                                         <label htmlFor="manzanaUrbanizacion">Urbanizacion</label>
                                         <Dropdown
@@ -771,6 +795,16 @@ const Lotizacion = () => {
                                         />
                                         {manzanaSubmitted && !manzana.etapa && <small className="p-error">Etapa requerida.</small>}
                                     </div>
+                                    <div className="field">
+                                        <label htmlFor="manzanaNombre">Nombre</label>
+                                        <InputText
+                                            id="manzanaNombre"
+                                            value={manzana.nombre}
+                                            onChange={(e) => setManzana((prev) => ({ ...prev, nombre: e.target.value }))}
+                                            placeholder="Nombre de manzana"
+                                        />
+                                        {manzanaSubmitted && !manzana.nombre && <small className="p-error">Nombre requerido.</small>}
+                                    </div>
                                     {formActions(saveManzanaForm, () => {
                                         setManzana(emptyManzana);
                                         setManzanaUrbanizacion(null);
@@ -778,9 +812,23 @@ const Lotizacion = () => {
                                     })}
                                 </div>
                                 <div className="content-card lotizacion-list-card">
-                                    <DataTable value={manzanas} dataKey="id" rows={6} paginator>
+                                    <ActionToolbar
+                                        onSearch={setManzanaFilter}
+                                        searchValue={manzanaFilter}
+                                        searchPlaceholder="Buscar manzanas..."
+                                    />
+                                    <DataTable
+                                        value={manzanas}
+                                        dataKey="id"
+                                        rows={6}
+                                        paginator
+                                        globalFilter={manzanaFilter}
+                                        globalFilterFields={['nombre', 'etapa.nombre', 'etapa.urbanizacion.nombre']}
+                                        emptyMessage="No se encontraron manzanas."
+                                    >
                                         <Column header="N°" body={indexBodyTemplate} style={{ width: '80px', textAlign: 'center' }} />
                                         <Column field="nombre" header="Nombre" style={{ minWidth: '200px' }} />
+                                        <Column field="etapa.urbanizacion.nombre" header="Urbanizacion" style={{ minWidth: '200px' }} />
                                         <Column field="etapa.nombre" header="Etapa" style={{ minWidth: '200px' }} />
                                         <Column header="Acciones" body={(rowData) => actionBodyTemplate(rowData, editManzana, (data) => confirmDelete('Eliminar manzana?', () => deleteManzana(data)))} style={{ minWidth: '140px', textAlign: 'center' }} />
                                     </DataTable>
@@ -791,90 +839,98 @@ const Lotizacion = () => {
                         <TabPanel header="Lote" leftIcon="pi pi-map mr-2">
                             <div className="lotizacion-form-layout lotizacion-form-layout--stack">
                                 <div className="content-card lotizacion-form-card lotizacion-form-card--grid">
-                                    <div className="field">
-                                        <label htmlFor="loteNumero">Numero</label>
-                                        <InputText
-                                            id="loteNumero"
-                                            value={lote.numero}
-                                            onChange={(e) => setLote((prev) => ({ ...prev, numero: e.target.value }))}
-                                            placeholder="Numero de lote"
-                                        />
-                                        {loteSubmitted && !lote.numero && <small className="p-error">Numero requerido.</small>}
+                                    <div className="lotizacion-form-title-group">
+                                        <h5 className="lotizacion-form-title">Registro de lote</h5>
+                                        <small className="lotizacion-form-hint">Primero seleccione urbanizacion, etapa y manzana.</small>
                                     </div>
-                                    <div className="field">
-                                        <label htmlFor="loteUrbanizacion">Urbanizacion</label>
-                                        <Dropdown
-                                            id="loteUrbanizacion"
-                                            value={loteUrbanizacion}
-                                            options={urbanizacionOptions}
-                                            onChange={(e) => {
-                                                setLoteUrbanizacion(e.value);
-                                                setLoteEtapa(null);
-                                                setLote((prev) => ({ ...prev, manzana: null }));
-                                            }}
-                                            placeholder="Seleccione urbanizacion"
-                                            className="w-full"
-                                            showClear
-                                        />
+                                    <div className="lotizacion-lote-select">
+                                        <div className="field">
+                                            <label htmlFor="loteUrbanizacion">Urbanizacion</label>
+                                            <Dropdown
+                                                id="loteUrbanizacion"
+                                                value={loteUrbanizacion}
+                                                options={urbanizacionOptions}
+                                                onChange={(e) => {
+                                                    setLoteUrbanizacion(e.value);
+                                                    setLoteEtapa(null);
+                                                    setLote((prev) => ({ ...prev, manzana: null }));
+                                                }}
+                                                placeholder="Seleccione urbanizacion"
+                                                className="w-full"
+                                                showClear
+                                            />
+                                        </div>
+                                        <div className="field">
+                                            <label htmlFor="loteEtapa">Etapa</label>
+                                            <Dropdown
+                                                id="loteEtapa"
+                                                value={loteEtapa}
+                                                options={loteEtapaOptions}
+                                                onChange={(e) => {
+                                                    setLoteEtapa(e.value);
+                                                    setLote((prev) => ({ ...prev, manzana: null }));
+                                                }}
+                                                placeholder="Seleccione etapa"
+                                                className="w-full"
+                                                showClear
+                                                disabled={!loteUrbanizacion}
+                                            />
+                                        </div>
+                                        <div className="field">
+                                            <label htmlFor="loteManzana">Manzana</label>
+                                            <Dropdown
+                                                id="loteManzana"
+                                                value={lote.manzana}
+                                                options={loteManzanaOptions}
+                                                onChange={(e) => setLote((prev) => ({ ...prev, manzana: e.value }))}
+                                                placeholder="Seleccione manzana"
+                                                className="w-full"
+                                                showClear
+                                                disabled={!loteEtapa}
+                                            />
+                                            {loteSubmitted && !lote.manzana && <small className="p-error">Manzana requerida.</small>}
+                                        </div>
                                     </div>
-                                    <div className="field">
-                                        <label htmlFor="loteEtapa">Etapa</label>
-                                        <Dropdown
-                                            id="loteEtapa"
-                                            value={loteEtapa}
-                                            options={loteEtapaOptions}
-                                            onChange={(e) => {
-                                                setLoteEtapa(e.value);
-                                                setLote((prev) => ({ ...prev, manzana: null }));
-                                            }}
-                                            placeholder="Seleccione etapa"
-                                            className="w-full"
-                                            showClear
-                                            disabled={!loteUrbanizacion}
-                                        />
-                                    </div>
-                                    <div className="field">
-                                        <label htmlFor="loteManzana">Manzana</label>
-                                        <Dropdown
-                                            id="loteManzana"
-                                            value={lote.manzana}
-                                            options={loteManzanaOptions}
-                                            onChange={(e) => setLote((prev) => ({ ...prev, manzana: e.value }))}
-                                            placeholder="Seleccione manzana"
-                                            className="w-full"
-                                            showClear
-                                            disabled={!loteEtapa}
-                                        />
-                                        {loteSubmitted && !lote.manzana && <small className="p-error">Manzana requerida.</small>}
-                                    </div>
-                                    <div className="field">
-                                        <label htmlFor="loteArea">Area</label>
-                                        <InputText
-                                            id="loteArea"
-                                            value={lote.area || ''}
-                                            onChange={(e) => setLote((prev) => ({ ...prev, area: e.target.value }))}
-                                            placeholder="Area"
-                                        />
-                                    </div>
-                                    <div className="field">
-                                        <label htmlFor="lotePrecio">Precio</label>
-                                        <InputText
-                                            id="lotePrecio"
-                                            value={lote.precio || ''}
-                                            onChange={(e) => setLote((prev) => ({ ...prev, precio: e.target.value }))}
-                                            placeholder="Precio"
-                                        />
-                                    </div>
-                                    <div className="field">
-                                        <label htmlFor="loteEstado">Estado</label>
-                                        <Dropdown
-                                            id="loteEstado"
-                                            value={lote.estadoVenta}
-                                            options={EstadoLoteOptions}
-                                            onChange={(e) => setLote((prev) => ({ ...prev, estadoVenta: e.value }))}
-                                            placeholder="Seleccione estado"
-                                            className="w-full"
-                                        />
+                                    <div className="lotizacion-lote-details">
+                                        <div className="field">
+                                            <label htmlFor="loteNumero">Numero</label>
+                                            <InputText
+                                                id="loteNumero"
+                                                value={lote.numero}
+                                                onChange={(e) => setLote((prev) => ({ ...prev, numero: e.target.value }))}
+                                                placeholder="Numero de lote"
+                                            />
+                                            {loteSubmitted && !lote.numero && <small className="p-error">Numero requerido.</small>}
+                                        </div>
+                                        <div className="field">
+                                            <label htmlFor="loteArea">Area</label>
+                                            <InputText
+                                                id="loteArea"
+                                                value={lote.area || ''}
+                                                onChange={(e) => setLote((prev) => ({ ...prev, area: e.target.value }))}
+                                                placeholder="Area"
+                                            />
+                                        </div>
+                                        <div className="field">
+                                            <label htmlFor="lotePrecio">Precio</label>
+                                            <InputText
+                                                id="lotePrecio"
+                                                value={lote.precio || ''}
+                                                onChange={(e) => setLote((prev) => ({ ...prev, precio: e.target.value }))}
+                                                placeholder="Precio"
+                                            />
+                                        </div>
+                                        <div className="field">
+                                            <label htmlFor="loteEstado">Estado</label>
+                                            <Dropdown
+                                                id="loteEstado"
+                                                value={lote.estadoVenta}
+                                                options={EstadoLoteOptions}
+                                                onChange={(e) => setLote((prev) => ({ ...prev, estadoVenta: e.value }))}
+                                                placeholder="Seleccione estado"
+                                                className="w-full"
+                                            />
+                                        </div>
                                     </div>
                                     {formActions(saveLoteForm, () => {
                                         setLote(emptyLote);
@@ -885,7 +941,20 @@ const Lotizacion = () => {
                                     })}
                                 </div>
                                 <div className="content-card lotizacion-list-card">
-                                    <DataTable value={lotes} dataKey="id" rows={6} paginator>
+                                    <ActionToolbar
+                                        onSearch={setLoteFilter}
+                                        searchValue={loteFilter}
+                                        searchPlaceholder="Buscar lotes..."
+                                    />
+                                    <DataTable
+                                        value={lotes}
+                                        dataKey="id"
+                                        rows={6}
+                                        paginator
+                                        globalFilter={loteFilter}
+                                        globalFilterFields={['numero', 'manzana.nombre', 'manzana.etapa.nombre', 'manzana.etapa.urbanizacion.nombre', 'estadoVenta', 'area', 'precio']}
+                                        emptyMessage="No se encontraron lotes."
+                                    >
                                         <Column header="N°" body={indexBodyTemplate} style={{ width: '80px', textAlign: 'center' }} />
                                         <Column field="numero" header="Numero" style={{ minWidth: '120px' }} />
                                         <Column field="manzana.etapa.urbanizacion.nombre" header="Urbanizacion" style={{ minWidth: '200px' }} />
