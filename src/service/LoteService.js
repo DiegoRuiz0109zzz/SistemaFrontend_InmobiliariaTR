@@ -5,34 +5,42 @@ const RESOURCE = 'lotes';
 const resolveClient = (httpClient) => httpClient || api;
 
 export const LoteService = {
-    listar: async (httpClient) => {
-        const client = resolveClient(httpClient);
-        const response = await client.get(`${RESOURCE}/`);
-        return response.data;
-    },
+	listar: async (httpClient) => {
+		const client = resolveClient(httpClient);
+		const response = await client.get(`${RESOURCE}/`);
+		return response.data;
+	},
 
-    listarPorManzana: async (manzanaId, httpClient) => {
-        const client = resolveClient(httpClient);
-        const response = await client.get(`${RESOURCE}/manzana/${manzanaId}`);
-        return response.data;
-    },
+	listarPorManzana: async (manzanaId, httpClient) => {
+		const client = resolveClient(httpClient);
+		const response = await client.get(`${RESOURCE}/manzana/${manzanaId}`);
+		return response.data;
+	},
 
-    crear: async (lote, httpClient) => {
-        const client = resolveClient(httpClient);
-        const response = await client.post(`${RESOURCE}/`, lote);
-        return response.data;
-    },
+	calcularCosto: async (area, precioMetroCuadrado, httpClient) => {
+		const client = resolveClient(httpClient);
+		const response = await client.get(`${RESOURCE}/calcular-costo`, {
+			params: { area, precioMetroCuadrado }
+		});
+		return response.data;
+	},
 
-    actualizar: async (id, lote, httpClient) => {
-        const client = resolveClient(httpClient);
-        const response = await client.put(`${RESOURCE}/${id}`, lote);
-        return response.data;
-    },
+	crear: async (lote, httpClient) => {
+		const client = resolveClient(httpClient);
+		const response = await client.post(`${RESOURCE}/`, lote);
+		return response.data;
+	},
 
-    eliminar: async (id, httpClient) => {
-        const client = resolveClient(httpClient);
-        await client.delete(`${RESOURCE}/${id}`);
-    }
+	actualizar: async (id, lote, httpClient) => {
+		const client = resolveClient(httpClient);
+		const response = await client.put(`${RESOURCE}/${id}`, lote);
+		return response.data;
+	},
+
+	eliminar: async (id, httpClient) => {
+		const client = resolveClient(httpClient);
+		await client.delete(`${RESOURCE}/${id}`);
+	}
 };
 
 export default LoteService;

@@ -471,7 +471,7 @@ const Lotizacion = () => {
 
     const saveLoteForm = async () => {
         setLoteSubmitted(true);
-        if (!lote.numero || !lote.manzana) {
+        if (!lote.numero || !lote.manzana || !lote.area || !lote.precioMetroCuadrado || !lote.precioVenta) {
             return;
         }
 
@@ -498,7 +498,7 @@ const Lotizacion = () => {
 
     const saveLote = async () => {
         setLoteSubmitted(true);
-        if (!loteEdit.numero || !loteEdit.manzana) {
+        if (!loteEdit.numero || !loteEdit.manzana || !loteEdit.area || !loteEdit.precioMetroCuadrado || !loteEdit.precioVenta) {
             return;
         }
 
@@ -637,8 +637,37 @@ const Lotizacion = () => {
     };
 
     const formatPrecio = (rowData) => {
-        const formatted = formatNumber(rowData?.precio);
+        const formatted = formatNumber(rowData?.precioVenta);
         return formatted ? `S/. ${formatted}` : '';
+    };
+
+    const formatPrecioCosto = (rowData) => {
+        const formatted = formatNumber(rowData?.precioCosto);
+        return formatted ? `S/. ${formatted}` : '';
+    };
+
+    const parseNumber = (value) => {
+        if (value === null || value === undefined || value === '') {
+            return null;
+        }
+        const numericValue = Number(value);
+        return Number.isNaN(numericValue) ? null : numericValue;
+    };
+
+    const recalcularCosto = async (areaValue, precioMetroValue, setter) => {
+        const area = parseNumber(areaValue);
+        const precioMetroCuadrado = parseNumber(precioMetroValue);
+        if (!area || !precioMetroCuadrado) {
+            setter((prev) => ({ ...prev, precioCosto: null }));
+            return;
+        }
+        try {
+            const response = await LoteService.calcularCosto(area, precioMetroCuadrado, axiosInstance);
+            setter((prev) => ({ ...prev, precioCosto: response?.precioCosto ?? null }));
+        } catch (error) {
+            console.error(error);
+            toast.current?.show({ severity: 'warn', summary: 'Costo', detail: 'No se pudo calcular el costo.', life: 3000 });
+        }
     };
 
     const formActions = (onSave, onReset) => (
@@ -907,17 +936,44 @@ const Lotizacion = () => {
                                             <InputText
                                                 id="loteArea"
                                                 value={lote.area || ''}
-                                                onChange={(e) => setLote((prev) => ({ ...prev, area: e.target.value }))}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    setLote((prev) => ({ ...prev, area: value }));
+                                                    recalcularCosto(value, lote.precioMetroCuadrado, setLote);
+                                                }}
                                                 placeholder="Area"
                                             />
                                         </div>
                                         <div className="field">
-                                            <label htmlFor="lotePrecio">Precio</label>
+                                            <label htmlFor="lotePrecioMetro">Precio m2</label>
                                             <InputText
-                                                id="lotePrecio"
-                                                value={lote.precio || ''}
-                                                onChange={(e) => setLote((prev) => ({ ...prev, precio: e.target.value }))}
-                                                placeholder="Precio"
+                                                id="lotePrecioMetro"
+                                                value={lote.precioMetroCuadrado || ''}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    setLote((prev) => ({ ...prev, precioMetroCuadrado: value }));
+                                                    recalcularCosto(lote.area, value, setLote);
+                                                }}
+                                                placeholder="Precio m2"
+                                            />
+                                        </div>
+                                        <div className="field">
+                                            <label htmlFor="lotePrecioCosto">Precio costo</label>
+                                            <InputText
+                                                id="lotePrecioCosto"
+                                                value={lote.precioCosto || ''}
+                                                onChange={(e) => setLote((prev) => ({ ...prev, precioCosto: e.target.value }))}
+                                                placeholder="Precio costo"
+                                                disabled
+                                            />
+                                        </div>
+                                        <div className="field">
+                                            <label htmlFor="lotePrecioVenta">Precio venta</label>
+                                            <InputText
+                                                id="lotePrecioVenta"
+                                                value={lote.precioVenta || ''}
+                                                onChange={(e) => setLote((prev) => ({ ...prev, precioVenta: e.target.value }))}
+                                                placeholder="Precio venta"
                                             />
                                         </div>
                                         <div className="field">
@@ -952,7 +1008,7 @@ const Lotizacion = () => {
                                         rows={6}
                                         paginator
                                         globalFilter={loteFilter}
-                                        globalFilterFields={['numero', 'manzana.nombre', 'manzana.etapa.nombre', 'manzana.etapa.urbanizacion.nombre', 'estadoVenta', 'area', 'precio']}
+                                        globalFilterFields={['numero', 'manzana.nombre', 'manzana.etapa.nombre', 'manzana.etapa.urbanizacion.nombre', 'estadoVenta', 'area', 'precioMetroCuadrado', 'precioCosto', 'precioVenta']}
                                         emptyMessage="No se encontraron lotes."
                                     >
                                         <Column header="N°" body={indexBodyTemplate} style={{ width: '80px', textAlign: 'center' }} />
@@ -961,7 +1017,9 @@ const Lotizacion = () => {
                                         <Column field="manzana.etapa.nombre" header="Etapa" style={{ minWidth: '160px' }} />
                                         <Column field="manzana.nombre" header="Manzana" style={{ minWidth: '160px' }} />
                                         <Column header="Area" body={formatArea} style={{ minWidth: '120px' }} />
-                                        <Column header="Precio" body={formatPrecio} style={{ minWidth: '140px' }} />
+                                        <Column header="Precio m2" field="precioMetroCuadrado" style={{ minWidth: '120px' }} />
+                                        <Column header="Costo" body={formatPrecioCosto} style={{ minWidth: '140px' }} />
+                                        <Column header="Precio venta" body={formatPrecio} style={{ minWidth: '140px' }} />
                                         <Column field="estadoVenta" header="Estado" style={{ minWidth: '140px' }} />
                                         <Column header="Acciones" body={(rowData) => actionBodyTemplate(rowData, editLote, (data) => confirmDelete('Eliminar lote?', () => deleteLote(data)))} style={{ minWidth: '140px', textAlign: 'center' }} />
                                     </DataTable>
@@ -1191,17 +1249,44 @@ const Lotizacion = () => {
                         <InputText
                             id="loteAreaDialog"
                             value={loteEdit.area || ''}
-                            onChange={(e) => setLoteEdit((prev) => ({ ...prev, area: e.target.value }))}
+                            onChange={(e) => {
+                                const value = e.target.value;
+                                setLoteEdit((prev) => ({ ...prev, area: value }));
+                                recalcularCosto(value, loteEdit.precioMetroCuadrado, setLoteEdit);
+                            }}
                             placeholder="Area"
                         />
                     </div>
                     <div className="field col-12 md:col-4">
-                        <label htmlFor="lotePrecioDialog">Precio</label>
+                        <label htmlFor="lotePrecioMetroDialog">Precio m2</label>
                         <InputText
-                            id="lotePrecioDialog"
-                            value={loteEdit.precio || ''}
-                            onChange={(e) => setLoteEdit((prev) => ({ ...prev, precio: e.target.value }))}
-                            placeholder="Precio"
+                            id="lotePrecioMetroDialog"
+                            value={loteEdit.precioMetroCuadrado || ''}
+                            onChange={(e) => {
+                                const value = e.target.value;
+                                setLoteEdit((prev) => ({ ...prev, precioMetroCuadrado: value }));
+                                recalcularCosto(loteEdit.area, value, setLoteEdit);
+                            }}
+                            placeholder="Precio m2"
+                        />
+                    </div>
+                    <div className="field col-12 md:col-4">
+                        <label htmlFor="lotePrecioCostoDialog">Precio costo</label>
+                        <InputText
+                            id="lotePrecioCostoDialog"
+                            value={loteEdit.precioCosto || ''}
+                            onChange={(e) => setLoteEdit((prev) => ({ ...prev, precioCosto: e.target.value }))}
+                            placeholder="Precio costo"
+                            disabled
+                        />
+                    </div>
+                    <div className="field col-12 md:col-4">
+                        <label htmlFor="lotePrecioVentaDialog">Precio venta</label>
+                        <InputText
+                            id="lotePrecioVentaDialog"
+                            value={loteEdit.precioVenta || ''}
+                            onChange={(e) => setLoteEdit((prev) => ({ ...prev, precioVenta: e.target.value }))}
+                            placeholder="Precio venta"
                         />
                     </div>
                     <div className="field col-12 md:col-4">

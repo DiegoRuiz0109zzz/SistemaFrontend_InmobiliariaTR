@@ -84,8 +84,20 @@
 .lotizacion-page .lotizacion-lote-details {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1.1rem 1.5rem;
+}
+
+.lotizacion-page .lotizacion-lote-section-title {
+  grid-column: 1 / -1;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  margin: 0.4rem 0 -0.3rem 0;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px dashed rgba(70, 85, 120, 0.2);
 }
 
 .lotizacion-page .lotizacion-form-card--grid .field {
