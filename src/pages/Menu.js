@@ -52,12 +52,13 @@ const Menu = () => {
             { ...perfilBase[0], items: inicioItems }
         ];
 
-        const operacionesItems = [
+        const gestionInmobiliariaItems = [
             {
-                label: 'Contrato',
+                label: 'Gestion Inmobiliaria',
                 icon: 'pi pi-fw pi-file',
                 items: [
-                    { label: 'Nuevo Contrato', icon: 'pi pi-fw pi-file-edit', to: 'contrato/nuevo' },
+                    { label: 'Cotizacion', icon: 'pi pi-fw pi-calculator', to: 'cotizacion' },
+                    { label: 'Contrato', icon: 'pi pi-fw pi-file-edit', to: 'contrato/nuevo' },
                     { label: 'Lista de Contratos', icon: 'pi pi-fw pi-list', to: 'contrato/lista' }
                 ]
             }
@@ -65,7 +66,7 @@ const Menu = () => {
 
         menu.push({
             label: 'Operaciones',
-            items: operacionesItems
+            items: gestionInmobiliariaItems
         });
 
         const usuariosItems = [];

@@ -6,5 +6,6 @@ export const InteresadoEntity = {
     telefono: '',
     email: '',
     tipoDocumento: 'DNI',
+    fechaIngreso: null,
     enabled: true
 };

@@ -64,6 +64,13 @@ const Interesados = () => {
 
     const normalizeText = (value) => (value || '').trim();
 
+    const formatFechaIngreso = (value) => {
+        if (!value) return '';
+        const date = value instanceof Date ? value : new Date(value);
+        if (Number.isNaN(date.getTime())) return '';
+        return date.toLocaleDateString('es-PE');
+    };
+
     const mapReniecData = (data) => {
         if (!data) {
             return {};
@@ -246,7 +253,7 @@ const Interesados = () => {
                             paginator
                             rows={10}
                             globalFilter={globalFilter}
-                            globalFilterFields={['numeroDocumento', 'tipoDocumento', 'nombres', 'apellidos', 'telefono', 'email']}
+                            globalFilterFields={['numeroDocumento', 'tipoDocumento', 'nombres', 'apellidos', 'telefono', 'email', 'fechaIngreso']}
                             emptyMessage="No se encontraron interesados."
                         >
                             <Column header="N°" body={indexBodyTemplate} style={{ width: '80px', textAlign: 'center' }} />
@@ -256,6 +263,7 @@ const Interesados = () => {
                             <Column field="apellidos" header="Apellidos" style={{ minWidth: '200px' }} />
                             <Column field="telefono" header="Teléfono" style={{ minWidth: '140px' }} />
                             <Column field="email" header="Correo" style={{ minWidth: '200px' }} />
+                            <Column header="Fecha ingreso" body={(rowData) => formatFechaIngreso(rowData.fechaIngreso)} style={{ minWidth: '140px' }} />
                             <Column header="Acciones" body={actionBodyTemplate} style={{ minWidth: '140px', textAlign: 'center' }} />
                         </DataTable>
                     </div>
@@ -352,6 +360,16 @@ const Interesados = () => {
                                 value={interesado.email}
                                 onChange={(e) => onInputChange(e, 'email')}
                                 placeholder="ejemplo@correo.com"
+                            />
+                        </div>
+
+                        <div className="field col-12 md:col-6">
+                            <label htmlFor="fechaIngreso">Fecha ingreso</label>
+                            <InputText
+                                id="fechaIngreso"
+                                value={formatFechaIngreso(interesado.fechaIngreso)}
+                                placeholder="--/--/----"
+                                disabled
                             />
                         </div>
                     </div>

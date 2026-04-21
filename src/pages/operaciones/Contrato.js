@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { InputText } from 'primereact/inputtext';
@@ -6,11 +6,20 @@ import { Dropdown } from 'primereact/dropdown';
 import { Calendar } from 'primereact/calendar';
 import { InputNumber } from 'primereact/inputnumber';
 import { Button } from 'primereact/button';
+import { Toast } from 'primereact/toast';
 import PageHeader from '../../components/ui/PageHeader';
+import { useAuth } from '../../context/AuthContext';
+import { ClienteService } from '../../service/ClienteService';
+import { VendedorService } from '../../service/VendedorService';
+import { LoteService } from '../../service/LoteService';
+import { ContratoService } from '../../service/ContratoService';
 import '../Usuario.css';
 import './Contrato.css';
 
 const Contrato = () => {
+    const { axiosInstance } = useAuth();
+    const toast = useRef(null);
+
     const [form, setForm] = useState({
         fechaContrato: null,
         cliente: {
@@ -28,34 +37,62 @@ const Contrato = () => {
         precioTotal: null,
         montoInicial: null,
         saldoFinanciar: null,
-        cantidadCuotas: null
+        cantidadCuotas: null,
+        fechaInicioPago: null,
+        cuotasEspeciales: null,
+        montoCuotaEspecial: null,
+        observacion: ''
     });
     const [cuotas, setCuotas] = useState([]);
     const [clienteFromInteresado, setClienteFromInteresado] = useState(false);
     const [selectedLote, setSelectedLote] = useState(null);
+    const [clientes, setClientes] = useState([]);
+    const [vendedores, setVendedores] = useState([]);
+    const [lotes, setLotes] = useState([]);
+    const [simulando, setSimulando] = useState(false);
+    const [guardando, setGuardando] = useState(false);
 
-    const interesadosOptions = useMemo(
-        () => [
-            { numeroDocumento: '44556677', nombres: 'Maria', apellidos: 'Paredes', telefono: '987654321', email: 'maria@correo.com' },
-            { numeroDocumento: '77889911', nombres: 'Juan', apellidos: 'Soto', telefono: '912345678', email: 'juan@correo.com' }
-        ],
-        []
-    );
     const vendedorOptions = useMemo(
-        () => [
-            { label: 'Carlos Medina', value: { id: 1, nombres: 'Carlos', apellidos: 'Medina' } },
-            { label: 'Lucia Campos', value: { id: 2, nombres: 'Lucia', apellidos: 'Campos' } }
-        ],
-        []
+        () => vendedores.map((item) => ({
+            label: `${item.nombres || ''} ${item.apellidos || ''}`.trim(),
+            value: item
+        })),
+        [vendedores]
     );
+
     const lotesDisponibles = useMemo(
-        () => [
-            { id: 1, urbanizacion: 'Primavera', etapa: 'Etapa 1', manzana: 'A', numeroLote: '01', area: 120, precio: 75000 },
-            { id: 2, urbanizacion: 'Primavera', etapa: 'Etapa 1', manzana: 'A', numeroLote: '02', area: 110, precio: 70000 },
-            { id: 3, urbanizacion: 'Los Sauces', etapa: 'Etapa 2', manzana: 'C', numeroLote: '15', area: 140, precio: 82000 }
-        ],
-        []
+        () => lotes.map((item) => ({
+            id: item.id,
+            numeroLote: item.numero,
+            area: item.area,
+            precio: item.precioVenta,
+            urbanizacion: item?.manzana?.etapa?.urbanizacion?.nombre || '',
+            etapa: item?.manzana?.etapa?.nombre || '',
+            manzana: item?.manzana?.nombre || '',
+            raw: item
+        })),
+        [lotes]
     );
+
+    const cargarDatos = useCallback(async () => {
+        try {
+            const [clientesData, vendedoresData, lotesData] = await Promise.all([
+                ClienteService.listar(axiosInstance),
+                VendedorService.listar(axiosInstance),
+                LoteService.listar(axiosInstance)
+            ]);
+            setClientes(clientesData || []);
+            setVendedores(vendedoresData || []);
+            setLotes(lotesData || []);
+        } catch (error) {
+            console.error(error);
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar datos base.', life: 3500 });
+        }
+    }, [axiosInstance]);
+
+    useEffect(() => {
+        cargarDatos();
+    }, [cargarDatos]);
 
     const onInputChange = (value, name) => {
         setForm((prev) => ({ ...prev, [name]: value }));
@@ -78,7 +115,7 @@ const Contrato = () => {
             return;
         }
 
-        const encontrado = interesadosOptions.find((item) => item.numeroDocumento === dni);
+        const encontrado = clientes.find((item) => item.numeroDocumento === dni);
         if (encontrado) {
             setForm((prev) => ({
                 ...prev,
@@ -92,6 +129,7 @@ const Contrato = () => {
         }
 
         setClienteFromInteresado(false);
+        toast.current?.show({ severity: 'warn', summary: 'Cliente', detail: 'No se encontro el cliente.', life: 3000 });
     };
 
     const onFinancialChange = (value, name) => {
@@ -126,50 +164,77 @@ const Contrato = () => {
         setForm((prev) => ({
             ...prev,
             lote: {
-                ...rowData,
+                ...rowData.raw,
                 label: `${rowData.urbanizacion} - ${rowData.etapa} / Mz ${rowData.manzana} - ${rowData.numeroLote}`
             },
             precioTotal: rowData.precio
         }));
     };
 
-    const addMonths = (date, months) => {
-        const next = new Date(date);
-        next.setMonth(next.getMonth() + months);
-        return next;
-    };
-
-    const round2 = (value) => Math.round(value * 100) / 100;
-
-    const simularCuotas = () => {
-        const total = Number(form.saldoFinanciar || 0);
+    const simularCuotas = async () => {
+        const total = Number(form.precioTotal || 0);
+        const inicial = Number(form.montoInicial || 0);
+        const saldo = Number(form.saldoFinanciar || 0);
         const cantidad = Number(form.cantidadCuotas || 0);
         if (!total || !cantidad) {
             setCuotas([]);
             return;
         }
 
-        const baseFecha = form.fechaContrato || new Date();
-        const montoBase = round2(total / cantidad);
-        const cuotasTemp = [];
-        let acumulado = 0;
+        const fechaBase = form.fechaInicioPago || form.fechaContrato || new Date();
+        const payload = {
+            precioTotal: total,
+            montoInicial: inicial,
+            saldoFinanciar: saldo,
+            cantidadCuotas: cantidad,
+            fechaInicioPago: new Date(fechaBase).toISOString().split('T')[0]
+        };
 
-        for (let i = 1; i <= cantidad; i += 1) {
-            const isLast = i === cantidad;
-            const monto = isLast ? round2(total - acumulado) : montoBase;
-            acumulado = round2(acumulado + monto);
-            cuotasTemp.push({
-                numeroCuota: i,
-                montoTotal: monto,
-                fechaVencimiento: addMonths(baseFecha, i),
-                estado: 'PENDIENTE'
-            });
+        setSimulando(true);
+        try {
+            const response = await ContratoService.simular(payload, axiosInstance);
+            setCuotas(response || []);
+        } catch (error) {
+            console.error(error);
+            toast.current?.show({ severity: 'error', summary: 'Simulacion', detail: 'No se pudo simular las cuotas.', life: 3500 });
+        } finally {
+            setSimulando(false);
         }
-        setCuotas(cuotasTemp);
+    };
+
+    const guardarContrato = async () => {
+        if (!form.lote?.id || !form.vendedor?.id || !form.cliente?.id) {
+            toast.current?.show({ severity: 'warn', summary: 'Validacion', detail: 'Seleccione cliente, vendedor y lote.', life: 3000 });
+            return;
+        }
+
+        const payload = {
+            lote: { id: form.lote.id },
+            cliente: { id: form.cliente.id },
+            vendedor: { id: form.vendedor.id },
+            precioTotal: form.precioTotal,
+            montoInicial: form.montoInicial,
+            saldoFinanciar: form.saldoFinanciar,
+            cantidadCuotas: form.cantidadCuotas,
+            observacion: form.observacion || ''
+        };
+
+        setGuardando(true);
+        try {
+            await ContratoService.crear(payload, axiosInstance);
+            toast.current?.show({ severity: 'success', summary: 'Contrato', detail: 'Contrato registrado.', life: 3000 });
+        } catch (error) {
+            console.error(error);
+            const detail = error?.response?.data?.message || 'No se pudo guardar el contrato.';
+            toast.current?.show({ severity: 'error', summary: 'Error', detail, life: 3500 });
+        } finally {
+            setGuardando(false);
+        }
     };
 
     return (
         <div className="usuario-page contrato-page">
+            <Toast ref={toast} />
             <div className="container">
                 <PageHeader
                     title="Nuevo Contrato"
@@ -362,9 +427,51 @@ const Contrato = () => {
                                             placeholder="Cuotas"
                                         />
                                     </div>
+                                    <div className="field col-12 md:col-4">
+                                        <label htmlFor="fechaInicioPago">Fecha inicio pago</label>
+                                        <Calendar
+                                            id="fechaInicioPago"
+                                            value={form.fechaInicioPago}
+                                            onChange={(e) => onInputChange(e.value, 'fechaInicioPago')}
+                                            showIcon
+                                            dateFormat="dd/mm/yy"
+                                        />
+                                    </div>
+                                    <div className="field col-12 md:col-4">
+                                        <label htmlFor="cuotasEspeciales">Cuotas especiales</label>
+                                        <InputNumber
+                                            id="cuotasEspeciales"
+                                            value={form.cuotasEspeciales}
+                                            onValueChange={(e) => onInputChange(e.value, 'cuotasEspeciales')}
+                                            min={0}
+                                            max={120}
+                                            placeholder="0"
+                                        />
+                                    </div>
+                                    <div className="field col-12 md:col-4">
+                                        <label htmlFor="montoCuotaEspecial">Monto cuota especial</label>
+                                        <InputNumber
+                                            id="montoCuotaEspecial"
+                                            value={form.montoCuotaEspecial}
+                                            onValueChange={(e) => onInputChange(e.value, 'montoCuotaEspecial')}
+                                            minFractionDigits={0}
+                                            maxFractionDigits={2}
+                                            placeholder="Monto"
+                                            useGrouping
+                                        />
+                                    </div>
                                     <div className="field col-12 md:col-4 contrato-simular">
                                         <label className="helper-label">Simulacion</label>
-                                        <Button label="Simular cuotas" icon="pi pi-calculator" onClick={simularCuotas} className="p-button-outlined" />
+                                        <Button label="Simular cuotas" icon="pi pi-calculator" onClick={simularCuotas} className="p-button-outlined" loading={simulando} />
+                                    </div>
+                                    <div className="field col-12">
+                                        <label htmlFor="observacion">Observacion</label>
+                                        <InputText
+                                            id="observacion"
+                                            value={form.observacion}
+                                            onChange={(e) => onInputChange(e.target.value, 'observacion')}
+                                            placeholder="Observaciones del vendedor"
+                                        />
                                     </div>
                                 </div>
                             </div>
@@ -377,16 +484,19 @@ const Contrato = () => {
                                 <div className="contrato-table">
                                     <DataTable value={cuotas} dataKey="numeroCuota" rows={6} paginator emptyMessage="Sin cuotas simuladas.">
                                         <Column field="numeroCuota" header="N°" style={{ width: '80px' }} />
-                                        <Column header="Monto" body={(row) => `S/. ${formatNumber(row.montoTotal)}`} style={{ minWidth: '140px' }} />
-                                        <Column header="Vencimiento" body={(row) => row.fechaVencimiento?.toLocaleDateString('es-PE')} style={{ minWidth: '160px' }} />
-                                        <Column field="estado" header="Estado" style={{ minWidth: '140px' }} />
+                                        <Column header="Monto" body={(row) => `S/. ${formatNumber(row.monto)}`} style={{ minWidth: '140px' }} />
+                                        <Column header="Vencimiento" body={(row) => {
+                                            if (!row?.fechaVencimiento) return '';
+                                            const date = row.fechaVencimiento instanceof Date ? row.fechaVencimiento : new Date(row.fechaVencimiento);
+                                            return date.toLocaleDateString('es-PE');
+                                        }} style={{ minWidth: '160px' }} />
                                     </DataTable>
                                 </div>
                             </div>
 
                             <div className="contrato-actions">
                                 <Button label="Cancelar" icon="pi pi-times" className="p-button-outlined" />
-                                <Button label="Guardar contrato" icon="pi pi-check" />
+                                <Button label="Guardar contrato" icon="pi pi-check" onClick={guardarContrato} loading={guardando} />
                             </div>
                         </div>
 
