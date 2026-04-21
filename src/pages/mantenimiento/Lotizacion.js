@@ -339,6 +339,7 @@ const Lotizacion = () => {
 
             await cargarUrbanizaciones();
             setUrbanizacion(emptyUrbanizacion);
+            setUrbanizacionSubmitted(false);
         } catch (error) {
             console.error(error);
             const detail = error?.response?.data?.message || 'No se pudo guardar la urbanizacion.';
@@ -387,6 +388,7 @@ const Lotizacion = () => {
             }
             await cargarEtapas();
             setEtapa(emptyEtapa);
+            setEtapaSubmitted(false);
         } catch (error) {
             console.error(error);
             const detail = error?.response?.data?.message || 'No se pudo guardar la etapa.';
@@ -436,6 +438,7 @@ const Lotizacion = () => {
             setManzana(emptyManzana);
             setManzanaUrbanizacion(null);
             setManzanaEtapas([]);
+            setManzanaSubmitted(false);
         } catch (error) {
             console.error(error);
             const detail = error?.response?.data?.message || 'No se pudo guardar la manzana.';
@@ -489,6 +492,7 @@ const Lotizacion = () => {
             setLoteEtapa(null);
             setLoteEtapas([]);
             setLoteManzanas([]);
+            setLoteSubmitted(false);
         } catch (error) {
             console.error(error);
             const detail = error?.response?.data?.message || 'No se pudo guardar el lote.';

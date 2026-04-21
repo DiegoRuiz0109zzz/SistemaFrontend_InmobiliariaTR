@@ -10,4 +10,5 @@ export { LoteEntity } from './LoteEntity';
 export { EstadoLote, EstadoLoteOptions } from './EstadoLote';
 export { ContratoEntity } from './ContratoEntity';
 export { CuotaEntity } from './CuotaEntity';
+export { PagoEntity } from './PagoEntity';
 export { EstadoCuota, EstadoCuotaOptions } from './EstadoCuota';

@@ -17,6 +17,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
   gap: 1.5rem;
+  align-items: start;
 }
 
 .lotizacion-page .lotizacion-form-layout--stack {
