@@ -74,7 +74,9 @@ const Menu = () => {
                 {
                     label: 'Gestion de Cuotas y Pagos',
                     icon: 'pi pi-fw pi-money-bill',
-                    to: 'cuotas-pagos'
+                    items: [
+                        { label: 'Cobranza', icon: 'pi pi-fw pi-wallet', to: 'cuotas-pagos' }
+                    ]
                 }
             ]
         });

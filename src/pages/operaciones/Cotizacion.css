@@ -18,7 +18,7 @@
     align-items: stretch;
 }
 
-.cotizacion-page .grid.mt-3 > .col-12.lg\:col-7 {
+.cotizacion-page .grid.mt-3>.col-12.lg\:col-7 {
     display: flex;
 }
 
@@ -27,10 +27,10 @@
    ===================================== */
 .custom-card {
     background: #ffffff;
-    border: 1px solid #e2e8f0;
+    border: 1px solid #cbd5e1;
     border-radius: 12px;
     padding: 1.5rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
 }
 
 .cotizacion-page .proyeccion-card {
@@ -133,6 +133,25 @@
     box-shadow: 0 0 0 2px #bfdbfe;
 }
 
+/* Corregir contraste y adecuar colores de botones en inputs (N° Cuotas, Calendar) */
+.cotizacion-page .p-inputnumber-button,
+.cotizacion-page .p-datepicker-trigger {
+    color: var(--topbar-text, #ffffff) !important;
+    background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-primary-dark) 100%) !important;
+    border: none !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+
+.cotizacion-page .p-inputnumber-button:hover,
+.cotizacion-page .p-datepicker-trigger:hover {
+    filter: brightness(1.1) !important;
+}
+
+.cotizacion-page .p-inputnumber-button .pi,
+.cotizacion-page .p-datepicker-trigger .pi {
+    color: var(--topbar-text, #ffffff) !important;
+}
+
 /* Badges (Etiquetas de Estado) */
 .status-badge {
     display: inline-flex;
@@ -174,12 +193,19 @@
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(5px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Mejoras a la tabla PrimeReact */
-.custom-table .p-datatable-thead > tr > th {
+.custom-table .p-datatable-thead>tr>th {
     background-color: #f8fafc;
     color: #64748b;
     font-size: 0.75rem;
@@ -187,6 +213,6 @@
     padding: 1rem;
 }
 
-.custom-table .p-datatable-tbody > tr > td {
+.custom-table .p-datatable-tbody>tr>td {
     padding: 0.75rem 1rem;
 }

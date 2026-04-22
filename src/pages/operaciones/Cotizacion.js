@@ -60,16 +60,18 @@ const Cotizacion = () => {
     }, []);
 
     const lotesTableRows = useMemo(() =>
-        lotes.map((item) => ({
-            id: item.id,
-            numero: item.numero,
-            area: item.area,
-            precio: item.precioVenta,
-            urbanizacion: item?.manzana?.etapa?.urbanizacion?.nombre || '',
-            etapa: item?.manzana?.etapa?.nombre || '',
-            manzana: item?.manzana?.nombre || '',
-            raw: item
-        })),
+        lotes
+            .filter((item) => item.estado && item.estado.toUpperCase() === 'DISPONIBLE')
+            .map((item) => ({
+                id: item.id,
+                numero: item.numero,
+                area: item.area,
+                precio: item.precioVenta,
+                urbanizacion: item?.manzana?.etapa?.urbanizacion?.nombre || '',
+                etapa: item?.manzana?.etapa?.nombre || '',
+                manzana: item?.manzana?.nombre || '',
+                raw: item
+            })),
         [lotes]
     );
 
@@ -284,15 +286,20 @@ const Cotizacion = () => {
                                                     id="numeroDocumento"
                                                     value={interesado?.numeroDocumento || dni}
                                                     onChange={(e) => {
-                                                        setDni(e.target.value);
-                                                        setInteresado((prev) => ({
-                                                            ...(prev || {}),
-                                                            numeroDocumento: e.target.value
-                                                        }));
+                                                        const val = e.target.value;
+                                                        if (/^\d{0,8}$/.test(val)) {
+                                                            setDni(val);
+                                                            setInteresado((prev) => ({
+                                                                ...(prev || {}),
+                                                                numeroDocumento: val
+                                                            }));
+                                                        }
                                                     }}
+                                                    keyfilter="pint"
+                                                    maxLength={8}
                                                     placeholder="Ej: 72384732"
                                                 />
-                                                <Button icon="pi pi-search" onClick={buscarDni} className="p-button-outlined" />
+                                                <Button icon="pi pi-search" onClick={buscarDni} className="btn-primary-custom" />
                                             </div>
                                         </div>
 
@@ -343,11 +350,18 @@ const Cotizacion = () => {
                                                 <InputText
                                                     id="telefono"
                                                     value={interesado?.telefono || ''}
-                                                    onChange={(e) => setInteresado((prev) => ({
-                                                        ...(prev || {}),
-                                                        telefono: e.target.value
-                                                    }))}
-                                                    placeholder="Ingrese teléfono"
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        if (/^\d{0,9}$/.test(val)) {
+                                                            setInteresado((prev) => ({
+                                                                ...(prev || {}),
+                                                                telefono: val
+                                                            }));
+                                                        }
+                                                    }}
+                                                    keyfilter="pint"
+                                                    maxLength={9}
+                                                    placeholder="Ej: 987654321"
                                                 />
                                             </div>
                                             <div className="field col-12">
@@ -389,12 +403,10 @@ const Cotizacion = () => {
                                             emptyMessage="No hay lotes disponibles."
                                             className="p-datatable-sm"
                                         >
-                                            <Column field="urbanizacion" header="Urbanización" style={{ minWidth: '160px' }} />
-                                            <Column field="etapa" header="Etapa" style={{ minWidth: '120px' }} />
-                                            <Column field="manzana" header="Manzana" style={{ minWidth: '120px' }} />
-                                            <Column field="numero" header="Lote" style={{ minWidth: '90px' }} />
-                                            <Column field="area" header="Área" style={{ minWidth: '110px' }} body={(row) => `${row.area || ''} m2`} />
-                                            <Column field="precio" header="Precio" style={{ minWidth: '120px' }} body={(row) => `S/ ${row.precio?.toLocaleString('es-PE', { minimumFractionDigits: 2 })}`} />
+                                            <Column field="ubicacion" header="Ubicación" style={{ width: '35%' }} body={(row) => `${row.urbanizacion} - ${row.etapa}`} />
+                                            <Column field="lote" header="Mza/Lt" style={{ width: '20%' }} body={(row) => `Mz ${row.manzana} - Lt ${row.numero}`} />
+                                            <Column field="area" header="Área" style={{ width: '15%' }} body={(row) => `${row.area || ''} m2`} />
+                                            <Column field="precio" header="Precio" style={{ width: '30%' }} body={(row) => <span className="font-bold text-green-600">S/ {row.precio?.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>} />
                                         </DataTable>
                                     </div>
                                 </div>
@@ -446,7 +458,7 @@ const Cotizacion = () => {
                                     )}
 
                                     <div className="mt-4">
-                                        <Button label="Simular Cronograma" icon="pi pi-chart-line" className="w-full p-button-primary p-button-lg" onClick={simular} />
+                                        <Button label="Simular Cronograma" icon="pi pi-chart-line" className="btn-primary-custom w-full p-button-lg" onClick={simular} />
                                     </div>
                                 </div>
 
@@ -461,7 +473,7 @@ const Cotizacion = () => {
                                             <span className="font-bold text-lg ml-2">Proyección Financiera</span>
                                         </div>
                                         {cronograma.length > 0 && (
-                                            <Button label="Guardar Cotización" icon="pi pi-save" className="p-button-success p-button-outlined p-button-sm" onClick={guardarCotizacion} />
+                                            <Button label="Guardar Cotización" icon="pi pi-save" className="btn-primary-custom p-button-lg" onClick={guardarCotizacion} />
                                         )}
                                     </div>
 
