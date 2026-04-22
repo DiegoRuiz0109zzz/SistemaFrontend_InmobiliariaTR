@@ -52,21 +52,31 @@ const Menu = () => {
             { ...perfilBase[0], items: inicioItems }
         ];
 
-        const gestionInmobiliariaItems = [
-            {
-                label: 'Gestion Inmobiliaria',
-                icon: 'pi pi-fw pi-file',
-                items: [
-                    { label: 'Cotizacion', icon: 'pi pi-fw pi-calculator', to: 'cotizacion' },
-                    { label: 'Contrato', icon: 'pi pi-fw pi-file-edit', to: 'contrato/nuevo' },
-                    { label: 'Lista de Contratos', icon: 'pi pi-fw pi-list', to: 'contrato/lista' }
-                ]
-            }
-        ];
-
         menu.push({
             label: 'Operaciones',
-            items: gestionInmobiliariaItems
+            items: [
+                {
+                    label: 'Cotizacion',
+                    icon: 'pi pi-fw pi-calculator',
+                    items: [
+                        { label: 'Nueva Cotizacion', icon: 'pi pi-fw pi-plus', to: 'cotizacion' },
+                        { label: 'Lista de Cotizaciones', icon: 'pi pi-fw pi-list', to: 'cotizacion/lista' }
+                    ]
+                },
+                {
+                    label: 'Contrato',
+                    icon: 'pi pi-fw pi-file-edit',
+                    items: [
+                        { label: 'Nuevo Contrato', icon: 'pi pi-fw pi-plus', to: 'contrato/nuevo' },
+                        { label: 'Lista de Contratos', icon: 'pi pi-fw pi-list', to: 'contrato/lista' }
+                    ]
+                },
+                {
+                    label: 'Gestion de Cuotas y Pagos',
+                    icon: 'pi pi-fw pi-money-bill',
+                    items: []
+                }
+            ]
         });
 
         const usuariosItems = [];
