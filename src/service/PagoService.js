@@ -11,9 +11,9 @@ export const PagoService = {
         return response.data;
     },
 
-    registrar: async (pago, httpClient) => {
+    registrar: async (pagoRequest, httpClient) => {
         const client = resolveClient(httpClient);
-        const response = await client.post(`${RESOURCE}/`, pago);
+        const response = await client.post(`${RESOURCE}/`, pagoRequest);
         return response.data;
     },
 
