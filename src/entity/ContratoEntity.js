@@ -8,5 +8,6 @@ export const ContratoEntity = {
     saldoFinanciar: null,
     cantidadCuotas: null,
     fechaContrato: null,
+    fechaRegistro: null,
     enabled: true
 };

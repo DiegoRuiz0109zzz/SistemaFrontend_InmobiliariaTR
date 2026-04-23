@@ -28,8 +28,12 @@ import Clientes from './pages/mantenimiento/Clientes';
 import Interesados from './pages/mantenimiento/Interesados';
 import Vendedores from './pages/mantenimiento/Vendedores';
 import Lotizacion from './pages/mantenimiento/Lotizacion';
+import Cotizacion from './pages/operaciones/Cotizacion';
+import ListaCotizaciones from './pages/operaciones/ListaCotizaciones';
 import Contrato from './pages/operaciones/Contrato';
 import ListaContratos from './pages/operaciones/ListaContratos';
+import DetalleContrato from './pages/operaciones/DetalleContrato';
+import GestionCuotasPagos from './pages/operaciones/GestionCuotasPagos';
 
 function App() {
   return (
@@ -48,8 +52,12 @@ function App() {
               <Route exact path="/interesados" element={<Interesados />} />
               <Route exact path="/vendedores" element={<Vendedores />} />
               <Route exact path="/lotizacion" element={<Lotizacion />} />
+              <Route exact path="/cotizacion" element={<Cotizacion />} />
+              <Route exact path="/cotizacion/lista" element={<ListaCotizaciones />} />
               <Route exact path="/contrato/nuevo" element={<Contrato />} />
               <Route exact path="/contrato/lista" element={<ListaContratos />} />
+              <Route exact path="/detalle_contrato/:id" element={<DetalleContrato />} />
+              <Route exact path="/cuotas-pagos" element={<GestionCuotasPagos />} />
             </Route>
             <Route exact path="/login" element={<Login />} />
             <Route exact path="/register" element={<Register />} />

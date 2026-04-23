@@ -11,5 +11,6 @@ export const ClienteEntity = {
     direccion: '',
     telefono: '',
     email: '',
+    tipoDocumento: 'DNI',
     enabled: true
 };

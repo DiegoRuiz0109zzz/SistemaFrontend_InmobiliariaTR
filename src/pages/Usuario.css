@@ -5,9 +5,16 @@
 }
 
 .usuario-page .container {
-    max-width: 1400px;
+    max-width: 100%;
+    width: 100%;
     margin: 0 auto;
-    padding: 2rem;
+    padding: 1.25rem;
+}
+
+@media (max-width: 768px) {
+    .usuario-page .container {
+        padding: 0.85rem;
+    }
 }
 
 /* Los estilos del header institucional ahora están en InstitutionalUI.css */

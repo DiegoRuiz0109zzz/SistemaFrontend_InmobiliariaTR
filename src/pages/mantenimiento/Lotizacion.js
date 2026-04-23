@@ -10,6 +10,7 @@ import { Dropdown } from 'primereact/dropdown';
 import { confirmDialog } from 'primereact/confirmdialog';
 import PageHeader from '../../components/ui/PageHeader';
 import DialogHeader from '../../components/ui/DialogHeader';
+import ActionToolbar from '../../components/ui/ActionToolbar';
 import { useAuth } from '../../context/AuthContext';
 import { UrbanizacionEntity } from '../../entity/UrbanizacionEntity';
 import { EtapaEntity } from '../../entity/EtapaEntity';
@@ -37,28 +38,48 @@ const Lotizacion = () => {
     const [urbanizacionDialog, setUrbanizacionDialog] = useState(false);
     const [urbanizacionSubmitted, setUrbanizacionSubmitted] = useState(false);
     const [urbanizacionEdit, setUrbanizacionEdit] = useState(emptyUrbanizacion);
+    const [urbanizacionFilter, setUrbanizacionFilter] = useState('');
 
     const [etapas, setEtapas] = useState([]);
     const [etapa, setEtapa] = useState(emptyEtapa);
     const [etapaDialog, setEtapaDialog] = useState(false);
     const [etapaSubmitted, setEtapaSubmitted] = useState(false);
     const [etapaEdit, setEtapaEdit] = useState(emptyEtapa);
+    const [etapaFilter, setEtapaFilter] = useState('');
 
     const [manzanas, setManzanas] = useState([]);
     const [manzana, setManzana] = useState(emptyManzana);
     const [manzanaDialog, setManzanaDialog] = useState(false);
     const [manzanaSubmitted, setManzanaSubmitted] = useState(false);
     const [manzanaEdit, setManzanaEdit] = useState(emptyManzana);
+    const [manzanaFilter, setManzanaFilter] = useState('');
+    const [manzanaUrbanizacion, setManzanaUrbanizacion] = useState(null);
+    const [manzanaEtapas, setManzanaEtapas] = useState([]);
+    const [manzanaDialogUrbanizacion, setManzanaDialogUrbanizacion] = useState(null);
+    const [manzanaDialogEtapas, setManzanaDialogEtapas] = useState([]);
 
     const [lotes, setLotes] = useState([]);
     const [lote, setLote] = useState(emptyLote);
     const [loteDialog, setLoteDialog] = useState(false);
     const [loteSubmitted, setLoteSubmitted] = useState(false);
     const [loteEdit, setLoteEdit] = useState(emptyLote);
+    const [loteFilter, setLoteFilter] = useState('');
+    const [loteUrbanizacion, setLoteUrbanizacion] = useState(null);
+    const [loteEtapa, setLoteEtapa] = useState(null);
+    const [loteEtapas, setLoteEtapas] = useState([]);
+    const [loteManzanas, setLoteManzanas] = useState([]);
+    const [loteDialogUrbanizacion, setLoteDialogUrbanizacion] = useState(null);
+    const [loteDialogEtapa, setLoteDialogEtapa] = useState(null);
+    const [loteDialogEtapas, setLoteDialogEtapas] = useState([]);
+    const [loteDialogManzanas, setLoteDialogManzanas] = useState([]);
 
     const urbanizacionOptions = urbanizaciones.map((item) => ({ label: item.nombre, value: item }));
-    const etapaOptions = etapas.map((item) => ({ label: item.nombre, value: item }));
-    const manzanaOptions = manzanas.map((item) => ({ label: item.nombre, value: item }));
+    const manzanaEtapaOptions = manzanaEtapas.map((item) => ({ label: item.nombre, value: item }));
+    const manzanaDialogEtapaOptions = manzanaDialogEtapas.map((item) => ({ label: item.nombre, value: item }));
+    const loteEtapaOptions = loteEtapas.map((item) => ({ label: item.nombre, value: item }));
+    const loteManzanaOptions = loteManzanas.map((item) => ({ label: item.nombre, value: item }));
+    const loteDialogEtapaOptions = loteDialogEtapas.map((item) => ({ label: item.nombre, value: item }));
+    const loteDialogManzanaOptions = loteDialogManzanas.map((item) => ({ label: item.nombre, value: item }));
 
     const hideUrbanizacionDialog = () => {
         setUrbanizacionDialog(false);
@@ -76,12 +97,18 @@ const Lotizacion = () => {
         setManzanaDialog(false);
         setManzanaSubmitted(false);
         setManzanaEdit(emptyManzana);
+        setManzanaDialogUrbanizacion(null);
+        setManzanaDialogEtapas([]);
     };
 
     const hideLoteDialog = () => {
         setLoteDialog(false);
         setLoteSubmitted(false);
         setLoteEdit(emptyLote);
+        setLoteDialogUrbanizacion(null);
+        setLoteDialogEtapa(null);
+        setLoteDialogEtapas([]);
+        setLoteDialogManzanas([]);
     };
 
     const cargarUrbanizaciones = useCallback(async () => {
@@ -124,12 +151,176 @@ const Lotizacion = () => {
         }
     }, [axiosInstance]);
 
+    const cargarEtapasPorUrbanizacion = useCallback(
+        async (urbanizacionId) => {
+            try {
+                const response = await EtapaService.listarPorUrbanizacion(urbanizacionId, axiosInstance);
+                return response || [];
+            } catch (error) {
+                console.error(error);
+                toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar etapas filtradas.', life: 3500 });
+                return [];
+            }
+        },
+        [axiosInstance]
+    );
+
+    const cargarManzanasPorEtapa = useCallback(
+        async (etapaId) => {
+            try {
+                const response = await ManzanaService.listarPorEtapa(etapaId, axiosInstance);
+                return response || [];
+            } catch (error) {
+                console.error(error);
+                toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar manzanas filtradas.', life: 3500 });
+                return [];
+            }
+        },
+        [axiosInstance]
+    );
+
     useEffect(() => {
         cargarUrbanizaciones();
         cargarEtapas();
         cargarManzanas();
         cargarLotes();
     }, [cargarUrbanizaciones, cargarEtapas, cargarManzanas, cargarLotes]);
+
+    useEffect(() => {
+        let active = true;
+
+        const loadEtapas = async () => {
+            if (!manzanaUrbanizacion?.id) {
+                setManzanaEtapas([]);
+                setManzana((prev) => ({ ...prev, etapa: null }));
+                return;
+            }
+            const response = await cargarEtapasPorUrbanizacion(manzanaUrbanizacion.id);
+            if (active) {
+                setManzanaEtapas(response);
+            }
+        };
+
+        loadEtapas();
+
+        return () => {
+            active = false;
+        };
+    }, [manzanaUrbanizacion, cargarEtapasPorUrbanizacion]);
+
+    useEffect(() => {
+        let active = true;
+
+        const loadEtapas = async () => {
+            if (!manzanaDialogUrbanizacion?.id) {
+                setManzanaDialogEtapas([]);
+                setManzanaEdit((prev) => ({ ...prev, etapa: null }));
+                return;
+            }
+            const response = await cargarEtapasPorUrbanizacion(manzanaDialogUrbanizacion.id);
+            if (active) {
+                setManzanaDialogEtapas(response);
+            }
+        };
+
+        loadEtapas();
+
+        return () => {
+            active = false;
+        };
+    }, [manzanaDialogUrbanizacion, cargarEtapasPorUrbanizacion]);
+
+    useEffect(() => {
+        let active = true;
+
+        const loadEtapas = async () => {
+            if (!loteUrbanizacion?.id) {
+                setLoteEtapas([]);
+                setLoteEtapa(null);
+                setLoteManzanas([]);
+                setLote((prev) => ({ ...prev, manzana: null }));
+                return;
+            }
+            const response = await cargarEtapasPorUrbanizacion(loteUrbanizacion.id);
+            if (active) {
+                setLoteEtapas(response);
+            }
+        };
+
+        loadEtapas();
+
+        return () => {
+            active = false;
+        };
+    }, [loteUrbanizacion, cargarEtapasPorUrbanizacion]);
+
+    useEffect(() => {
+        let active = true;
+
+        const loadManzanas = async () => {
+            if (!loteEtapa?.id) {
+                setLoteManzanas([]);
+                setLote((prev) => ({ ...prev, manzana: null }));
+                return;
+            }
+            const response = await cargarManzanasPorEtapa(loteEtapa.id);
+            if (active) {
+                setLoteManzanas(response);
+            }
+        };
+
+        loadManzanas();
+
+        return () => {
+            active = false;
+        };
+    }, [loteEtapa, cargarManzanasPorEtapa]);
+
+    useEffect(() => {
+        let active = true;
+
+        const loadEtapas = async () => {
+            if (!loteDialogUrbanizacion?.id) {
+                setLoteDialogEtapas([]);
+                setLoteDialogEtapa(null);
+                setLoteDialogManzanas([]);
+                setLoteEdit((prev) => ({ ...prev, manzana: null }));
+                return;
+            }
+            const response = await cargarEtapasPorUrbanizacion(loteDialogUrbanizacion.id);
+            if (active) {
+                setLoteDialogEtapas(response);
+            }
+        };
+
+        loadEtapas();
+
+        return () => {
+            active = false;
+        };
+    }, [loteDialogUrbanizacion, cargarEtapasPorUrbanizacion]);
+
+    useEffect(() => {
+        let active = true;
+
+        const loadManzanas = async () => {
+            if (!loteDialogEtapa?.id) {
+                setLoteDialogManzanas([]);
+                setLoteEdit((prev) => ({ ...prev, manzana: null }));
+                return;
+            }
+            const response = await cargarManzanasPorEtapa(loteDialogEtapa.id);
+            if (active) {
+                setLoteDialogManzanas(response);
+            }
+        };
+
+        loadManzanas();
+
+        return () => {
+            active = false;
+        };
+    }, [loteDialogEtapa, cargarManzanasPorEtapa]);
 
     const saveUrbanizacionForm = async () => {
         setUrbanizacionSubmitted(true);
@@ -148,6 +339,7 @@ const Lotizacion = () => {
 
             await cargarUrbanizaciones();
             setUrbanizacion(emptyUrbanizacion);
+            setUrbanizacionSubmitted(false);
         } catch (error) {
             console.error(error);
             const detail = error?.response?.data?.message || 'No se pudo guardar la urbanizacion.';
@@ -196,6 +388,7 @@ const Lotizacion = () => {
             }
             await cargarEtapas();
             setEtapa(emptyEtapa);
+            setEtapaSubmitted(false);
         } catch (error) {
             console.error(error);
             const detail = error?.response?.data?.message || 'No se pudo guardar la etapa.';
@@ -243,6 +436,9 @@ const Lotizacion = () => {
             }
             await cargarManzanas();
             setManzana(emptyManzana);
+            setManzanaUrbanizacion(null);
+            setManzanaEtapas([]);
+            setManzanaSubmitted(false);
         } catch (error) {
             console.error(error);
             const detail = error?.response?.data?.message || 'No se pudo guardar la manzana.';
@@ -267,6 +463,8 @@ const Lotizacion = () => {
             await cargarManzanas();
             setManzanaDialog(false);
             setManzanaEdit(emptyManzana);
+            setManzanaDialogUrbanizacion(null);
+            setManzanaDialogEtapas([]);
         } catch (error) {
             console.error(error);
             const detail = error?.response?.data?.message || 'No se pudo guardar la manzana.';
@@ -276,7 +474,7 @@ const Lotizacion = () => {
 
     const saveLoteForm = async () => {
         setLoteSubmitted(true);
-        if (!lote.numero || !lote.manzana) {
+        if (!lote.numero || !lote.manzana || !lote.area || !lote.precioMetroCuadrado || !lote.precioVenta) {
             return;
         }
 
@@ -290,6 +488,11 @@ const Lotizacion = () => {
             }
             await cargarLotes();
             setLote(emptyLote);
+            setLoteUrbanizacion(null);
+            setLoteEtapa(null);
+            setLoteEtapas([]);
+            setLoteManzanas([]);
+            setLoteSubmitted(false);
         } catch (error) {
             console.error(error);
             const detail = error?.response?.data?.message || 'No se pudo guardar el lote.';
@@ -299,7 +502,7 @@ const Lotizacion = () => {
 
     const saveLote = async () => {
         setLoteSubmitted(true);
-        if (!loteEdit.numero || !loteEdit.manzana) {
+        if (!loteEdit.numero || !loteEdit.manzana || !loteEdit.area || !loteEdit.precioMetroCuadrado || !loteEdit.precioVenta) {
             return;
         }
 
@@ -314,6 +517,10 @@ const Lotizacion = () => {
             await cargarLotes();
             setLoteDialog(false);
             setLoteEdit(emptyLote);
+            setLoteDialogUrbanizacion(null);
+            setLoteDialogEtapa(null);
+            setLoteDialogEtapas([]);
+            setLoteDialogManzanas([]);
         } catch (error) {
             console.error(error);
             const detail = error?.response?.data?.message || 'No se pudo guardar el lote.';
@@ -335,12 +542,15 @@ const Lotizacion = () => {
 
     const editManzana = (rowData) => {
         setManzanaEdit({ ...rowData });
+        setManzanaDialogUrbanizacion(rowData?.etapa?.urbanizacion || null);
         setManzanaSubmitted(false);
         setManzanaDialog(true);
     };
 
     const editLote = (rowData) => {
         setLoteEdit({ ...rowData });
+        setLoteDialogUrbanizacion(rowData?.manzana?.etapa?.urbanizacion || null);
+        setLoteDialogEtapa(rowData?.manzana?.etapa || null);
         setLoteSubmitted(false);
         setLoteDialog(true);
     };
@@ -431,8 +641,37 @@ const Lotizacion = () => {
     };
 
     const formatPrecio = (rowData) => {
-        const formatted = formatNumber(rowData?.precio);
+        const formatted = formatNumber(rowData?.precioVenta);
         return formatted ? `S/. ${formatted}` : '';
+    };
+
+    const formatPrecioCosto = (rowData) => {
+        const formatted = formatNumber(rowData?.precioCosto);
+        return formatted ? `S/. ${formatted}` : '';
+    };
+
+    const parseNumber = (value) => {
+        if (value === null || value === undefined || value === '') {
+            return null;
+        }
+        const numericValue = Number(value);
+        return Number.isNaN(numericValue) ? null : numericValue;
+    };
+
+    const recalcularCosto = async (areaValue, precioMetroValue, setter) => {
+        const area = parseNumber(areaValue);
+        const precioMetroCuadrado = parseNumber(precioMetroValue);
+        if (!area || !precioMetroCuadrado) {
+            setter((prev) => ({ ...prev, precioCosto: null }));
+            return;
+        }
+        try {
+            const response = await LoteService.calcularCosto(area, precioMetroCuadrado, axiosInstance);
+            setter((prev) => ({ ...prev, precioCosto: response?.precioCosto ?? null }));
+        } catch (error) {
+            console.error(error);
+            toast.current?.show({ severity: 'warn', summary: 'Costo', detail: 'No se pudo calcular el costo.', life: 3000 });
+        }
     };
 
     const formActions = (onSave, onReset) => (
@@ -457,6 +696,7 @@ const Lotizacion = () => {
                         <TabPanel header="Urbanizacion" leftIcon="pi pi-home mr-2">
                             <div className="lotizacion-form-layout">
                                 <div className="content-card lotizacion-form-card">
+                                    <h5 className="lotizacion-form-title">Registro de urbanizacion</h5>
                                     <div className="field">
                                         <label htmlFor="urbanizacionNombre">Nombre</label>
                                         <InputText
@@ -479,7 +719,20 @@ const Lotizacion = () => {
                                     {formActions(saveUrbanizacionForm, () => setUrbanizacion(emptyUrbanizacion))}
                                 </div>
                                 <div className="content-card lotizacion-list-card">
-                                    <DataTable value={urbanizaciones} dataKey="id" rows={6} paginator>
+                                    <ActionToolbar
+                                        onSearch={setUrbanizacionFilter}
+                                        searchValue={urbanizacionFilter}
+                                        searchPlaceholder="Buscar urbanizaciones..."
+                                    />
+                                    <DataTable
+                                        value={urbanizaciones}
+                                        dataKey="id"
+                                        rows={6}
+                                        paginator
+                                        globalFilter={urbanizacionFilter}
+                                        globalFilterFields={['nombre', 'ubicacion']}
+                                        emptyMessage="No se encontraron urbanizaciones."
+                                    >
                                         <Column header="N°" body={indexBodyTemplate} style={{ width: '80px', textAlign: 'center' }} />
                                         <Column field="nombre" header="Nombre" style={{ minWidth: '200px' }} />
                                         <Column field="ubicacion" header="Ubicacion" style={{ minWidth: '200px' }} />
@@ -492,16 +745,7 @@ const Lotizacion = () => {
                         <TabPanel header="Etapa" leftIcon="pi pi-clone mr-2">
                             <div className="lotizacion-form-layout">
                                 <div className="content-card lotizacion-form-card">
-                                    <div className="field">
-                                        <label htmlFor="etapaNombre">Nombre</label>
-                                        <InputText
-                                            id="etapaNombre"
-                                            value={etapa.nombre}
-                                            onChange={(e) => setEtapa((prev) => ({ ...prev, nombre: e.target.value }))}
-                                            placeholder="Nombre de etapa"
-                                        />
-                                        {etapaSubmitted && !etapa.nombre && <small className="p-error">Nombre requerido.</small>}
-                                    </div>
+                                    <h5 className="lotizacion-form-title">Registro de etapa</h5>
                                     <div className="field">
                                         <label htmlFor="etapaUrbanizacion">Urbanizacion</label>
                                         <Dropdown
@@ -515,10 +759,33 @@ const Lotizacion = () => {
                                         />
                                         {etapaSubmitted && !etapa.urbanizacion && <small className="p-error">Urbanizacion requerida.</small>}
                                     </div>
+                                    <div className="field">
+                                        <label htmlFor="etapaNombre">Nombre</label>
+                                        <InputText
+                                            id="etapaNombre"
+                                            value={etapa.nombre}
+                                            onChange={(e) => setEtapa((prev) => ({ ...prev, nombre: e.target.value }))}
+                                            placeholder="Nombre de etapa"
+                                        />
+                                        {etapaSubmitted && !etapa.nombre && <small className="p-error">Nombre requerido.</small>}
+                                    </div>
                                     {formActions(saveEtapaForm, () => setEtapa(emptyEtapa))}
                                 </div>
                                 <div className="content-card lotizacion-list-card">
-                                    <DataTable value={etapas} dataKey="id" rows={6} paginator>
+                                    <ActionToolbar
+                                        onSearch={setEtapaFilter}
+                                        searchValue={etapaFilter}
+                                        searchPlaceholder="Buscar etapas..."
+                                    />
+                                    <DataTable
+                                        value={etapas}
+                                        dataKey="id"
+                                        rows={6}
+                                        paginator
+                                        globalFilter={etapaFilter}
+                                        globalFilterFields={['nombre', 'urbanizacion.nombre']}
+                                        emptyMessage="No se encontraron etapas."
+                                    >
                                         <Column header="N°" body={indexBodyTemplate} style={{ width: '80px', textAlign: 'center' }} />
                                         <Column field="nombre" header="Nombre" style={{ minWidth: '200px' }} />
                                         <Column field="urbanizacion.nombre" header="Urbanizacion" style={{ minWidth: '200px' }} />
@@ -531,6 +798,36 @@ const Lotizacion = () => {
                         <TabPanel header="Manzana" leftIcon="pi pi-th-large mr-2">
                             <div className="lotizacion-form-layout">
                                 <div className="content-card lotizacion-form-card">
+                                    <h5 className="lotizacion-form-title">Registro de manzana</h5>
+                                    <div className="field">
+                                        <label htmlFor="manzanaUrbanizacion">Urbanizacion</label>
+                                        <Dropdown
+                                            id="manzanaUrbanizacion"
+                                            value={manzanaUrbanizacion}
+                                            options={urbanizacionOptions}
+                                            onChange={(e) => {
+                                                setManzanaUrbanizacion(e.value);
+                                                setManzana((prev) => ({ ...prev, etapa: null }));
+                                            }}
+                                            placeholder="Seleccione urbanizacion"
+                                            className="w-full"
+                                            showClear
+                                        />
+                                    </div>
+                                    <div className="field">
+                                        <label htmlFor="manzanaEtapa">Etapa</label>
+                                        <Dropdown
+                                            id="manzanaEtapa"
+                                            value={manzana.etapa}
+                                            options={manzanaEtapaOptions}
+                                            onChange={(e) => setManzana((prev) => ({ ...prev, etapa: e.value }))}
+                                            placeholder="Seleccione etapa"
+                                            className="w-full"
+                                            showClear
+                                            disabled={!manzanaUrbanizacion}
+                                        />
+                                        {manzanaSubmitted && !manzana.etapa && <small className="p-error">Etapa requerida.</small>}
+                                    </div>
                                     <div className="field">
                                         <label htmlFor="manzanaNombre">Nombre</label>
                                         <InputText
@@ -541,25 +838,30 @@ const Lotizacion = () => {
                                         />
                                         {manzanaSubmitted && !manzana.nombre && <small className="p-error">Nombre requerido.</small>}
                                     </div>
-                                    <div className="field">
-                                        <label htmlFor="manzanaEtapa">Etapa</label>
-                                        <Dropdown
-                                            id="manzanaEtapa"
-                                            value={manzana.etapa}
-                                            options={etapaOptions}
-                                            onChange={(e) => setManzana((prev) => ({ ...prev, etapa: e.value }))}
-                                            placeholder="Seleccione etapa"
-                                            className="w-full"
-                                            showClear
-                                        />
-                                        {manzanaSubmitted && !manzana.etapa && <small className="p-error">Etapa requerida.</small>}
-                                    </div>
-                                    {formActions(saveManzanaForm, () => setManzana(emptyManzana))}
+                                    {formActions(saveManzanaForm, () => {
+                                        setManzana(emptyManzana);
+                                        setManzanaUrbanizacion(null);
+                                        setManzanaEtapas([]);
+                                    })}
                                 </div>
                                 <div className="content-card lotizacion-list-card">
-                                    <DataTable value={manzanas} dataKey="id" rows={6} paginator>
+                                    <ActionToolbar
+                                        onSearch={setManzanaFilter}
+                                        searchValue={manzanaFilter}
+                                        searchPlaceholder="Buscar manzanas..."
+                                    />
+                                    <DataTable
+                                        value={manzanas}
+                                        dataKey="id"
+                                        rows={6}
+                                        paginator
+                                        globalFilter={manzanaFilter}
+                                        globalFilterFields={['nombre', 'etapa.nombre', 'etapa.urbanizacion.nombre']}
+                                        emptyMessage="No se encontraron manzanas."
+                                    >
                                         <Column header="N°" body={indexBodyTemplate} style={{ width: '80px', textAlign: 'center' }} />
                                         <Column field="nombre" header="Nombre" style={{ minWidth: '200px' }} />
+                                        <Column field="etapa.urbanizacion.nombre" header="Urbanizacion" style={{ minWidth: '200px' }} />
                                         <Column field="etapa.nombre" header="Etapa" style={{ minWidth: '200px' }} />
                                         <Column header="Acciones" body={(rowData) => actionBodyTemplate(rowData, editManzana, (data) => confirmDelete('Eliminar manzana?', () => deleteManzana(data)))} style={{ minWidth: '140px', textAlign: 'center' }} />
                                     </DataTable>
@@ -570,69 +872,158 @@ const Lotizacion = () => {
                         <TabPanel header="Lote" leftIcon="pi pi-map mr-2">
                             <div className="lotizacion-form-layout lotizacion-form-layout--stack">
                                 <div className="content-card lotizacion-form-card lotizacion-form-card--grid">
-                                    <div className="field">
-                                        <label htmlFor="loteNumero">Numero</label>
-                                        <InputText
-                                            id="loteNumero"
-                                            value={lote.numero}
-                                            onChange={(e) => setLote((prev) => ({ ...prev, numero: e.target.value }))}
-                                            placeholder="Numero de lote"
-                                        />
-                                        {loteSubmitted && !lote.numero && <small className="p-error">Numero requerido.</small>}
+                                    <div className="lotizacion-form-title-group">
+                                        <h5 className="lotizacion-form-title">Registro de lote</h5>
+                                        <small className="lotizacion-form-hint">Primero seleccione urbanizacion, etapa y manzana.</small>
                                     </div>
-                                    <div className="field">
-                                        <label htmlFor="loteManzana">Manzana</label>
-                                        <Dropdown
-                                            id="loteManzana"
-                                            value={lote.manzana}
-                                            options={manzanaOptions}
-                                            onChange={(e) => setLote((prev) => ({ ...prev, manzana: e.value }))}
-                                            placeholder="Seleccione manzana"
-                                            className="w-full"
-                                            showClear
-                                        />
-                                        {loteSubmitted && !lote.manzana && <small className="p-error">Manzana requerida.</small>}
+                                    <div className="lotizacion-lote-select">
+                                        <div className="field">
+                                            <label htmlFor="loteUrbanizacion">Urbanizacion</label>
+                                            <Dropdown
+                                                id="loteUrbanizacion"
+                                                value={loteUrbanizacion}
+                                                options={urbanizacionOptions}
+                                                onChange={(e) => {
+                                                    setLoteUrbanizacion(e.value);
+                                                    setLoteEtapa(null);
+                                                    setLote((prev) => ({ ...prev, manzana: null }));
+                                                }}
+                                                placeholder="Seleccione urbanizacion"
+                                                className="w-full"
+                                                showClear
+                                            />
+                                        </div>
+                                        <div className="field">
+                                            <label htmlFor="loteEtapa">Etapa</label>
+                                            <Dropdown
+                                                id="loteEtapa"
+                                                value={loteEtapa}
+                                                options={loteEtapaOptions}
+                                                onChange={(e) => {
+                                                    setLoteEtapa(e.value);
+                                                    setLote((prev) => ({ ...prev, manzana: null }));
+                                                }}
+                                                placeholder="Seleccione etapa"
+                                                className="w-full"
+                                                showClear
+                                                disabled={!loteUrbanizacion}
+                                            />
+                                        </div>
+                                        <div className="field">
+                                            <label htmlFor="loteManzana">Manzana</label>
+                                            <Dropdown
+                                                id="loteManzana"
+                                                value={lote.manzana}
+                                                options={loteManzanaOptions}
+                                                onChange={(e) => setLote((prev) => ({ ...prev, manzana: e.value }))}
+                                                placeholder="Seleccione manzana"
+                                                className="w-full"
+                                                showClear
+                                                disabled={!loteEtapa}
+                                            />
+                                            {loteSubmitted && !lote.manzana && <small className="p-error">Manzana requerida.</small>}
+                                        </div>
                                     </div>
-                                    <div className="field">
-                                        <label htmlFor="loteArea">Area</label>
-                                        <InputText
-                                            id="loteArea"
-                                            value={lote.area || ''}
-                                            onChange={(e) => setLote((prev) => ({ ...prev, area: e.target.value }))}
-                                            placeholder="Area"
-                                        />
+                                    <div className="lotizacion-lote-details">
+                                        <div className="field">
+                                            <label htmlFor="loteNumero">Numero</label>
+                                            <InputText
+                                                id="loteNumero"
+                                                value={lote.numero}
+                                                onChange={(e) => setLote((prev) => ({ ...prev, numero: e.target.value }))}
+                                                placeholder="Numero de lote"
+                                            />
+                                            {loteSubmitted && !lote.numero && <small className="p-error">Numero requerido.</small>}
+                                        </div>
+                                        <div className="field">
+                                            <label htmlFor="loteArea">Area</label>
+                                            <InputText
+                                                id="loteArea"
+                                                value={lote.area || ''}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    setLote((prev) => ({ ...prev, area: value }));
+                                                    recalcularCosto(value, lote.precioMetroCuadrado, setLote);
+                                                }}
+                                                placeholder="Area"
+                                            />
+                                        </div>
+                                        <div className="field">
+                                            <label htmlFor="lotePrecioMetro">Precio m2</label>
+                                            <InputText
+                                                id="lotePrecioMetro"
+                                                value={lote.precioMetroCuadrado || ''}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    setLote((prev) => ({ ...prev, precioMetroCuadrado: value }));
+                                                    recalcularCosto(lote.area, value, setLote);
+                                                }}
+                                                placeholder="Precio m2"
+                                            />
+                                        </div>
+                                        <div className="field">
+                                            <label htmlFor="lotePrecioCosto">Precio costo</label>
+                                            <InputText
+                                                id="lotePrecioCosto"
+                                                value={lote.precioCosto || ''}
+                                                onChange={(e) => setLote((prev) => ({ ...prev, precioCosto: e.target.value }))}
+                                                placeholder="Precio costo"
+                                                disabled
+                                            />
+                                        </div>
+                                        <div className="field">
+                                            <label htmlFor="lotePrecioVenta">Precio venta</label>
+                                            <InputText
+                                                id="lotePrecioVenta"
+                                                value={lote.precioVenta || ''}
+                                                onChange={(e) => setLote((prev) => ({ ...prev, precioVenta: e.target.value }))}
+                                                placeholder="Precio venta"
+                                            />
+                                        </div>
+                                        <div className="field">
+                                            <label htmlFor="loteEstado">Estado</label>
+                                            <Dropdown
+                                                id="loteEstado"
+                                                value={lote.estadoVenta}
+                                                options={EstadoLoteOptions}
+                                                onChange={(e) => setLote((prev) => ({ ...prev, estadoVenta: e.value }))}
+                                                placeholder="Seleccione estado"
+                                                className="w-full"
+                                            />
+                                        </div>
                                     </div>
-                                    <div className="field">
-                                        <label htmlFor="lotePrecio">Precio</label>
-                                        <InputText
-                                            id="lotePrecio"
-                                            value={lote.precio || ''}
-                                            onChange={(e) => setLote((prev) => ({ ...prev, precio: e.target.value }))}
-                                            placeholder="Precio"
-                                        />
-                                    </div>
-                                    <div className="field">
-                                        <label htmlFor="loteEstado">Estado</label>
-                                        <Dropdown
-                                            id="loteEstado"
-                                            value={lote.estadoVenta}
-                                            options={EstadoLoteOptions}
-                                            onChange={(e) => setLote((prev) => ({ ...prev, estadoVenta: e.value }))}
-                                            placeholder="Seleccione estado"
-                                            className="w-full"
-                                        />
-                                    </div>
-                                    {formActions(saveLoteForm, () => setLote(emptyLote))}
+                                    {formActions(saveLoteForm, () => {
+                                        setLote(emptyLote);
+                                        setLoteUrbanizacion(null);
+                                        setLoteEtapa(null);
+                                        setLoteEtapas([]);
+                                        setLoteManzanas([]);
+                                    })}
                                 </div>
                                 <div className="content-card lotizacion-list-card">
-                                    <DataTable value={lotes} dataKey="id" rows={6} paginator>
+                                    <ActionToolbar
+                                        onSearch={setLoteFilter}
+                                        searchValue={loteFilter}
+                                        searchPlaceholder="Buscar lotes..."
+                                    />
+                                    <DataTable
+                                        value={lotes}
+                                        dataKey="id"
+                                        rows={6}
+                                        paginator
+                                        globalFilter={loteFilter}
+                                        globalFilterFields={['numero', 'manzana.nombre', 'manzana.etapa.nombre', 'manzana.etapa.urbanizacion.nombre', 'estadoVenta', 'area', 'precioMetroCuadrado', 'precioCosto', 'precioVenta']}
+                                        emptyMessage="No se encontraron lotes."
+                                    >
                                         <Column header="N°" body={indexBodyTemplate} style={{ width: '80px', textAlign: 'center' }} />
                                         <Column field="numero" header="Numero" style={{ minWidth: '120px' }} />
                                         <Column field="manzana.etapa.urbanizacion.nombre" header="Urbanizacion" style={{ minWidth: '200px' }} />
                                         <Column field="manzana.etapa.nombre" header="Etapa" style={{ minWidth: '160px' }} />
                                         <Column field="manzana.nombre" header="Manzana" style={{ minWidth: '160px' }} />
                                         <Column header="Area" body={formatArea} style={{ minWidth: '120px' }} />
-                                        <Column header="Precio" body={formatPrecio} style={{ minWidth: '140px' }} />
+                                        <Column header="Precio m2" field="precioMetroCuadrado" style={{ minWidth: '120px' }} />
+                                        <Column header="Costo" body={formatPrecioCosto} style={{ minWidth: '140px' }} />
+                                        <Column header="Precio venta" body={formatPrecio} style={{ minWidth: '140px' }} />
                                         <Column field="estadoVenta" header="Estado" style={{ minWidth: '140px' }} />
                                         <Column header="Acciones" body={(rowData) => actionBodyTemplate(rowData, editLote, (data) => confirmDelete('Eliminar lote?', () => deleteLote(data)))} style={{ minWidth: '140px', textAlign: 'center' }} />
                                     </DataTable>
@@ -753,15 +1144,31 @@ const Lotizacion = () => {
                         {manzanaSubmitted && !manzanaEdit.nombre && <small className="p-error">Nombre requerido.</small>}
                     </div>
                     <div className="field col-12 md:col-6">
+                        <label htmlFor="manzanaUrbanizacionDialog">Urbanizacion</label>
+                        <Dropdown
+                            id="manzanaUrbanizacionDialog"
+                            value={manzanaDialogUrbanizacion}
+                            options={urbanizacionOptions}
+                            onChange={(e) => {
+                                setManzanaDialogUrbanizacion(e.value);
+                                setManzanaEdit((prev) => ({ ...prev, etapa: null }));
+                            }}
+                            placeholder="Seleccione urbanizacion"
+                            className="w-full"
+                            showClear
+                        />
+                    </div>
+                    <div className="field col-12 md:col-6">
                         <label htmlFor="manzanaEtapaDialog">Etapa</label>
                         <Dropdown
                             id="manzanaEtapaDialog"
                             value={manzanaEdit.etapa}
-                            options={etapaOptions}
+                            options={manzanaDialogEtapaOptions}
                             onChange={(e) => setManzanaEdit((prev) => ({ ...prev, etapa: e.value }))}
                             placeholder="Seleccione etapa"
                             className="w-full"
                             showClear
+                            disabled={!manzanaDialogUrbanizacion}
                         />
                         {manzanaSubmitted && !manzanaEdit.etapa && <small className="p-error">Etapa requerida.</small>}
                     </div>
@@ -796,15 +1203,48 @@ const Lotizacion = () => {
                         {loteSubmitted && !loteEdit.numero && <small className="p-error">Numero requerido.</small>}
                     </div>
                     <div className="field col-12 md:col-6">
+                        <label htmlFor="loteUrbanizacionDialog">Urbanizacion</label>
+                        <Dropdown
+                            id="loteUrbanizacionDialog"
+                            value={loteDialogUrbanizacion}
+                            options={urbanizacionOptions}
+                            onChange={(e) => {
+                                setLoteDialogUrbanizacion(e.value);
+                                setLoteDialogEtapa(null);
+                                setLoteEdit((prev) => ({ ...prev, manzana: null }));
+                            }}
+                            placeholder="Seleccione urbanizacion"
+                            className="w-full"
+                            showClear
+                        />
+                    </div>
+                    <div className="field col-12 md:col-6">
+                        <label htmlFor="loteEtapaDialog">Etapa</label>
+                        <Dropdown
+                            id="loteEtapaDialog"
+                            value={loteDialogEtapa}
+                            options={loteDialogEtapaOptions}
+                            onChange={(e) => {
+                                setLoteDialogEtapa(e.value);
+                                setLoteEdit((prev) => ({ ...prev, manzana: null }));
+                            }}
+                            placeholder="Seleccione etapa"
+                            className="w-full"
+                            showClear
+                            disabled={!loteDialogUrbanizacion}
+                        />
+                    </div>
+                    <div className="field col-12 md:col-6">
                         <label htmlFor="loteManzanaDialog">Manzana</label>
                         <Dropdown
                             id="loteManzanaDialog"
                             value={loteEdit.manzana}
-                            options={manzanaOptions}
+                            options={loteDialogManzanaOptions}
                             onChange={(e) => setLoteEdit((prev) => ({ ...prev, manzana: e.value }))}
                             placeholder="Seleccione manzana"
                             className="w-full"
                             showClear
+                            disabled={!loteDialogEtapa}
                         />
                         {loteSubmitted && !loteEdit.manzana && <small className="p-error">Manzana requerida.</small>}
                     </div>
@@ -813,17 +1253,44 @@ const Lotizacion = () => {
                         <InputText
                             id="loteAreaDialog"
                             value={loteEdit.area || ''}
-                            onChange={(e) => setLoteEdit((prev) => ({ ...prev, area: e.target.value }))}
+                            onChange={(e) => {
+                                const value = e.target.value;
+                                setLoteEdit((prev) => ({ ...prev, area: value }));
+                                recalcularCosto(value, loteEdit.precioMetroCuadrado, setLoteEdit);
+                            }}
                             placeholder="Area"
                         />
                     </div>
                     <div className="field col-12 md:col-4">
-                        <label htmlFor="lotePrecioDialog">Precio</label>
+                        <label htmlFor="lotePrecioMetroDialog">Precio m2</label>
                         <InputText
-                            id="lotePrecioDialog"
-                            value={loteEdit.precio || ''}
-                            onChange={(e) => setLoteEdit((prev) => ({ ...prev, precio: e.target.value }))}
-                            placeholder="Precio"
+                            id="lotePrecioMetroDialog"
+                            value={loteEdit.precioMetroCuadrado || ''}
+                            onChange={(e) => {
+                                const value = e.target.value;
+                                setLoteEdit((prev) => ({ ...prev, precioMetroCuadrado: value }));
+                                recalcularCosto(loteEdit.area, value, setLoteEdit);
+                            }}
+                            placeholder="Precio m2"
+                        />
+                    </div>
+                    <div className="field col-12 md:col-4">
+                        <label htmlFor="lotePrecioCostoDialog">Precio costo</label>
+                        <InputText
+                            id="lotePrecioCostoDialog"
+                            value={loteEdit.precioCosto || ''}
+                            onChange={(e) => setLoteEdit((prev) => ({ ...prev, precioCosto: e.target.value }))}
+                            placeholder="Precio costo"
+                            disabled
+                        />
+                    </div>
+                    <div className="field col-12 md:col-4">
+                        <label htmlFor="lotePrecioVentaDialog">Precio venta</label>
+                        <InputText
+                            id="lotePrecioVentaDialog"
+                            value={loteEdit.precioVenta || ''}
+                            onChange={(e) => setLoteEdit((prev) => ({ ...prev, precioVenta: e.target.value }))}
+                            placeholder="Precio venta"
                         />
                     </div>
                     <div className="field col-12 md:col-4">
