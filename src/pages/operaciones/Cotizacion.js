@@ -61,7 +61,10 @@ const Cotizacion = () => {
 
     const lotesTableRows = useMemo(() =>
         lotes
-            .filter((item) => item.estado && item.estado.toUpperCase() === 'DISPONIBLE')
+            .filter((item) => {
+                const estado = item.estadoVenta || item.estado;
+                return estado && (estado.toUpperCase() === 'DISPONIBLE' || estado.toUpperCase() === 'DISPONIBLES');
+            })
             .map((item) => ({
                 id: item.id,
                 numero: item.numero,

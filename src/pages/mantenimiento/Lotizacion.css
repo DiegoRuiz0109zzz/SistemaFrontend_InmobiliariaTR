@@ -21,7 +21,7 @@
 }
 
 .lotizacion-page .lotizacion-form-layout--stack {
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .lotizacion-page .lotizacion-form-card {
@@ -148,6 +148,8 @@
 
 .lotizacion-page .lotizacion-list-card {
   padding: 0.5rem 0 0 0;
+  overflow-x: auto;
+  max-width: 100%;
 }
 
 .lotizacion-page .lotizacion-list-card .p-datatable {
@@ -192,19 +194,19 @@
 
 @media (max-width: 960px) {
   .lotizacion-page .lotizacion-form-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .lotizacion-page .lotizacion-form-card--grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .lotizacion-page .lotizacion-lote-select {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .lotizacion-page .lotizacion-lote-details {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
