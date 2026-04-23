@@ -1,4 +1,5 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { TabView, TabPanel } from 'primereact/tabview';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
@@ -20,6 +21,7 @@ import './GestionCuotasPagos.css';
 
 const GestionCuotasPagos = () => {
     const toast = useRef(null);
+    const location = useLocation();
     const { axiosInstance } = useAuth();
 
     // ==========================================
@@ -98,14 +100,25 @@ const GestionCuotasPagos = () => {
     // ==========================================
     // LÓGICA DE BÚSQUEDA Y PAGOS
     // ==========================================
-    const buscarContrato = async () => {
-        if (criterioBusqueda.length < 4) {
+    useEffect(() => {
+        if (location.state?.buscarContrato) {
+            setCriterioBusqueda(location.state.buscarContrato);
+            buscarContrato(location.state.buscarContrato);
+            // Limpiar state del historial para evitar búsquedas repetidas al retroceder
+            window.history.replaceState({}, document.title);
+        }
+    }, [location.state]);
+
+    const buscarContrato = async (paramCriterio) => {
+        const busqueda = typeof paramCriterio === 'string' ? paramCriterio : criterioBusqueda;
+        
+        if (busqueda.length < 4) {
             toast.current.show({ severity: 'warn', summary: 'Búsqueda inválida', detail: 'Ingrese al menos 4 caracteres del DNI o N° de Contrato.' });
             return;
         }
 
         try {
-            const criterio = normalizeText(criterioBusqueda);
+            const criterio = normalizeText(busqueda);
             const contratos = await ContratoService.listar(axiosInstance);
             const listado = Array.isArray(contratos) ? contratos : [];
             const encontrado = listado.find((contrato) => {

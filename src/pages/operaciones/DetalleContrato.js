@@ -9,10 +9,15 @@ import { Toast } from 'primereact/toast';
 import { Divider } from 'primereact/divider';
 import { Skeleton } from 'primereact/skeleton';
 import PageHeader from '../../components/ui/PageHeader';
+import { useAuth } from '../../context/AuthContext';
+import { ContratoService } from '../../service/ContratoService';
+import { CuotaService } from '../../service/CuotaService';
+import { PagoService } from '../../service/PagoService';
 
 import './DetalleContrato.css';
 
 const DetalleContrato = () => {
+    const { axiosInstance } = useAuth();
     const toast = useRef(null);
 
     const { id } = useParams();
@@ -27,49 +32,100 @@ const DetalleContrato = () => {
         }
     }, [id]);
 
-    const cargarDetalleContrato = (contratoId) => {
+    const cargarDetalleContrato = async (contratoId) => {
         setLoading(true);
-        // Simulamos la llamada a tu backend: ContratoService.obtenerDetalle(contratoIdUrl)
-        setTimeout(() => {
+        try {
+            const data = await ContratoService.obtener(contratoId, axiosInstance);
+            const cuotasRaw = await CuotaService.listarPorContrato(contratoId, axiosInstance);
+            
+            const cuotasList = Array.isArray(cuotasRaw) ? cuotasRaw : [];
+            
+            // Si el backend incluye las cuotas, calculamos el total pagado de verdad:
+            let totalPagadoReal = 0;
+            let cuotasAtrasadas = 0;
+            let cuotasPagadas = 0;
+            
+            const cuotasFormateadas = cuotasList.map(cuota => {
+                const pagadoEnCuota = cuota.montoPagado || 0;
+                totalPagadoReal += pagadoEnCuota;
+                
+                if(cuota.estado === 'VENCIDA' || cuota.estado === 'ATRASADA') cuotasAtrasadas++;
+                if(cuota.estado === 'PAGADO') cuotasPagadas++;
+                
+                return {
+                    ...cuota,
+                    numero: cuota.numeroCuota !== undefined ? cuota.numeroCuota : cuota.numero,
+                    vencimiento: cuota.fechaVencimiento ? new Date(cuota.fechaVencimiento).toLocaleDateString() : 'N/A',
+                    montoTotal: cuota.montoTotal || cuota.monto || 0,
+                    montoPagado: pagadoEnCuota,
+                    estado: cuota.estado || 'PENDIENTE',
+                    pagos: [] // Lo llenaremos on-demand al hacer click
+                };
+            });
+
+            // Si no hay cuotas aún, usamos el abono inicial como fallback
+            const abonoInicial = data.abonoInicialReal || data.montoInicial || 0;
+            if (totalPagadoReal === 0 && abonoInicial > 0 && cuotasList.length === 0) {
+                totalPagadoReal = abonoInicial;
+            }
+            
+            const precioTotal = data.precioTotal || 1;
+
             setContrato({
                 id: Number(contratoId),
-                codigo: `C-${contratoId}`,
-                fechaEmision: '10/03/2026',
-                vendedor: 'Carlos Asesor',
+                codigo: `C-${contratoId.toString().padStart(4, '0')}`,
+                fechaEmision: data.fechaRegistro ? new Date(data.fechaRegistro).toLocaleDateString() : 'N/A',
+                vendedor: data.vendedor ? `${data.vendedor.nombres} ${data.vendedor.apellidos}` : 'No asignado',
                 cliente: { 
-                    nombres: 'Juan', 
-                    apellidos: 'Pérez Castillo', 
-                    numeroDocumento: '72384732',
-                    telefono: '987654321',
-                    email: 'juan.perez@email.com'
+                    nombres: data.cliente?.nombres || 'Desconocido', 
+                    apellidos: data.cliente?.apellidos || '', 
+                    numeroDocumento: data.cliente?.numeroDocumento || 'N/A',
+                    telefono: data.cliente?.telefono || 'N/A',
+                    email: data.cliente?.email || 'N/A'
                 },
                 lote: { 
-                    descripcion: 'Manzana A - Lote 15', 
-                    area: '120 m2', 
-                    proyecto: 'Villa del Sol' 
+                    descripcion: data.lote?.descripcion || (data.lote?.numero ? `Mza ${data.lote?.manzana?.nombre || ''} - Lote ${data.lote?.numero}` : 'No asignado'), 
+                    area: data.lote?.area ? `${data.lote.area} m2` : 'N/A', 
+                    proyecto: data.lote?.manzana?.etapa?.urbanizacion?.nombre || 'N/A' 
                 },
                 finanzas: {
-                    precioTotal: 15500,
-                    montoInicial: 500,
-                    totalPagado: 2500,
-                    saldoDeudor: 13000,
-                    cuotasTotales: 36,
-                    cuotasPagadas: 2,
-                    cuotasAtrasadas: 1,
-                    progresoPago: 16
+                    precioTotal: data.precioTotal || 0,
+                    montoInicial: data.montoInicialAcordado || 0,
+                    totalPagado: totalPagadoReal,
+                    saldoDeudor: (data.precioTotal || 0) - totalPagadoReal,
+                    cuotasTotales: data.cantidadCuotas || 0,
+                    cuotasPagadas: cuotasPagadas,
+                    cuotasAtrasadas: cuotasAtrasadas,
+                    progresoPago: Math.min(100, Math.round((totalPagadoReal / precioTotal) * 100))
                 },
-                estadoLote: 'SEPARADO',
-                cuotas: [
-                    { id: 1, numero: 0, tipo: 'INICIAL', vencimiento: '15/03/2026', montoTotal: 500, montoPagado: 500, estado: 'PAGADO', pagos: [{ id: 'REC-101', montoAbonado: 500, fechaPago: '10/03/2026', metodoPago: 'Efectivo' }] },
-                    { id: 2, numero: 1, tipo: 'MENSUAL', vencimiento: '15/04/2026', montoTotal: 1000, montoPagado: 1000, estado: 'PAGADO', pagos: [{ id: 'REC-145', montoAbonado: 1000, fechaPago: '12/04/2026', metodoPago: 'Yape / Plin' }] },
-                    { id: 3, numero: 2, tipo: 'MENSUAL', vencimiento: '15/05/2026', montoTotal: 1000, montoPagado: 1000, estado: 'PAGADO', pagos: [{ id: 'REC-189', montoAbonado: 600, fechaPago: '10/05/2026', metodoPago: 'Transferencia BCP' }, { id: 'REC-192', montoAbonado: 400, fechaPago: '12/05/2026', metodoPago: 'Efectivo' }] },
-                    { id: 4, numero: 3, tipo: 'MENSUAL', vencimiento: '15/06/2026', montoTotal: 1000, montoPagado: 0, estado: 'VENCIDA', pagos: [] },
-                    { id: 5, numero: 4, tipo: 'MENSUAL', vencimiento: '15/07/2026', montoTotal: 363.64, montoPagado: 0, estado: 'PENDIENTE', pagos: [] },
-                    { id: 6, numero: 5, tipo: 'MENSUAL', vencimiento: '15/08/2026', montoTotal: 363.64, montoPagado: 0, estado: 'PENDIENTE', pagos: [] }
-                ]
+                estadoLote: data.lote?.estadoVenta || 'SEPARADO',
+                cuotas: cuotasFormateadas
             });
+        } catch (error) {
+            console.error(error);
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar el contrato o sus cuotas.' });
+        } finally {
             setLoading(false);
-        }, 1000);
+        }
+    };
+
+    const seleccionarCuota = async (cuota) => {
+        setCuotaSeleccionada(cuota);
+        if (!cuota) return;
+        try {
+            const pagosRaw = await PagoService.listarPorCuota(cuota.id, axiosInstance);
+            const pagosFormateados = (pagosRaw || []).map(p => ({
+                ...p,
+                id: `REC-${p.id}`,
+                fechaPago: p.fechaPago ? new Date(p.fechaPago).toLocaleString() : 'N/A',
+                montoAbonado: p.montoAbonado || p.monto || 0,
+                metodoPago: p.metodoPago || p.metodo || 'No especificado'
+            }));
+            setCuotaSeleccionada(prev => ({ ...prev, pagos: pagosFormateados }));
+        } catch (error) {
+            console.error(error);
+            toast.current?.show({ severity: 'warn', summary: 'Pagos', detail: 'No se pudieron cargar los recibos de esta cuota.' });
+        }
     };
 
     // ==========================================
@@ -105,7 +161,7 @@ const DetalleContrato = () => {
             {/* Header de la Página con Botón de Regreso */}
             <div className="flex justify-content-between align-items-center mb-4 pt-3 pl-3 pr-3">
                 <div className="flex align-items-center">
-                    <Button icon="pi pi-arrow-left" className="p-button-rounded p-button-text p-button-secondary mr-3" aria-label="Volver" onClick={() => navigate('/contrato/lista')} />
+                    <Button icon="pi pi-arrow-left" className="p-button-rounded p-button-text text-700 hover:surface-200 transition-colors mr-3" aria-label="Volver" onClick={() => navigate('/contrato/lista')} />
                     <div>
                         <h1 className="m-0 text-3xl font-bold text-800 flex align-items-center">
                             <i className="pi pi-file text-primary mr-3 text-3xl"></i> 
@@ -115,8 +171,8 @@ const DetalleContrato = () => {
                     </div>
                 </div>
                 <div>
-                    <Button label="Imprimir Contrato" icon="pi pi-print" className="p-button-outlined p-button-secondary mr-2" />
-                    <Button label="Estado de Cuenta" icon="pi pi-file-pdf" className="p-button-danger" />
+                    <Button label="Imprimir Contrato" icon="pi pi-print" className="p-button-outlined p-button-secondary mr-3 border-round-xl font-bold shadow-1" />
+                    <Button label="Ir a Cobranza" icon="pi pi-wallet" className="btn-primary-custom border-round-xl shadow-2" onClick={() => navigate('/cuotas-pagos', { state: { buscarContrato: contrato.cliente.numeroDocumento } })} />
                 </div>
             </div>
 
@@ -210,7 +266,7 @@ const DetalleContrato = () => {
                                 value={contrato.cuotas} 
                                 selectionMode="single" 
                                 selection={cuotaSeleccionada} 
-                                onSelectionChange={(e) => setCuotaSeleccionada(e.value)}
+                                onSelectionChange={(e) => seleccionarCuota(e.value)}
                                 dataKey="id"
                                 scrollable scrollHeight="500px" 
                                 className="p-datatable-lg interactive-table"

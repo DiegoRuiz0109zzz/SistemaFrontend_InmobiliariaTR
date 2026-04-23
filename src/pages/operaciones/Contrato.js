@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { InputText } from 'primereact/inputtext';
@@ -24,6 +25,7 @@ import { UbigeoService } from '../../service/UbigeoService';
 import './Contrato.css';
 
 const Contrato = () => {
+    const navigate = useNavigate();
     const { axiosInstance } = useAuth();
     const toast = useRef(null);
 
@@ -50,6 +52,7 @@ const Contrato = () => {
     const [inicialAcordada, setInicialAcordada] = useState(500);
     const [abonoReal, setAbonoReal] = useState(100);
     const [fechaLimiteInicial, setFechaLimiteInicial] = useState(new Date(new Date().setDate(new Date().getDate() + 15))); // +15 días por defecto
+    const [fechaRegistro, setFechaRegistro] = useState(new Date()); // Fecha de registro/contrato
     
     // Parámetros del Cronograma (1 a N)
     const [cuotas, setCuotas] = useState(36);
@@ -223,9 +226,16 @@ const Contrato = () => {
             toast.current?.show({ severity: 'warn', summary: 'Atención', detail: 'DNI inválido.' });
             return;
         }
+
         try {
+            // 1. PRIMERO: Verificamos si esta persona ya existe oficialmente como CLIENTE en la BD
+            const listadoClientes = Array.isArray(clientes) ? clientes : [];
+            const clienteExistente = listadoClientes.find((item) => item.numeroDocumento === documento);
+
+            // 2. SEGUNDO: Buscamos si tiene Cotizaciones previas
             const cotizaciones = await CotizacionService.buscarPorDni(documento, axiosInstance);
             const listaCotizaciones = Array.isArray(cotizaciones) ? cotizaciones : [];
+
             if (listaCotizaciones.length > 0) {
                 const sorted = [...listaCotizaciones].sort((a, b) => {
                     const aDate = new Date(a.fechaCotizacion || a.createdAt || 0).getTime();
@@ -234,15 +244,22 @@ const Contrato = () => {
                 });
                 const seleccionada = sorted[0];
                 const interesado = seleccionada.interesado || {};
+                
                 setCliente((prev) => ({
                     ...(prev || {}),
-                    id: interesado.id || undefined,
+                    // 🔥 LA CLAVE QUE SOLUCIONA EL ERROR: 
+                    // Solo usar el ID si viene de la tabla Clientes, NUNCA el de Interesados
+                    id: clienteExistente?.id || undefined, 
                     numeroDocumento: interesado.numeroDocumento || documento,
-                    tipoDocumento: interesado.tipoDocumento || 'DNI',
-                    nombres: interesado.nombres || '',
-                    apellidos: interesado.apellidos || '',
-                    telefono: interesado.telefono || '',
-                    email: interesado.email || ''
+                    tipoDocumento: interesado.tipoDocumento || clienteExistente?.tipoDocumento || 'DNI',
+                    nombres: interesado.nombres || clienteExistente?.nombres || '',
+                    apellidos: interesado.apellidos || clienteExistente?.apellidos || '',
+                    telefono: interesado.telefono || clienteExistente?.telefono || '',
+                    email: interesado.email || clienteExistente?.email || '',
+                    departamento: clienteExistente?.departamento || '',
+                    provincia: clienteExistente?.provincia || '',
+                    distrito: clienteExistente?.distrito || '',
+                    direccion: clienteExistente?.direccion || ''
                 }));
                 setDni(documento);
 
@@ -287,29 +304,25 @@ const Contrato = () => {
                     setFechaInicio(new Date(seleccionada.fechaCotizacion));
                 }
 
-                if (sorted.length > 1) {
-                    toast.current?.show({ severity: 'info', summary: 'Cotizacion', detail: 'Se selecciono la cotizacion mas reciente.' });
-                } else {
-                    toast.current?.show({ severity: 'success', summary: 'Cotizacion', detail: 'Datos cargados desde la cotizacion.' });
-                }
+                toast.current?.show({ severity: 'success', summary: 'Cotización', detail: 'Datos cargados desde la cotización.' });
                 return;
             }
 
-            const listado = Array.isArray(clientes) ? clientes : [];
-            const encontrado = listado.find((item) => item.numeroDocumento === documento);
-            if (encontrado) {
-                setCliente(encontrado);
-                setDni(encontrado.numeroDocumento || documento);
-                if (encontrado.departamento) {
-                    await cargarProvincias(encontrado.departamento);
+            // 3. TERCERO: Si no tiene cotización, pero sí es Cliente Oficial
+            if (clienteExistente) {
+                setCliente(clienteExistente);
+                setDni(clienteExistente.numeroDocumento || documento);
+                if (clienteExistente.departamento) {
+                    await cargarProvincias(clienteExistente.departamento);
                 }
-                if (encontrado.provincia) {
-                    await cargarDistritos(encontrado.departamento, encontrado.provincia);
+                if (clienteExistente.provincia) {
+                    await cargarDistritos(clienteExistente.departamento, clienteExistente.provincia);
                 }
                 toast.current?.show({ severity: 'success', summary: 'Encontrado', detail: 'Cliente cargado desde el sistema.' });
                 return;
             }
 
+            // 4. CUARTO: Si no es nada, buscar en RENIEC
             const response = await ReniecService.consultarDNI(documento, axiosInstance);
             if (!response?.success) {
                 const message = response?.message || 'No se encontraron datos para el DNI.';
@@ -322,11 +335,11 @@ const Contrato = () => {
             const apellidoPaterno = data.apellidoPaterno || data.apellido_paterno || '';
             const apellidoMaterno = data.apellidoMaterno || data.apellido_materno || '';
             const apellidos = data.apellidos || `${apellidoPaterno} ${apellidoMaterno}`.trim();
-            setCliente({ numeroDocumento: documento, tipoDocumento: 'DNI', nombres, apellidos, email: '' });
+            setCliente({ id: undefined, numeroDocumento: documento, tipoDocumento: 'DNI', nombres, apellidos, email: '' });
             setDni(documento);
             toast.current?.show({ severity: 'success', summary: 'Encontrado', detail: 'Cliente cargado desde RENIEC.' });
         } catch (error) {
-            toast.current?.show({ severity: 'error', summary: 'No encontrado', detail: 'No se encontraron datos.' });
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'Ocurrió un error en la búsqueda.' });
         }
     };
 
@@ -460,15 +473,24 @@ const Contrato = () => {
                 fechaInicioPago: fechaInicio.toISOString().split('T')[0],
                 cuotasEspeciales: isFlexible ? cuotasEspeciales : 0,
                 montoCuotaEspecial: isFlexible ? montoEspecial : 0,
-                observacion: observacion || ''
+                observacion: observacion || '',
+                fechaRegistro: new Date(fechaRegistro.getTime() - (fechaRegistro.getTimezoneOffset() * 60000)).toISOString().slice(0, 19)
             };
 
             // 5. Enviamos el Contrato
-            await ContratoService.crear(contratoPayload, axiosInstance);
+            const response = await ContratoService.crear(contratoPayload, axiosInstance);
 
             toast.current.show({ severity: 'success', summary: '¡Éxito!', detail: 'Contrato emitido y guardado correctamente.' });
             
-            // Limpiar la pantalla para una nueva venta
+            // Navegar al detalle de forma segura extrayendo el ID
+            setTimeout(() => {
+                const idGenerado = response?.id || response?.data?.id;
+                if(idGenerado) {
+                    navigate(`/detalle_contrato/${idGenerado}`);
+                }
+            }, 1000);
+            
+            // Limpiar la pantalla por si el usuario decide regresar
             setCronograma([]);
             setObservacion('');
             
@@ -536,7 +558,7 @@ const Contrato = () => {
                                                     }}
                                                     placeholder="Ej: 72384732"
                                                 />
-                                                <Button icon="pi pi-search" onClick={buscarCliente} className="p-button-outlined" />
+                                                <Button icon="pi pi-search" onClick={buscarCliente} className="btn-primary-custom" />
                                             </div>
                                         </div>
 
@@ -646,9 +668,13 @@ const Contrato = () => {
                                             <label className="font-medium">Vendedor Asignado</label>
                                             <Dropdown value={vendedorSeleccionado} options={vendedoresOptions} onChange={(e) => setVendedorSeleccionado(e.value)} optionLabel="nombreCompleto" placeholder="Seleccione Vendedor" />
                                         </div>
-                                        <div className="field mb-0">
+                                        <div className="field">
                                             <label className="font-medium">Lote a Vender</label>
                                             <Dropdown value={loteSeleccionado} options={lotesOptions} onChange={onLoteChange} optionLabel="descripcion" placeholder="Seleccione un Lote" />
+                                        </div>
+                                        <div className="field mb-0">
+                                            <label className="font-medium">Fecha de Contrato</label>
+                                            <Calendar value={fechaRegistro} onChange={(e) => setFechaRegistro(e.value)} showIcon showTime hourFormat="24" dateFormat="dd/mm/yy" />
                                         </div>
                                     </div>
                                 </div>
@@ -688,7 +714,7 @@ const Contrato = () => {
                                                         Faltan S/ {faltaPagarInicial.toLocaleString()} para completar la Inicial.
                                                     </span>
                                                 </div>
-                                                <label className="font-medium text-sm">Fecha Límite para completar la Cuota 0:</label>
+                                                <label className="font-medium text-sm"><i className="pi pi-clock mr-2 text-orange-600"></i>Fecha Límite para completar la Cuota 0:</label>
                                                 <Calendar value={fechaLimiteInicial} onChange={(e) => setFechaLimiteInicial(e.value)} dateFormat="dd/mm/yy" showIcon className="mt-1" />
                                             </div>
                                         )}
@@ -703,11 +729,11 @@ const Contrato = () => {
                                     </div>
                                     <div className="p-fluid grid mt-3">
                                         <div className="field col-12 md:col-6">
-                                            <label className="font-medium">Cantidad de Cuotas</label>
+                                            <label className="font-medium"><i className="pi pi-sort-numeric-up mr-2 text-primary"></i>Cantidad de Cuotas</label>
                                             <InputNumber value={cuotas} onValueChange={(e) => setCuotas(e.value)} showButtons min={1} max={120} />
                                         </div>
                                         <div className="field col-12 md:col-6">
-                                            <label className="font-medium">Día Fijo Mensual</label>
+                                            <label className="font-medium"><i className="pi pi-calendar-plus mr-2 text-primary"></i>Día Fijo Mensual</label>
                                             <Calendar value={fechaInicio} onChange={(e) => setFechaInicio(e.value)} dateFormat="dd/mm/yy" showIcon />
                                         </div>
                                     </div>
@@ -741,7 +767,7 @@ const Contrato = () => {
                                         </div>
                                     </div>
                                     <div className="mt-4">
-                                        <Button label="Simular y Previsualizar" icon="pi pi-cog" className="w-full p-button-primary p-button-lg" onClick={simular} />
+                                        <Button label="Simular y Previsualizar" icon="pi pi-cog" className="w-full btn-primary-custom p-button-lg shadow-3 border-round-xl" onClick={simular} />
                                     </div>
                                 </div>
                             </div>
@@ -755,7 +781,7 @@ const Contrato = () => {
                                             <span className="font-bold text-xl ml-2 text-800">Proyección del Contrato</span>
                                         </div>
                                         {cronograma.length > 0 && (
-                                            <Button label="Guardar Contrato Oficial" icon="pi pi-save" className="p-button-success p-button-lg shadow-2" onClick={guardarContrato} />
+                                            <Button label="Guardar Contrato Oficial" icon="pi pi-save" className="btn-success-custom p-button-lg shadow-3 border-round-xl font-bold" onClick={guardarContrato} />
                                         )}
                                     </div>
 

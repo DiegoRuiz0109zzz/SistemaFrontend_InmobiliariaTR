@@ -22,7 +22,7 @@
     border: 1px solid #e2e8f0;
     border-radius: 12px;
     padding: 1.5rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .custom-card .card-header {
@@ -36,6 +36,7 @@
 .border-warning {
     border-color: #fbd38d !important;
 }
+
 .bg-warning-light {
     background-color: #fffaf0 !important;
 }
@@ -58,7 +59,7 @@
     text-align: center;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .summary-box .summary-title {
@@ -95,7 +96,10 @@
     background-color: #eff6ff;
     font-weight: bold;
 }
-.input-highlight .p-inputnumber-input:focus { box-shadow: 0 0 0 2px #bfdbfe; }
+
+.input-highlight .p-inputnumber-input:focus {
+    box-shadow: 0 0 0 2px #bfdbfe;
+}
 
 .input-highlight-blue .p-inputnumber-input {
     border-color: #60a5fa;
@@ -103,7 +107,10 @@
     color: #1d4ed8;
     font-weight: 900;
 }
-.input-highlight-blue .p-inputnumber-input:focus { box-shadow: 0 0 0 2px #93c5fd; }
+
+.input-highlight-blue .p-inputnumber-input:focus {
+    box-shadow: 0 0 0 2px #93c5fd;
+}
 
 
 /* =====================================
@@ -128,15 +135,23 @@
 .fade-in {
     animation: fadeIn 0.4s ease-in-out;
 }
+
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(5px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* =====================================
    Tablas PrimeReact Mejoradas
    ===================================== */
-.custom-table .p-datatable-thead > tr > th {
+.custom-table .p-datatable-thead>tr>th {
     background-color: #f8fafc;
     color: #475569;
     font-size: 0.75rem;
@@ -145,7 +160,28 @@
     border-bottom: 2px solid #e2e8f0;
 }
 
-.custom-table .p-datatable-tbody > tr > td {
+.custom-table .p-datatable-tbody>tr>td {
     padding: 0.75rem 1rem;
     border-bottom: 1px solid #f1f5f9;
+}
+
+/* =====================================
+   Corregir contraste y adecuar colores de botones en inputs (N° Cuotas, Calendar)
+   ===================================== */
+.contrato-page .p-inputnumber-button,
+.contrato-page .p-datepicker-trigger {
+    color: var(--topbar-text, #ffffff) !important;
+    background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-primary-dark) 100%) !important;
+    border: none !important;
+    box-shadow: var(--shadow-sm) !important;
+}
+
+.contrato-page .p-inputnumber-button:hover,
+.contrato-page .p-datepicker-trigger:hover {
+    filter: brightness(1.1) !important;
+}
+
+.contrato-page .p-inputnumber-button .pi,
+.contrato-page .p-datepicker-trigger .pi {
+    color: var(--topbar-text, #ffffff) !important;
 }

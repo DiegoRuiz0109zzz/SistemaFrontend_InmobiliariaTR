@@ -8,10 +8,14 @@ import { Tag } from 'primereact/tag';
 import { ProgressBar } from 'primereact/progressbar';
 import { Toast } from 'primereact/toast';
 import PageHeader from '../../components/ui/PageHeader';
+import { useAuth } from '../../context/AuthContext';
+import { ContratoService } from '../../service/ContratoService';
+import { CuotaService } from '../../service/CuotaService';
 
 import './ListaContratos.css';
 
 const ListaContratos = () => {
+    const { axiosInstance } = useAuth();
     const toast = useRef(null);
     const navigate = useNavigate();
 
@@ -23,47 +27,55 @@ const ListaContratos = () => {
         cargarContratos();
     }, []);
 
-    const cargarContratos = () => {
+    const cargarContratos = async () => {
         setLoading(true);
-        // Simulamos la llamada al API: ContratoService.listarTodos()
-        setTimeout(() => {
-            setContratos([
-                { 
-                  id: 108, 
-                  codigo: 'C-108',
-                  cliente: { nombres: 'Juan', apellidos: 'Pérez', numeroDocumento: '72384732' }, 
-                  lote: { descripcion: 'Mza A - Lote 15' }, 
-                  precioTotal: 15500, 
-                  totalPagado: 2500, 
-                  estadoLote: 'SEPARADO',
-                  fechaEmision: '10/03/2026',
-                  progreso: 16
-                },
-                { 
-                  id: 109, 
-                  codigo: 'C-109',
-                  cliente: { nombres: 'Ana', apellidos: 'Silva', numeroDocumento: '45678912' }, 
-                  lote: { descripcion: 'Mza B - Lote 02' }, 
-                  precioTotal: 25000, 
-                  totalPagado: 25000, 
-                  estadoLote: 'VENDIDO',
-                  fechaEmision: '15/01/2026',
-                  progreso: 100
-                },
-                { 
-                  id: 110, 
-                  codigo: 'C-110',
-                  cliente: { nombres: 'Carlos', apellidos: 'Ruiz', numeroDocumento: '12345678' }, 
-                  lote: { descripcion: 'Mza C - Lote 05' }, 
-                  precioTotal: 18000, 
-                  totalPagado: 3000, 
-                  estadoLote: 'SEPARADO',
-                  fechaEmision: '05/04/2026',
-                  progreso: 16
+        try {
+            const response = await ContratoService.listar(axiosInstance);
+            const contratosList = Array.isArray(response) ? response : [];
+            
+            const listaFormateada = await Promise.all(contratosList.map(async (item) => {
+                // Cálculo de progreso guiado por GestionCuotasPagos.js
+                let totalPagadoReal = item.abonoInicialReal || item.montoInicial || 0;
+                let precioTotalCalculado = item.precioTotal || 1;
+                
+                try {
+                    const cuotasRaw = await CuotaService.listarPorContrato(item.id, axiosInstance);
+                    const cuotasList = Array.isArray(cuotasRaw) ? cuotasRaw : [];
+                    
+                    if (cuotasList.length > 0) {
+                        // Exactamente como en GestionCuotasPagos: sumar todo lo pagado en TODAS las cuotas
+                        totalPagadoReal = cuotasList.reduce((acc, cuota) => acc + (cuota.montoPagado || 0), 0);
+                        precioTotalCalculado = item.precioTotal || cuotasList.reduce((acc, cuota) => acc + (cuota.montoTotal || cuota.monto || 0), 0);
+                    }
+                } catch (error) {
+                    console.warn(`No se pudieron cargar las cuotas del contrato ${item.id}`, error);
                 }
-            ]);
+
+                const progresoReal = Math.min(100, Math.round((totalPagadoReal / precioTotalCalculado) * 100));
+
+                return {
+                    ...item,
+                    id: item.id,
+                    codigo: `C-${item.id?.toString().padStart(4, '0')}`,
+                    cliente: item.cliente || { nombres: 'Desconocido', apellidos: '', numeroDocumento: 'N/A' },
+                    lote: item.lote || { descripcion: 'No asignado' },
+                    precioTotal: precioTotalCalculado,
+                    totalPagado: totalPagadoReal,
+                    estadoLote: item.lote?.estadoVenta || (totalPagadoReal < (item.montoInicialAcordado || 0) ? 'SEPARADO' : 'VENDIDO'),
+                    fechaEmision: item.fechaRegistro ? new Date(item.fechaRegistro).toLocaleDateString() : 'N/A',
+                    progreso: progresoReal
+                };
+            }));
+            
+            // Ordenar por ID descendente (más recientes primero)
+            listaFormateada.sort((a, b) => b.id - a.id);
+            setContratos(listaFormateada);
+        } catch (error) {
+            console.error(error);
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudieron cargar los contratos.' });
+        } finally {
             setLoading(false);
-        }, 800);
+        }
     };
 
     const verDetalle = (contrato) => {
@@ -76,11 +88,11 @@ const ListaContratos = () => {
     const renderHeader = () => {
         return (
             <div className="flex flex-column md:flex-row justify-content-between align-items-center gap-3">
-                <div className="p-inputgroup max-w-20rem">
-                    <span className="p-inputgroup-addon"><i className="pi pi-search" /></span>
-                    <InputText type="search" onInput={(e) => setGlobalFilter(e.target.value)} placeholder="Buscar por DNI o Contrato..." />
+                <div className="p-inputgroup max-w-20rem shadow-1 border-round-xl overflow-hidden">
+                    <span className="p-inputgroup-addon bg-white border-none"><i className="pi pi-search text-primary" /></span>
+                    <InputText type="search" className="border-none" onInput={(e) => setGlobalFilter(e.target.value)} placeholder="Buscar por DNI o Contrato..." />
                 </div>
-                <Button label="Exportar Listado" icon="pi pi-file-excel" className="p-button-outlined p-button-secondary p-button-sm" />
+                <Button label="Exportar Listado" icon="pi pi-file-excel" className="btn-success-custom p-button-sm shadow-2 border-round-xl" />
             </div>
         );
     };
@@ -104,7 +116,7 @@ const ListaContratos = () => {
     const estadoLoteTemplate = (rowData) => <Tag severity={rowData.estadoLote === 'VENDIDO' ? 'success' : 'warning'} value={rowData.estadoLote} />;
 
     const accionesTemplate = (rowData) => (
-        <Button label="Ver Detalle" icon="pi pi-eye" className="p-button-outlined p-button-sm font-bold" onClick={() => verDetalle(rowData)} />
+        <Button label="Ver Detalle" icon="pi pi-eye" className="btn-primary-custom p-button-sm font-bold shadow-2 border-round-xl" onClick={() => verDetalle(rowData)} />
     );
 
     return (
@@ -126,7 +138,7 @@ const ListaContratos = () => {
                     >
                         <Column field="codigo" header="ID Contrato" style={{ minWidth: '120px', fontWeight: 'bold', color: 'var(--primary-color)' }} />
                         <Column header="Cliente" body={clienteTemplate} style={{ minWidth: '220px' }} />
-                        <Column field="lote.descripcion" header="Lote Asignado" style={{ minWidth: '180px' }} />
+                        <Column header="Lote Asignado" body={(row) => <span>{row.lote?.numero ? `Mza ${row.lote?.manzana?.nombre || ''} - Lote ${row.lote?.numero}` : row.lote?.descripcion}</span>} style={{ minWidth: '180px' }} />
                         <Column header="Precio Total" body={(row) => <span className="font-bold">S/ {row.precioTotal.toLocaleString('en-US',{minimumFractionDigits:2})}</span>} style={{ minWidth: '120px', textAlign: 'right' }} />
                         <Column header="Progreso" body={progresoTemplate} style={{ minWidth: '150px', textAlign: 'center' }} />
                         <Column header="Estado Lote" body={estadoLoteTemplate} style={{ minWidth: '120px', textAlign: 'center' }} />
