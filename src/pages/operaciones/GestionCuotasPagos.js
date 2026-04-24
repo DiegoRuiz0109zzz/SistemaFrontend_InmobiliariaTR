@@ -28,6 +28,7 @@ const GestionCuotasPagos = () => {
     // ESTADOS DEL BUSCADOR Y RESUMEN
     // ==========================================
     const [criterioBusqueda, setCriterioBusqueda] = useState('');
+    const [expandedRows, setExpandedRows] = useState(null);
     const [contratoActivo, setContratoActivo] = useState(null);
 
     // ==========================================
@@ -37,7 +38,39 @@ const GestionCuotasPagos = () => {
     const [montoAbonar, setMontoAbonar] = useState(0);
     const [metodoPago, setMetodoPago] = useState('Transferencia BCP');
     const [numOperacion, setNumOperacion] = useState('');
-    const [detalleCuota, setDetalleCuota] = useState(null); // Para el Modal de detalles
+    const [voucherFileRegistro, setVoucherFileRegistro] = useState(null);
+
+    // Modal Procesar Pago Pendiente
+    const [pagoPendiente, setPagoPendiente] = useState(null);
+    const [metodoPagoPendiente, setMetodoPagoPendiente] = useState('Transferencia BCP');
+    const [numOperacionPendiente, setNumOperacionPendiente] = useState('');
+    const [voucherFile, setVoucherFile] = useState(null);
+    const [voucherViewer, setVoucherViewer] = useState(null); // URL del voucher a visualizar
+
+    const abrirDialogoProcesar = (pago) => {
+        setPagoPendiente(pago);
+        setMetodoPagoPendiente(pago.metodo !== '---' ? pago.metodo : 'Transferencia BCP');
+        setNumOperacionPendiente(pago.numeroOperacion || '');
+        setVoucherFile(null);
+    };
+
+    const procesarPagoPendienteAction = async () => {
+        try {
+            const formData = new FormData();
+            formData.append('metodoPago', metodoPagoPendiente);
+            formData.append('numeroOperacion', numOperacionPendiente);
+            if (voucherFile) {
+                formData.append('voucher', voucherFile);
+            }
+
+            await PagoService.procesarPendiente(pagoPendiente.id, formData, axiosInstance);
+            toast.current.show({ severity: 'success', summary: 'Pago Procesado', detail: 'El recibo ha sido validado correctamente.' });
+            setPagoPendiente(null);
+            buscarContrato(criterioBusqueda); // Refrescar vista
+        } catch (error) {
+            toast.current.show({ severity: 'error', summary: 'Error', detail: 'No se pudo procesar el pago.' });
+        }
+    };
 
     // Selectores
     const metodosPago = [
@@ -52,6 +85,10 @@ const GestionCuotasPagos = () => {
 
     const normalizeText = (value) => (value || '').toString().toLowerCase();
     const formatMoney = (value) => Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2 });
+    const isPendiente = (estado) => {
+        if (!estado) return false;
+        return estado.toUpperCase() === 'POR_VALIDAR';
+    };
 
     const buildLoteLabel = (contrato) => {
         if (!contrato?.lote) return '';
@@ -80,16 +117,22 @@ const GestionCuotasPagos = () => {
 
         try {
             const pagosPorCuota = await Promise.all(
-                cuotas.map((cuota) => PagoService.listarPorCuota(cuota.id, axiosInstance))
+                cuotas.map(async (cuota) => {
+                    const pagos = await PagoService.listarPorCuota(cuota.id, axiosInstance);
+                    return (pagos || []).map(p => ({ ...p, cuotaId: cuota.id }));
+                })
             );
             const flattened = pagosPorCuota.flat().map((pago) => ({
                 id: pago.id,
+                cuotaId: pago.cuotaId,
                 contrato: contratoResumen.id,
                 cliente: contratoResumen.cliente,
                 monto: pago.montoAbonado || pago.monto || 0,
                 metodo: pago.metodoPago || pago.metodo || '---',
+                numeroOperacion: pago.numeroOperacion || '',
+                fotoVoucherUrl: pago.fotoVoucherUrl || '',
                 fecha: pago.fechaPago || pago.fecha || '',
-                estado: pago.estado || 'Procesado'
+                estado: pago.estado || 'PROCESADO'
             }));
             setHistorialPagos(flattened);
         } catch (error) {
@@ -139,6 +182,8 @@ const GestionCuotasPagos = () => {
             const cuotas = mapCuotas(cuotasRaw || []);
             const totalPagado = cuotas.reduce((acc, cuota) => acc + (cuota.pagado || 0), 0);
             const precioTotal = encontrado.precioTotal || cuotas.reduce((acc, cuota) => acc + (cuota.monto || 0), 0);
+            const montoInicial = encontrado.montoInicialAcordado || 0;
+            const saldoFinanciar = encontrado.saldoFinanciar || Math.max(0, precioTotal - montoInicial);
             const saldoDeudor = precioTotal - totalPagado;
             const cuotasAtrasadas = cuotas.filter((cuota) => cuota.estado === 'VENCIDA').length;
 
@@ -147,6 +192,7 @@ const GestionCuotasPagos = () => {
                 cliente: `${encontrado?.cliente?.nombres || ''} ${encontrado?.cliente?.apellidos || ''}`.trim(),
                 lote: buildLoteLabel(encontrado),
                 precioTotal,
+                saldoFinanciar,
                 totalPagado,
                 saldoDeudor,
                 cuotasAtrasadas,
@@ -165,17 +211,10 @@ const GestionCuotasPagos = () => {
     const abrirPanelPago = (cuota) => {
         setCuotaPagar(cuota);
         setMontoAbonar(cuota.monto - cuota.pagado);
+        setVoucherFileRegistro(null);
     };
 
-    const cargarDetalleCuota = async (cuota) => {
-        try {
-            const pagos = await PagoService.listarPorCuota(cuota.id, axiosInstance);
-            setDetalleCuota({ ...cuota, pagos: pagos || [] });
-        } catch (error) {
-            setDetalleCuota({ ...cuota, pagos: [] });
-            toast.current?.show({ severity: 'warn', summary: 'Detalle', detail: 'No se pudieron cargar los pagos de la cuota.' });
-        }
-    };
+
 
     const registrarPago = async () => {
         if (!cuotaPagar?.id) {
@@ -188,13 +227,16 @@ const GestionCuotasPagos = () => {
         }
 
         try {
-            const payload = {
-                cuotaId: cuotaPagar.id,
-                montoAbonado: montoAbonar,
-                metodoPago,
-                numeroOperacion: numOperacion
-            };
-            await PagoService.registrar(payload, axiosInstance);
+            const formData = new FormData();
+            formData.append('cuotaId', cuotaPagar.id);
+            formData.append('montoAbonado', montoAbonar);
+            formData.append('metodoPago', metodoPago);
+            formData.append('numeroOperacion', numOperacion);
+            if (voucherFileRegistro) {
+                formData.append('voucher', voucherFileRegistro);
+            }
+
+            await PagoService.registrar(formData, axiosInstance);
 
             const cuotasRaw = await CuotaService.listarPorContrato(contratoActivo.id, axiosInstance);
             const cuotas = mapCuotas(cuotasRaw || []);
@@ -235,66 +277,119 @@ const GestionCuotasPagos = () => {
     };
 
     const estadoReciboTemplate = (estado) => {
-        return estado === 'Procesado' ? <Tag severity="success" value={estado} /> : <Tag severity="warning" value={estado} />;
+        return (estado === 'Procesado' || estado === 'PROCESADO') ? <Tag severity="success" value="PROCESADO" /> : <Tag severity="warning" value={estado} />;
     };
 
     const accionesCuotaTemplate = (rowData) => {
         return (
             <div className="flex justify-content-center align-items-center gap-2">
-                {rowData.pagado > 0 && (
-                    <Button icon="pi pi-eye" className="p-button-rounded p-button-outlined p-button-secondary p-button-sm" tooltip="Ver Detalles de Pago" onClick={() => cargarDetalleCuota(rowData)} />
-                )}
                 {rowData.estado !== 'PAGADO' ? (
-                    <Button label="Cobrar" icon="pi pi-dollar" className="p-button-sm p-button-success shadow-1" onClick={() => abrirPanelPago(rowData)} />
+                    <Button label="Cobrar" icon="pi pi-wallet" className="p-button-sm btn-primary-custom shadow-2 border-round-xl font-bold" onClick={() => abrirPanelPago(rowData)} />
                 ) : (
-                    <span className="text-xs font-bold text-green-600 px-2 py-1 bg-green-50 border-round">Completado</span>
+                    <span className="text-xs font-bold text-green-600 px-3 py-2 bg-green-50 border-round-xl shadow-1"><i className="pi pi-check-circle mr-1"></i>Completado</span>
                 )}
             </div>
         );
     };
+
+    const rowExpansionTemplate = (cuota) => {
+        const pagosDeCuota = historialPagos.filter(p => p.cuotaId === cuota.id);
+        
+        return (
+            <div className="p-3 bg-indigo-50 border-round-xl border-1 border-indigo-100 shadow-inset-1 ml-4 mr-4 mb-2 mt-2 fade-in">
+                <h5 className="mt-0 mb-3 text-indigo-800 flex align-items-center text-lg"><i className="pi pi-list mr-2 text-xl text-primary"></i>Detalle de Pagos - Cuota N° {cuota.numero}</h5>
+                {pagosDeCuota.length > 0 ? (
+                    <DataTable value={pagosDeCuota} className="p-datatable-sm shadow-1 border-round-xl overflow-hidden custom-table">
+                        <Column field="id" header="Recibo" body={(r) => <span className="font-bold text-700">REC-{r.id}</span>}></Column>
+                        <Column field="fecha" header="Fecha"></Column>
+                        <Column field="metodo" header="Método"></Column>
+                        <Column field="numeroOperacion" header="N° Operación" body={(r) => r.numeroOperacion || '-'}></Column>
+                        <Column header="Voucher" body={(r) => r.fotoVoucherUrl ? <Button icon="pi pi-image" className="p-button-rounded p-button-text p-button-info" tooltip="Ver Voucher" onClick={() => setVoucherViewer(buildVoucherUrl(r.fotoVoucherUrl))} /> : <span className="text-400">-</span>} style={{ textAlign: 'center' }}></Column>
+                        <Column header="Monto" body={(r) => <span className="text-green-700 font-bold">S/ {r.monto.toLocaleString('en-US',{minimumFractionDigits:2})}</span>}></Column>
+                        <Column header="Estado" body={(r) => estadoReciboTemplate(r.estado)}></Column>
+                        <Column header="Acción" body={(r) => isPendiente(r.estado) ? <Button label="Procesar" icon="pi pi-cog" className="btn-warning-custom p-button-sm border-round-xl shadow-2 font-bold" onClick={() => abrirDialogoProcesar(r)} /> : <Button icon="pi pi-check" className="p-button-rounded p-button-text p-button-success" disabled />} style={{ width: '8rem', textAlign: 'center' }}></Column>
+                    </DataTable>
+                ) : (
+                    <div className="text-500 font-italic text-sm py-3 px-3 bg-white border-round-xl flex align-items-center shadow-1"><i className="pi pi-info-circle mr-2 text-primary text-lg"></i>No hay pagos registrados para esta cuota.</div>
+                )}
+            </div>
+        );
+    };
+
+    const buildVoucherUrl = (url) => url ? `http://localhost:8080/${url.replace(/^\//, '')}` : null;
+    const isPdf = (url) => url && url.toLowerCase().endsWith('.pdf');
 
     return (
         <div className="tesoreria-page">
             <Toast ref={toast} />
             <PageHeader title="Caja y Cobranzas" subtitle="Gestión de Pagos y Estados de Cuenta" icon="pi pi-wallet" />
 
-            {/* ========================================== */}
-            {/* DIALOG: DETALLE DE PAGOS POR CUOTA */}
-            {/* ========================================== */}
-            <Dialog 
-                header={<><i className="pi pi-list text-primary mr-2"></i>Detalle de Abonos - Cuota N° {detalleCuota?.numero}</>} 
-                visible={!!detalleCuota} 
-                style={{ width: '450px' }} 
-                onHide={() => setDetalleCuota(null)}
+            {/* ===== MODAL VISOR DE VOUCHER ===== */}
+            <Dialog
+                header={<><i className="pi pi-image text-blue-500 mr-2"></i>Comprobante de Pago</>}
+                visible={!!voucherViewer}
+                style={{ width: '700px', maxWidth: '95vw' }}
+                onHide={() => setVoucherViewer(null)}
+                footer={
+                    <div className="flex justify-content-end gap-2">
+                        <Button label="Descargar" icon="pi pi-download" className="btn-primary-custom border-round-xl" onClick={() => window.open(voucherViewer, '_blank')} />
+                        <Button label="Cerrar" icon="pi pi-times" className="p-button-text p-button-secondary" onClick={() => setVoucherViewer(null)} />
+                    </div>
+                }
             >
-                {detalleCuota && (
-                    <div className="detalle-modal-content">
-                        <div className="flex justify-content-between align-items-center bg-blue-50 p-3 border-round mb-3 border-1 border-blue-100">
-                            <div>
-                                <span className="text-sm font-bold text-blue-800"><i className="pi pi-calendar mr-2"></i>Vence: {detalleCuota.vencimiento}</span>
-                            </div>
-                            <div className="text-right">
-                                <div className="text-xs font-bold text-blue-600 uppercase">Monto Total</div>
-                                <div className="text-xl font-black text-blue-900">S/ {formatMoney(detalleCuota.monto)}</div>
+                {voucherViewer && (
+                    <div className="flex justify-content-center align-items-center" style={{ minHeight: '400px', background: '#f8f9fa', borderRadius: '8px' }}>
+                        {isPdf(voucherViewer) ? (
+                            <iframe src={voucherViewer} title="Voucher" style={{ width: '100%', height: '500px', border: 'none', borderRadius: '8px' }} />
+                        ) : (
+                            <img src={voucherViewer} alt="Voucher de Pago" style={{ maxWidth: '100%', maxHeight: '550px', borderRadius: '8px', objectFit: 'contain', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }} />
+                        )}
+                    </div>
+                )}
+            </Dialog>
+
+            <Dialog header="Procesar Pago Pendiente" visible={!!pagoPendiente} style={{ width: '400px' }} onHide={() => setPagoPendiente(null)}>
+                {pagoPendiente && (
+                    <div className="p-fluid">
+                        <div className="mb-3">
+                            <span className="font-bold block mb-2">Recibo: REC-{pagoPendiente.id}</span>
+                            <span className="text-xl font-black text-blue-600 block mb-3">S/ {formatMoney(pagoPendiente.monto)}</span>
+                        </div>
+                        <div className="field">
+                            <label className="font-medium text-700">Método de Pago</label>
+                            <Dropdown value={metodoPagoPendiente} options={metodosPago} onChange={(e) => setMetodoPagoPendiente(e.value)} />
+                        </div>
+                        <div className="field">
+                            <label className="font-medium text-700">Número de Operación</label>
+                            <InputText value={numOperacionPendiente} onChange={(e) => setNumOperacionPendiente(e.target.value)} placeholder="Ej: 998273" />
+                        </div>
+                        <div className="field">
+                            <label className="font-medium text-700">Comprobante / Voucher (Opcional)</label>
+                            <div className="relative flex flex-column align-items-center justify-content-center p-4 border-2 border-dashed border-round-xl surface-border hover:surface-hover transition-colors cursor-pointer bg-blue-50 mt-2">
+                                <input 
+                                    type="file" 
+                                    className="opacity-0 absolute top-0 left-0 w-full h-full cursor-pointer z-10" 
+                                    accept="image/*,application/pdf"
+                                    onChange={(e) => setVoucherFile(e.target.files[0])}
+                                />
+                                {voucherFile ? (
+                                    <div className="text-center flex flex-column align-items-center">
+                                        <i className="pi pi-file-check text-4xl text-green-500 mb-2"></i>
+                                        <span className="font-bold text-700">{voucherFile.name}</span>
+                                        <span className="text-sm text-500">{(voucherFile.size / (1024 * 1024)).toFixed(2)} MB</span>
+                                    </div>
+                                ) : (
+                                    <div className="text-center flex flex-column align-items-center">
+                                        <i className="pi pi-cloud-upload text-4xl text-blue-500 mb-2"></i>
+                                        <span className="font-bold text-700">Haz clic o arrastra el archivo aquí</span>
+                                        <span className="text-sm text-500 mt-1">Formatos soportados: JPG, PNG, PDF</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
-
-                        {detalleCuota.pagos && detalleCuota.pagos.length > 0 ? (
-                            <DataTable value={detalleCuota.pagos} size="small" className="p-datatable-sm custom-table">
-                                <Column field="id" header="Recibo"></Column>
-                                <Column field="fecha" header="Fecha"></Column>
-                                <Column field="metodo" header="Método"></Column>
-                                <Column header="Abono" body={(r) => <span className="font-bold text-green-600">S/ {formatMoney(r?.montoAbonado ?? r?.monto)}</span>} style={{ textAlign: 'right' }}></Column>
-                            </DataTable>
-                        ) : (
-                            <div className="text-center p-4 text-500">
-                                <i className="pi pi-info-circle text-4xl mb-2 opacity-50"></i>
-                                <p>No se encontraron pagos para esta cuota.</p>
-                            </div>
-                        )}
-                        <div className="text-right mt-3 pt-3 border-top-1 surface-border">
-                            <span className="text-sm font-bold text-600 uppercase mr-3">Suma Pagada:</span>
-                            <span className="text-lg font-black text-green-700">S/ {formatMoney(detalleCuota.pagado)}</span>
+                        <div className="flex justify-content-end gap-2 mt-4">
+                            <Button label="Cancelar" icon="pi pi-times" className="p-button-text p-button-secondary" onClick={() => setPagoPendiente(null)} />
+                            <Button label="Procesar Pago" icon="pi pi-check" className="p-button-success" onClick={procesarPagoPendienteAction} />
                         </div>
                     </div>
                 )}
@@ -320,7 +415,7 @@ const GestionCuotasPagos = () => {
                                         <label className="font-medium text-sm mb-2 block">DNI Cliente o N° Contrato</label>
                                         <div className="p-inputgroup">
                                             <InputText value={criterioBusqueda} onChange={(e) => setCriterioBusqueda(e.target.value)} placeholder="Ej: 72384732 o C-108" />
-                                            <Button icon="pi pi-search" className="p-button-success" onClick={buscarContrato} />
+                                            <Button icon="pi pi-search" className="btn-primary-custom" onClick={buscarContrato} />
                                         </div>
                                     </div>
                                 </div>
@@ -347,17 +442,21 @@ const GestionCuotasPagos = () => {
                                             <div className="text-sm text-600 mt-1 ml-4">{contratoActivo.lote}</div>
                                         </div>
 
-                                        <div className="flex justify-content-between align-items-center border-bottom-1 surface-border pb-2 mb-2">
+                                        <div className="flex justify-content-between align-items-center border-bottom-1 surface-border pb-2 mb-2 mt-3">
                                             <span className="text-sm font-medium text-600">Precio Total</span>
-                                            <span className="font-bold text-800">S/ {contratoActivo.precioTotal.toLocaleString()}</span>
+                                            <span className="font-bold text-800">S/ {contratoActivo.precioTotal.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
+                                        </div>
+                                        <div className="flex justify-content-between align-items-center border-bottom-1 surface-border pb-2 mb-2">
+                                            <span className="text-sm font-medium text-blue-600">Monto Financiado</span>
+                                            <span className="font-bold text-blue-800">S/ {contratoActivo.saldoFinanciar.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
                                         </div>
                                         <div className="flex justify-content-between align-items-center border-bottom-1 surface-border pb-2 mb-2">
                                             <span className="text-sm font-medium text-green-600">Total Pagado</span>
-                                            <span className="font-bold text-green-700">S/ {contratoActivo.totalPagado.toLocaleString()}</span>
+                                            <span className="font-bold text-green-700">S/ {contratoActivo.totalPagado.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
                                         </div>
-                                        <div className="flex justify-content-between align-items-center">
-                                            <span className="text-sm font-medium text-orange-600">Saldo Deudor</span>
-                                            <span className="font-bold text-orange-700 text-lg">S/ {contratoActivo.saldoDeudor.toLocaleString()}</span>
+                                        <div className="flex justify-content-between align-items-center bg-orange-50 p-2 border-round">
+                                            <span className="text-sm font-bold text-orange-600">Saldo Deudor</span>
+                                            <span className="font-black text-orange-700 text-xl">S/ {contratoActivo.saldoDeudor.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
                                         </div>
 
                                         <div className="mt-4">
@@ -390,7 +489,7 @@ const GestionCuotasPagos = () => {
                                                 </h2>
                                                 <p className="m-0 text-sm text-500 mt-1">Cuota N° {cuotaPagar.numero} ({cuotaPagar.tipo}) - Vence: {cuotaPagar.vencimiento}</p>
                                             </div>
-                                            <Button label="Volver" icon="pi pi-arrow-left" className="p-button-text p-button-secondary" onClick={() => setCuotaPagar(null)} />
+                                            <Button label="Volver" icon="pi pi-arrow-left" className="p-button-text p-button-secondary font-bold" onClick={() => setCuotaPagar(null)} />
                                         </div>
 
                                         <div className="grid">
@@ -425,17 +524,33 @@ const GestionCuotasPagos = () => {
 
                                             <div className="col-12 md:col-6 flex flex-column">
                                                 <label className="font-medium text-700 mb-2">Comprobante / Voucher (Opcional)</label>
-                                                <div className="flex-grow-1 border-2 border-dashed surface-border border-round flex flex-column align-items-center justify-content-center p-5 surface-50 hover:surface-100 transition-colors cursor-pointer text-center">
-                                                    <i className="pi pi-cloud-upload text-5xl text-400 mb-3"></i>
-                                                    <span className="font-medium text-600">Haga clic o arrastre la imagen aquí</span>
-                                                    <span className="text-xs text-400 mt-1">Formatos: JPG, PNG, PDF</span>
+                                                <div className="relative flex-grow-1 border-2 border-dashed surface-border border-round flex flex-column align-items-center justify-content-center p-5 surface-50 hover:surface-100 transition-colors cursor-pointer text-center">
+                                                    <input 
+                                                        type="file" 
+                                                        className="opacity-0 absolute top-0 left-0 w-full h-full cursor-pointer z-10" 
+                                                        accept="image/*,application/pdf"
+                                                        onChange={(e) => setVoucherFileRegistro(e.target.files[0])}
+                                                    />
+                                                    {voucherFileRegistro ? (
+                                                        <>
+                                                            <i className="pi pi-file-check text-5xl text-green-500 mb-3"></i>
+                                                            <span className="font-bold text-700">{voucherFileRegistro.name}</span>
+                                                            <span className="text-xs text-500 mt-1">{(voucherFileRegistro.size / (1024 * 1024)).toFixed(2)} MB</span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <i className="pi pi-cloud-upload text-5xl text-400 mb-3"></i>
+                                                            <span className="font-medium text-600">Haga clic o arrastre la imagen aquí</span>
+                                                            <span className="text-xs text-400 mt-1">Formatos: JPG, PNG, PDF</span>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
 
                                         <div className="flex justify-content-end mt-4 pt-3 border-top-1 surface-border gap-2">
-                                            <Button label="Cancelar" icon="pi pi-times" className="p-button-text p-button-secondary" onClick={() => setCuotaPagar(null)} />
-                                            <Button label="Confirmar y Generar Recibo" icon="pi pi-check-circle" className="p-button-success" onClick={registrarPago} />
+                                            <Button label="Cancelar" icon="pi pi-times" className="p-button-text p-button-secondary font-bold p-button-lg" onClick={() => setCuotaPagar(null)} />
+                                            <Button label="Confirmar y Generar Recibo" icon="pi pi-check-circle" className="btn-success-custom border-round-xl shadow-2 font-bold p-button-lg" onClick={registrarPago} />
                                         </div>
                                     </div>
 
@@ -450,7 +565,8 @@ const GestionCuotasPagos = () => {
                                             </div>
                                         </div>
 
-                                        <DataTable value={contratoActivo.cuotas} scrollable scrollHeight="500px" className="p-datatable-sm custom-table" rowClassName={(data) => ({ 'bg-red-50': data.estado === 'VENCIDA' })}>
+                                        <DataTable dataKey="id" value={contratoActivo.cuotas} expandedRows={expandedRows} onRowToggle={(e) => setExpandedRows(e.data)} rowExpansionTemplate={rowExpansionTemplate} scrollable scrollHeight="500px" className="p-datatable-sm custom-table" rowClassName={(data) => ({ 'bg-red-50': data.estado === 'VENCIDA' })}>
+                                            <Column expander style={{ width: '3rem' }} />
                                             <Column field="numero" header="N°" style={{ width: '8%' }} body={(r) => r.numero === 0 ? '0 (Inicial)' : r.numero}></Column>
                                             <Column field="vencimiento" header="Vencimiento" style={{ width: '15%' }} body={(r) => <><i className="pi pi-calendar mr-2 text-400"></i>{r.vencimiento}</>}></Column>
                                             <Column header="Monto" body={(r) => `S/ ${r.monto.toLocaleString('en-US',{minimumFractionDigits:2})}`} style={{ width: '17%', textAlign: 'right', fontWeight: '500' }}></Column>
@@ -471,7 +587,7 @@ const GestionCuotasPagos = () => {
                         <div className="custom-card mt-3 fade-in">
                             <div className="flex justify-content-between align-items-center mb-4">
                                 <h2 className="text-lg font-bold m-0 text-800">Recibos Emitidos Recientemente</h2>
-                                <Button label="Exportar a Excel" icon="pi pi-file-excel" className="p-button-success p-button-outlined p-button-sm" />
+                                <Button label="Exportar a Excel" icon="pi pi-file-excel" className="btn-success-custom p-button-outlined border-round-xl shadow-2 font-bold p-button-sm" />
                             </div>
                             
                             <DataTable value={historialPagos} paginator rows={10} className="p-datatable-sm custom-table shadow-1">
@@ -479,10 +595,11 @@ const GestionCuotasPagos = () => {
                                 <Column field="contrato" header="Contrato" style={{ minWidth: '100px', fontWeight: 'bold', color: 'var(--primary-color)' }}></Column>
                                 <Column field="cliente" header="Cliente" style={{ minWidth: '150px' }}></Column>
                                 <Column field="metodo" header="Método" style={{ minWidth: '150px' }}></Column>
+                                <Column header="Voucher" body={(r) => r.fotoVoucherUrl ? <Button icon="pi pi-image" className="p-button-rounded p-button-text p-button-info" tooltip="Ver Voucher" onClick={() => setVoucherViewer(buildVoucherUrl(r.fotoVoucherUrl))} /> : <span className="text-400">-</span>} style={{ textAlign: 'center' }}></Column>
                                 <Column header="Monto" body={(r) => <span className="font-bold text-green-700">S/ {r.monto.toLocaleString('en-US',{minimumFractionDigits:2})}</span>} style={{ minWidth: '120px', textAlign: 'right' }}></Column>
                                 <Column field="fecha" header="Fecha/Hora" style={{ minWidth: '150px' }}></Column>
                                 <Column header="Estado" body={(r) => estadoReciboTemplate(r.estado)} style={{ minWidth: '120px', textAlign: 'center' }}></Column>
-                                <Column header="Acción" body={() => <Button icon="pi pi-file-pdf" className="p-button-rounded p-button-text p-button-secondary" tooltip="Descargar PDF" />} style={{ width: '5rem', textAlign: 'center' }}></Column>
+                                <Column header="Acción" body={(r) => isPendiente(r.estado) ? <Button label="Procesar" icon="pi pi-cog" className="btn-warning-custom p-button-sm border-round-xl shadow-2 font-bold" onClick={() => abrirDialogoProcesar(r)} /> : <Button icon="pi pi-file-pdf" className="p-button-rounded p-button-text p-button-secondary" tooltip="Descargar PDF" />} style={{ width: '8rem', textAlign: 'center' }}></Column>
                             </DataTable>
                         </div>
                     </TabPanel>

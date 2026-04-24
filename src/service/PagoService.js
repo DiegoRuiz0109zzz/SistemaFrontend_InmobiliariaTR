@@ -11,9 +11,21 @@ export const PagoService = {
         return response.data;
     },
 
-    registrar: async (pagoRequest, httpClient) => {
+    registrar: async (formData, httpClient) => {
         const client = resolveClient(httpClient);
-        const response = await client.post(`${RESOURCE}/`, pagoRequest);
+        const response = await client.post(`${RESOURCE}/`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        return response.data;
+    },
+
+    procesarPendiente: async (id, formData, httpClient) => {
+        const client = resolveClient(httpClient);
+        const response = await client.put(`${RESOURCE}/${id}/procesar`, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        });
         return response.data;
     },
 

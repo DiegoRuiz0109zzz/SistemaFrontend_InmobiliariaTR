@@ -8,6 +8,7 @@ import { ProgressBar } from 'primereact/progressbar';
 import { Toast } from 'primereact/toast';
 import { Divider } from 'primereact/divider';
 import { Skeleton } from 'primereact/skeleton';
+import { Dialog } from 'primereact/dialog';
 import PageHeader from '../../components/ui/PageHeader';
 import { useAuth } from '../../context/AuthContext';
 import { ContratoService } from '../../service/ContratoService';
@@ -25,6 +26,10 @@ const DetalleContrato = () => {
     const [loading, setLoading] = useState(true);
     const [contrato, setContrato] = useState(null);
     const [cuotaSeleccionada, setCuotaSeleccionada] = useState(null);
+    const [voucherViewer, setVoucherViewer] = useState(null);
+
+    const buildVoucherUrl = (url) => url ? `http://localhost:8080/${url.replace(/^\//, '')}` : null;
+    const isPdf = (url) => url && url.toLowerCase().endsWith('.pdf');
 
     useEffect(() => {
         if (id) {
@@ -71,6 +76,10 @@ const DetalleContrato = () => {
             
             const precioTotal = data.precioTotal || 1;
 
+            // Determinar si la Cuota 0 (Inicial) está incompleta
+            const cuota0 = cuotasFormateadas.find(c => c.numero === 0 || c.tipo === 'INICIAL');
+            const faltaPagarInicial = cuota0 ? Math.max(0, cuota0.montoTotal - cuota0.montoPagado) : 0;
+
             setContrato({
                 id: Number(contratoId),
                 codigo: `C-${contratoId.toString().padStart(4, '0')}`,
@@ -91,12 +100,14 @@ const DetalleContrato = () => {
                 finanzas: {
                     precioTotal: data.precioTotal || 0,
                     montoInicial: data.montoInicialAcordado || 0,
+                    saldoFinanciar: data.saldoFinanciar || Math.max(0, (data.precioTotal || 0) - (data.montoInicialAcordado || 0)),
                     totalPagado: totalPagadoReal,
                     saldoDeudor: (data.precioTotal || 0) - totalPagadoReal,
                     cuotasTotales: data.cantidadCuotas || 0,
                     cuotasPagadas: cuotasPagadas,
                     cuotasAtrasadas: cuotasAtrasadas,
-                    progresoPago: Math.min(100, Math.round((totalPagadoReal / precioTotal) * 100))
+                    progresoPago: Math.min(100, Math.round((totalPagadoReal / precioTotal) * 100)),
+                    faltaPagarInicial: faltaPagarInicial
                 },
                 estadoLote: data.lote?.estadoVenta || 'SEPARADO',
                 cuotas: cuotasFormateadas
@@ -157,6 +168,30 @@ const DetalleContrato = () => {
     return (
         <div className="detallecontrato-page">
             <Toast ref={toast} />
+
+            {/* ===== MODAL VISOR DE VOUCHER ===== */}
+            <Dialog
+                header={<><i className="pi pi-image text-blue-500 mr-2"></i>Comprobante de Pago</>}
+                visible={!!voucherViewer}
+                style={{ width: '700px', maxWidth: '95vw' }}
+                onHide={() => setVoucherViewer(null)}
+                footer={
+                    <div className="flex justify-content-end gap-2">
+                        <Button label="Descargar" icon="pi pi-download" className="p-button-info" onClick={() => window.open(voucherViewer, '_blank')} />
+                        <Button label="Cerrar" icon="pi pi-times" className="p-button-text p-button-secondary" onClick={() => setVoucherViewer(null)} />
+                    </div>
+                }
+            >
+                {voucherViewer && (
+                    <div className="flex justify-content-center align-items-center" style={{ minHeight: '400px', background: '#f8f9fa', borderRadius: '8px' }}>
+                        {isPdf(voucherViewer) ? (
+                            <iframe src={voucherViewer} title="Voucher" style={{ width: '100%', height: '500px', border: 'none', borderRadius: '8px' }} />
+                        ) : (
+                            <img src={voucherViewer} alt="Voucher de Pago" style={{ maxWidth: '100%', maxHeight: '550px', borderRadius: '8px', objectFit: 'contain', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }} />
+                        )}
+                    </div>
+                )}
+            </Dialog>
             
             {/* Header de la Página con Botón de Regreso */}
             <div className="flex justify-content-between align-items-center mb-4 pt-3 pl-3 pr-3">
@@ -229,16 +264,28 @@ const DetalleContrato = () => {
                                     <span className="text-sm font-medium text-blue-200 uppercase">Precio Total</span>
                                     <span className="text-sm font-medium text-blue-200 uppercase">Total Pagado</span>
                                 </div>
-                                <div className="flex justify-content-between mb-3 border-bottom-1 border-blue-800 pb-2">
+                                <div className="flex justify-content-between mb-2 border-bottom-1 border-blue-800 pb-2">
                                     <span className="text-2xl font-bold">S/ {contrato.finanzas.precioTotal.toLocaleString()}</span>
                                     <span className="text-2xl font-bold text-green-400">S/ {contrato.finanzas.totalPagado.toLocaleString()}</span>
                                 </div>
                                 
+                                <div className="flex justify-content-between align-items-center mb-2">
+                                    <span className="text-sm font-medium text-blue-200" title="Saldo a Financiar (Después de la Inicial)">A Financiar: S/ {contrato.finanzas.saldoFinanciar.toLocaleString()}</span>
+                                    <span className="text-sm font-bold text-orange-300">Deuda Real: S/ {contrato.finanzas.saldoDeudor.toLocaleString()}</span>
+                                </div>
+
                                 <div className="flex justify-content-between align-items-center mb-1">
-                                    <span className="text-sm font-bold text-orange-300">Saldo Deudor: S/ {contrato.finanzas.saldoDeudor.toLocaleString()}</span>
+                                    <span className="text-xs font-medium text-blue-300">Progreso de Pago</span>
                                     <span className="text-xs font-bold text-blue-200">{contrato.finanzas.progresoPago}%</span>
                                 </div>
-                                <ProgressBar value={contrato.finanzas.progresoPago} displayValueTemplate={() => ''} style={{ height: '8px' }} color="var(--green-400)" className="bg-blue-800 border-none"></ProgressBar>
+                                <ProgressBar value={contrato.finanzas.progresoPago} displayValueTemplate={() => ''} style={{ height: '8px' }} color="var(--green-400)" className="bg-blue-800 border-none mb-2"></ProgressBar>
+
+                                {contrato.finanzas.faltaPagarInicial > 0 && (
+                                    <div className="mt-2 bg-orange-500 text-white p-2 border-round text-xs font-bold flex align-items-center justify-content-center shadow-1">
+                                        <i className="pi pi-exclamation-circle mr-2 text-base"></i>
+                                        Cuota 0 Incompleta (Falta: S/ {contrato.finanzas.faltaPagarInicial.toLocaleString()})
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -317,10 +364,10 @@ const DetalleContrato = () => {
                                         {cuotaSeleccionada.pagos && cuotaSeleccionada.pagos.length > 0 ? (
                                             <div className="flex flex-column gap-3">
                                                 {cuotaSeleccionada.pagos.map((pago, i) => (
-                                                    <div key={i} className="surface-0 border-1 surface-border border-round-xl p-3 shadow-1 hover:border-primary transition-colors cursor-pointer" title="Haga clic para ver o descargar voucher">
+                                                    <div key={i} className="surface-0 border-1 surface-border border-round-xl p-3 shadow-1 hover:border-primary transition-colors" style={{ cursor: pago.fotoVoucherUrl ? 'pointer' : 'default' }} title={pago.fotoVoucherUrl ? "Haga clic para ver el voucher" : "Sin voucher adjunto"} onClick={() => pago.fotoVoucherUrl && setVoucherViewer(buildVoucherUrl(pago.fotoVoucherUrl))}>
                                                         <div className="flex justify-content-between align-items-center mb-3 border-bottom-1 surface-border pb-2">
                                                             <div className="flex align-items-center">
-                                                                <i className="pi pi-file-pdf text-red-500 text-xl mr-2"></i>
+                                                                <i className={`pi ${pago.fotoVoucherUrl ? 'pi-image text-blue-500' : 'pi-file-pdf text-red-500'} text-xl mr-2`}></i>
                                                                 <span className="font-bold text-700">{pago.id}</span>
                                                             </div>
                                                             <span className="text-xs text-500 bg-surface-100 px-2 py-1 border-round">{pago.fechaPago}</span>

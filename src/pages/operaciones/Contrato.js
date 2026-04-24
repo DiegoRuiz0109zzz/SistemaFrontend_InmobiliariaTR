@@ -259,6 +259,7 @@ const Contrato = () => {
                     departamento: clienteExistente?.departamento || '',
                     provincia: clienteExistente?.provincia || '',
                     distrito: clienteExistente?.distrito || '',
+                    ubigeo: clienteExistente?.ubigeo || '',
                     direccion: clienteExistente?.direccion || ''
                 }));
                 setDni(documento);
@@ -444,7 +445,11 @@ const Contrato = () => {
                     nombres: cliente.nombres,
                     apellidos: cliente.apellidos || '',
                     telefono: cliente.telefono || '',
-                    email: cliente.email || ''
+                    email: cliente.email || '',
+                    departamento: cliente.departamento || '',
+                    provincia: cliente.provincia || '',
+                    distrito: cliente.distrito || '',
+                    ubigeo: cliente.ubigeo || ''
                 };
                 
                 // Llamada a tu API real para guardarlo en la base de datos

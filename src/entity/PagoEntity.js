@@ -5,6 +5,9 @@ export const PagoEntity = {
     cuota: { ...CuotaEntity },
     montoAbonado: null,
     fotoVoucherUrl: '',
+    metodoPago: '',
+    numeroOperacion: '',
+    estado: 'PROCESADO',
     fechaPago: null,
     enabled: true
 };
