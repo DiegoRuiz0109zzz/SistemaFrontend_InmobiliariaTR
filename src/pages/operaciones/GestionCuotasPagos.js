@@ -281,12 +281,15 @@ const GestionCuotasPagos = () => {
     };
 
     const accionesCuotaTemplate = (rowData) => {
+        const deudaPendiente = (rowData.monto || 0) - (rowData.pagado || 0);
+        const estaCompleta = rowData.estado === 'PAGADO' || deudaPendiente <= 0;
+
         return (
             <div className="flex justify-content-center align-items-center gap-2">
-                {rowData.estado !== 'PAGADO' ? (
-                    <Button label="Cobrar" icon="pi pi-wallet" className="p-button-sm btn-primary-custom shadow-2 border-round-xl font-bold" onClick={() => abrirPanelPago(rowData)} />
-                ) : (
+                {estaCompleta ? (
                     <span className="text-xs font-bold text-green-600 px-3 py-2 bg-green-50 border-round-xl shadow-1"><i className="pi pi-check-circle mr-1"></i>Completado</span>
+                ) : (
+                    <Button label="Cobrar" icon="pi pi-wallet" className="p-button-sm btn-primary-custom shadow-2 border-round-xl font-bold" onClick={() => abrirPanelPago(rowData)} />
                 )}
             </div>
         );
