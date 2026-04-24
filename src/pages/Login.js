@@ -247,7 +247,7 @@ function Login() {
                                     Olvidé mi contraseña
                                 </button> </div>
 
-                            <div style={{ marginTop: '0.75rem' }}>
+                            {/* <div style={{ marginTop: '0.75rem' }}>
                                 <button
                                     type="button"
                                     onClick={() => setShowHelpDialog(true)}
@@ -258,8 +258,8 @@ function Login() {
                                     ¿Necesitas ayuda?
                                 </button>
                             </div>
-
-                            <div style={{ marginTop: '0.75rem' }}>
+                            */}
+                            {/*<div style={{ marginTop: '0.75rem' }}>
                                 <span style={{ color: '#6c757d', fontSize: '0.9rem' }}>¿No tienes una cuenta? </span>
                                 <Link
                                     to="/register"
@@ -268,7 +268,7 @@ function Login() {
                                 >
                                     Regístrate aquí
                                 </Link>
-                            </div>
+                            </div>*/}
                         </div>
                     </form>
                 </Card>
