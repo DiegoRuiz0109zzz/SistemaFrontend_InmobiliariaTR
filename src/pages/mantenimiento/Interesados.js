@@ -14,6 +14,8 @@ import { useAuth } from '../../context/AuthContext';
 import { InteresadoEntity } from '../../entity/InteresadoEntity';
 import { InteresadoService } from '../../service/InteresadoService';
 import { ReniecService } from '../../service/ReniecService';
+import { UbigeoService } from '../../service/UbigeoService';
+import { filtrarDocumento, validarDocumento, maxLengthDocumento, placeholderDocumento } from '../../utils/documentoUtils';
 import '../Usuario.css';
 import './Interesados.css';
 
@@ -28,10 +30,16 @@ const Interesados = () => {
     const [globalFilter, setGlobalFilter] = useState('');
     const [selectedInteresados, setSelectedInteresados] = useState(null);
     const [saving, setSaving] = useState(false);
+    const [departamentos, setDepartamentos] = useState([]);
+    const [provincias, setProvincias] = useState([]);
+    const [distritos, setDistritos] = useState([]);
 
     const toast = useRef(null);
     const dt = useRef(null);
 
+    // ==========================================
+    // CARGA DE DATOS
+    // ==========================================
     const cargarInteresados = useCallback(async () => {
         try {
             const response = await InteresadoService.listar(axiosInstance);
@@ -42,14 +50,73 @@ const Interesados = () => {
         }
     }, [axiosInstance]);
 
+    // ==========================================
+    // UBIGEO EN CASCADA (mismo patrón que Clientes)
+    // ==========================================
+    const mapTextOptions = (items) => (items || []).map((item) => ({ label: item, value: item }));
+
+    const mapDistritoOptions = (items) => (items || []).map((item) => {
+        const distrito = item?.distrito || item?.nombreDistrito || item?.name || '';
+        const ubigeo = item?.ubigeo || item?.idUbigeo || item?.codigoUbigeo || '';
+        return { label: distrito, value: distrito, ubigeo };
+    });
+
+    const cargarDepartamentos = useCallback(async () => {
+        try {
+            const response = await UbigeoService.listarDepartamentos(axiosInstance);
+            setDepartamentos(mapTextOptions(response || []));
+        } catch (error) {
+            console.error(error);
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar departamentos.', life: 3500 });
+        }
+    }, [axiosInstance]);
+
+    const cargarProvincias = useCallback(async (departamento) => {
+        if (!departamento) { setProvincias([]); setDistritos([]); return; }
+        try {
+            const response = await UbigeoService.listarProvincias(departamento, axiosInstance);
+            setProvincias(mapTextOptions(response || []));
+        } catch (error) {
+            console.error(error);
+            setProvincias([]);
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar provincias.', life: 3500 });
+        }
+    }, [axiosInstance]);
+
+    const cargarDistritos = useCallback(async (departamento, provincia) => {
+        if (!departamento || !provincia) { setDistritos([]); return; }
+        try {
+            const response = await UbigeoService.listarDistritos(departamento, provincia, axiosInstance);
+            setDistritos(mapDistritoOptions(response || []));
+        } catch (error) {
+            console.error(error);
+            setDistritos([]);
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar distritos.', life: 3500 });
+        }
+    }, [axiosInstance]);
+
+    const hidratarUbigeo = useCallback(async (dataInteresado) => {
+        if (!dataInteresado?.departamento) { setProvincias([]); setDistritos([]); return; }
+        await cargarProvincias(dataInteresado.departamento);
+        if (dataInteresado.provincia) {
+            await cargarDistritos(dataInteresado.departamento, dataInteresado.provincia);
+        }
+    }, [cargarDistritos, cargarProvincias]);
+
     useEffect(() => {
         cargarInteresados();
     }, [cargarInteresados]);
 
+    // ==========================================
+    // DIALOG: ABRIR / CERRAR
+    // ==========================================
     const openNew = () => {
         setInteresado(emptyInteresado);
+        setProvincias([]);
+        setDistritos([]);
         setSubmitted(false);
         setDialogVisible(true);
+        cargarDepartamentos();
     };
 
     const hideDialog = () => {
@@ -57,11 +124,51 @@ const Interesados = () => {
         setSubmitted(false);
     };
 
-    const onInputChange = (e, name) => {
-        const val = (e.target && e.target.value) || '';
-        setInteresado((prev) => ({ ...prev, [name]: val }));
+    const editInteresado = async (rowData) => {
+        setInteresado({ ...rowData });
+        setSubmitted(false);
+        setDialogVisible(true);
+        await cargarDepartamentos();
+        await hidratarUbigeo(rowData);
     };
 
+    // ==========================================
+    // HANDLERS DE CAMBIO
+    // ==========================================
+    const onInputChange = (e, name) => {
+        const val = (e.target && e.target.value) || '';
+        if (name === 'numeroDocumento') {
+            const filtered = filtrarDocumento(val, interesado.tipoDocumento || 'DNI');
+            setInteresado((prev) => ({ ...prev, [name]: filtered }));
+        } else {
+            setInteresado((prev) => ({ ...prev, [name]: val }));
+        }
+    };
+
+    // Limpiar documento al cambiar tipo
+    const onTipoDocumentoChange = (e) => {
+        setInteresado((prev) => ({ ...prev, tipoDocumento: e.value, numeroDocumento: '' }));
+    };
+
+    const onDepartamentoChange = async (value) => {
+        setInteresado((prev) => ({ ...prev, departamento: value, provincia: '', distrito: '', ubigeo: '' }));
+        await cargarProvincias(value);
+        setDistritos([]);
+    };
+
+    const onProvinciaChange = async (value) => {
+        setInteresado((prev) => ({ ...prev, provincia: value, distrito: '', ubigeo: '' }));
+        await cargarDistritos(interesado.departamento, value);
+    };
+
+    const onDistritoChange = (value) => {
+        const distritoSelected = distritos.find((item) => item.value === value);
+        setInteresado((prev) => ({ ...prev, distrito: value, ubigeo: distritoSelected?.ubigeo || '' }));
+    };
+
+    // ==========================================
+    // HELPERS
+    // ==========================================
     const normalizeText = (value) => (value || '').trim();
 
     const formatFechaIngreso = (value) => {
@@ -72,19 +179,17 @@ const Interesados = () => {
     };
 
     const mapReniecData = (data) => {
-        if (!data) {
-            return {};
-        }
+        if (!data) return {};
         const nombres = data.nombres || data.nombre || '';
         const apellidoPaterno = data.apellidoPaterno || data.apellido_paterno || '';
         const apellidoMaterno = data.apellidoMaterno || data.apellido_materno || '';
         const apellidos = data.apellidos || `${apellidoPaterno} ${apellidoMaterno}`.trim();
-        return {
-            nombres,
-            apellidos
-        };
+        return { nombres, apellidos };
     };
 
+    // ==========================================
+    // RENIEC
+    // ==========================================
     const buscarDni = async () => {
         if (interesado.tipoDocumento && interesado.tipoDocumento !== 'DNI') {
             toast.current?.show({ severity: 'warn', summary: 'Validacion', detail: 'La consulta RENIEC aplica solo para DNI.', life: 3000 });
@@ -95,15 +200,12 @@ const Interesados = () => {
             toast.current?.show({ severity: 'warn', summary: 'Validacion', detail: 'El DNI debe tener 8 digitos.', life: 3000 });
             return;
         }
-
         try {
             const response = await ReniecService.consultarDNI(dni, axiosInstance);
             if (!response?.success) {
-                const message = response?.message || 'No se encontraron datos para el DNI.';
-                toast.current?.show({ severity: 'warn', summary: 'RENIEC', detail: message, life: 3500 });
+                toast.current?.show({ severity: 'warn', summary: 'RENIEC', detail: response?.message || 'No se encontraron datos para el DNI.', life: 3500 });
                 return;
             }
-
             const mapped = mapReniecData(response.data);
             setInteresado((prev) => ({ ...prev, ...mapped }));
             toast.current?.show({ severity: 'success', summary: 'RENIEC', detail: 'Datos cargados correctamente.', life: 3000 });
@@ -114,6 +216,9 @@ const Interesados = () => {
         }
     };
 
+    // ==========================================
+    // GUARDAR
+    // ==========================================
     const saveInteresado = async () => {
         setSubmitted(true);
 
@@ -123,8 +228,14 @@ const Interesados = () => {
         const apellidos = normalizeText(interesado.apellidos);
         const telefono = normalizeText(interesado.telefono);
 
-        if (!numeroDocumento || !tipoDocumento || !nombres || !apellidos || !telefono) {
-            toast.current?.show({ severity: 'warn', summary: 'Validacion', detail: 'Documento, tipo, nombres, apellidos y telefono son obligatorios.', life: 3000 });
+        if (!nombres || !apellidos || !telefono) {
+            toast.current?.show({ severity: 'warn', summary: 'Validacion', detail: 'Nombres, apellidos y teléfono son obligatorios.', life: 3000 });
+            return;
+        }
+
+        const docValidation = validarDocumento(numeroDocumento, tipoDocumento);
+        if (!docValidation.valid) {
+            toast.current?.show({ severity: 'warn', summary: 'Documento inválido', detail: docValidation.message, life: 3500 });
             return;
         }
 
@@ -135,7 +246,11 @@ const Interesados = () => {
             apellidos,
             telefono,
             tipoDocumento,
-            email: normalizeText(interesado.email)
+            email: normalizeText(interesado.email),
+            departamento: normalizeText(interesado.departamento),
+            provincia: normalizeText(interesado.provincia),
+            distrito: normalizeText(interesado.distrito),
+            ubigeo: normalizeText(interesado.ubigeo)
         };
 
         setSaving(true);
@@ -147,7 +262,6 @@ const Interesados = () => {
                 await InteresadoService.crear(payload, axiosInstance);
                 toast.current?.show({ severity: 'success', summary: 'Creado', detail: 'Interesado creado correctamente.', life: 3000 });
             }
-
             await cargarInteresados();
             setDialogVisible(false);
             setInteresado(emptyInteresado);
@@ -160,12 +274,9 @@ const Interesados = () => {
         }
     };
 
-    const editInteresado = (rowData) => {
-        setInteresado({ ...rowData });
-        setSubmitted(false);
-        setDialogVisible(true);
-    };
-
+    // ==========================================
+    // ELIMINAR
+    // ==========================================
     const confirmDeleteInteresado = (rowData) => {
         const nombreCompleto = `${rowData.nombres || ''} ${rowData.apellidos || ''}`.trim();
         confirmDialog({
@@ -191,12 +302,11 @@ const Interesados = () => {
         }
     };
 
-    const exportCSV = () => {
-        if (dt.current) {
-            dt.current.exportCSV();
-        }
-    };
+    const exportCSV = () => { if (dt.current) dt.current.exportCSV(); };
 
+    // ==========================================
+    // TEMPLATES DE TABLA
+    // ==========================================
     const actionBodyTemplate = (rowData) => (
         <div className="action-buttons">
             <Button icon="pi pi-pencil" className="btn-edit" onClick={() => editInteresado(rowData)} tooltip="Editar" />
@@ -213,6 +323,9 @@ const Interesados = () => {
         </div>
     );
 
+    // ==========================================
+    // RENDER
+    // ==========================================
     return (
         <div className="usuario-page interesados-page">
             <div className="container">
@@ -253,14 +366,14 @@ const Interesados = () => {
                             paginator
                             rows={10}
                             globalFilter={globalFilter}
-                            globalFilterFields={['numeroDocumento', 'tipoDocumento', 'nombres', 'apellidos', 'telefono', 'email', 'fechaIngreso']}
+                            globalFilterFields={['numeroDocumento', 'tipoDocumento', 'nombres', 'apellidos', 'telefono', 'email', 'departamento', 'provincia', 'distrito']}
                             emptyMessage="No se encontraron interesados."
                         >
                             <Column header="N°" body={indexBodyTemplate} style={{ width: '80px', textAlign: 'center' }} />
                             <Column field="numeroDocumento" header="Documento" style={{ minWidth: '140px' }} />
                             <Column field="tipoDocumento" header="Tipo" style={{ minWidth: '120px' }} />
-                            <Column field="nombres" header="Nombres" style={{ minWidth: '200px' }} />
-                            <Column field="apellidos" header="Apellidos" style={{ minWidth: '200px' }} />
+                            <Column field="nombres" header="Nombres" style={{ minWidth: '180px' }} />
+                            <Column field="apellidos" header="Apellidos" style={{ minWidth: '180px' }} />
                             <Column field="telefono" header="Teléfono" style={{ minWidth: '140px' }} />
                             <Column field="email" header="Correo" style={{ minWidth: '200px' }} />
                             <Column header="Fecha ingreso" body={(rowData) => formatFechaIngreso(rowData.fechaIngreso)} style={{ minWidth: '140px' }} />
@@ -269,6 +382,9 @@ const Interesados = () => {
                     </div>
                 </div>
 
+                {/* ========================================== */}
+                {/* DIALOG: CREAR / EDITAR — Mismo patrón que Clientes */}
+                {/* ========================================== */}
                 <Dialog
                     visible={dialogVisible}
                     style={{ width: '800px', maxWidth: '95vw' }}
@@ -285,6 +401,8 @@ const Interesados = () => {
                     onHide={hideDialog}
                 >
                     <div className="formgrid grid dialog-content-specific">
+
+                        {/* Tipo de documento */}
                         <div className="field col-12 md:col-6">
                             <label htmlFor="tipoDocumento">Tipo Documento</label>
                             <Dropdown
@@ -295,12 +413,13 @@ const Interesados = () => {
                                     { label: 'Carnet de Extranjeria', value: 'CE' },
                                     { label: 'RUC', value: 'RUC' }
                                 ]}
-                                onChange={(e) => onInputChange(e, 'tipoDocumento')}
+                                onChange={onTipoDocumentoChange}
                                 placeholder="Seleccione tipo"
                                 className="w-full"
                             />
                         </div>
 
+                        {/* N° de documento + RENIEC */}
                         <div className="field col-12 md:col-6">
                             <label htmlFor="numeroDocumento">Documento</label>
                             <div className="p-inputgroup">
@@ -308,12 +427,18 @@ const Interesados = () => {
                                     id="numeroDocumento"
                                     value={interesado.numeroDocumento}
                                     onChange={(e) => onInputChange(e, 'numeroDocumento')}
-                                    placeholder="Ingrese DNI"
+                                    required
+                                    keyfilter="pint"
+                                    maxLength={maxLengthDocumento(interesado.tipoDocumento)}
+                                    placeholder={placeholderDocumento(interesado.tipoDocumento)}
+                                    className={submitted && !interesado.numeroDocumento ? 'p-invalid' : ''}
                                 />
                                 <Button icon="pi pi-search" className="p-button-outlined" type="button" onClick={buscarDni} />
                             </div>
+                            {submitted && !interesado.numeroDocumento && <small className="p-error">El documento es requerido.</small>}
                         </div>
 
+                        {/* Nombres */}
                         <div className="field col-12 md:col-6">
                             <label htmlFor="nombres">Nombres</label>
                             <InputText
@@ -327,6 +452,7 @@ const Interesados = () => {
                             {submitted && !interesado.nombres && <small className="p-error">Los nombres son requeridos.</small>}
                         </div>
 
+                        {/* Apellidos */}
                         <div className="field col-12 md:col-6">
                             <label htmlFor="apellidos">Apellidos</label>
                             <InputText
@@ -340,6 +466,18 @@ const Interesados = () => {
                             {submitted && !interesado.apellidos && <small className="p-error">Los apellidos son requeridos.</small>}
                         </div>
 
+                        {/* Email */}
+                        <div className="field col-12 md:col-6">
+                            <label htmlFor="email">Correo Electrónico</label>
+                            <InputText
+                                id="email"
+                                value={interesado.email}
+                                onChange={(e) => onInputChange(e, 'email')}
+                                placeholder="ejemplo@correo.com"
+                            />
+                        </div>
+
+                        {/* Teléfono */}
                         <div className="field col-12 md:col-6">
                             <label htmlFor="telefono">Teléfono</label>
                             <InputText
@@ -353,25 +491,56 @@ const Interesados = () => {
                             {submitted && !interesado.telefono && <small className="p-error">El teléfono es requerido.</small>}
                         </div>
 
-                        <div className="field col-12 md:col-6">
-                            <label htmlFor="email">Correo Electrónico</label>
-                            <InputText
-                                id="email"
-                                value={interesado.email}
-                                onChange={(e) => onInputChange(e, 'email')}
-                                placeholder="ejemplo@correo.com"
+                        {/* Departamento */}
+                        <div className="field col-12 md:col-4">
+                            <label htmlFor="departamento">Departamento</label>
+                            <Dropdown
+                                id="departamento"
+                                value={interesado.departamento}
+                                options={departamentos}
+                                onChange={(e) => onDepartamentoChange(e.value)}
+                                placeholder="Seleccione un departamento"
+                                className="w-full"
+                                filter
+                                filterPlaceholder="Buscar departamento"
+                                showClear
                             />
                         </div>
 
-                        <div className="field col-12 md:col-6">
-                            <label htmlFor="fechaIngreso">Fecha ingreso</label>
-                            <InputText
-                                id="fechaIngreso"
-                                value={formatFechaIngreso(interesado.fechaIngreso)}
-                                placeholder="--/--/----"
-                                disabled
+                        {/* Provincia */}
+                        <div className="field col-12 md:col-4">
+                            <label htmlFor="provincia">Provincia</label>
+                            <Dropdown
+                                id="provincia"
+                                value={interesado.provincia}
+                                options={provincias}
+                                onChange={(e) => onProvinciaChange(e.value)}
+                                placeholder="Seleccione una provincia"
+                                className="w-full"
+                                filter
+                                filterPlaceholder="Buscar provincia"
+                                showClear
+                                disabled={!interesado.departamento}
                             />
                         </div>
+
+                        {/* Distrito */}
+                        <div className="field col-12 md:col-4">
+                            <label htmlFor="distrito">Distrito</label>
+                            <Dropdown
+                                id="distrito"
+                                value={interesado.distrito}
+                                options={distritos}
+                                onChange={(e) => onDistritoChange(e.value)}
+                                placeholder="Seleccione un distrito"
+                                className="w-full"
+                                filter
+                                filterPlaceholder="Buscar distrito"
+                                showClear
+                                disabled={!interesado.provincia}
+                            />
+                        </div>
+
                     </div>
                 </Dialog>
             </div>

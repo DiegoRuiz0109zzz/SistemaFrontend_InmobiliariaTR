@@ -2,6 +2,9 @@
     padding-top: 1rem;
     display: flex;
     flex-direction: column;
+    background: transparent;
+    border: none;
+    padding: 0;
 }
 
 .cotizacion-page .p-tabview {
@@ -12,6 +15,49 @@
     padding-top: 0.5rem;
     background: transparent;
     border: none;
+}
+
+
+.cotizacion-page .gestion-entity-tabs {
+    margin-top: 0.5rem;
+}
+
+.cotizacion-page .gestion-entity-tabs .p-tabview-nav {
+    border: none;
+    background: transparent;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+}
+
+.cotizacion-page .gestion-entity-tabs .p-tabview-nav li .p-tabview-nav-link {
+    border-radius: 999px;
+    border: 1px solid var(--border-color, #e2e8f0);
+    background: var(--bg-card, #ffffff);
+    color: var(--text-secondary, #64748b);
+    font-weight: 600;
+    padding: 0.5rem 1.1rem;
+}
+
+.cotizacion-page .gestion-entity-tabs .p-tabview-nav li.p-highlight .p-tabview-nav-link {
+    background: linear-gradient(135deg, rgba(86, 119, 255, 0.15) 0%, rgba(24, 170, 130, 0.15) 100%);
+    border-color: rgba(86, 119, 255, 0.35);
+    color: var(--theme-primary, #4f46e5);
+    box-shadow: var(--shadow-sm);
+}
+
+.cotizacion-page .gestion-entity-tabs .p-tabview-nav li .p-tabview-nav-link:focus {
+    box-shadow: 0 0 0 2px rgba(86, 119, 255, 0.25);
+}
+
+@media (max-width: 768px) {
+    .cotizacion-page .gestion-entity-tabs .p-tabview-nav {
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    .cotizacion-page .gestion-entity-tabs .p-tabview-nav::-webkit-scrollbar {
+        height: 6px;
+    }
 }
 
 .cotizacion-page .grid.mt-3 {

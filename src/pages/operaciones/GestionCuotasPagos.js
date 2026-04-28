@@ -269,10 +269,11 @@ const GestionCuotasPagos = () => {
     // ==========================================
     const estadoLoteTemplate = (estado) => {
         switch (estado) {
-            case 'PAGADO': return <Tag severity="success" value="PAGADO" icon="pi pi-check-circle" />;
+            case 'PAGADO_TOTAL': return <Tag severity="success" value="PAGADO" icon="pi pi-check-circle" />;
+            case 'PAGADO_PARCIAL': return <Tag severity="warning" value="PARCIAL" icon="pi pi-clock" />;
             case 'PENDIENTE': return <Tag severity="info" value="PENDIENTE" icon="pi pi-clock" />;
-            case 'VENCIDA': return <Tag severity="danger" value="VENCIDA" icon="pi pi-exclamation-triangle" />;
-            default: return <Tag value={estado} />;
+            case 'VENCIDO': return <Tag severity="danger" value="VENCIDO" icon="pi pi-exclamation-triangle" />;
+            default: return <Tag value={estado || '-'} />;
         }
     };
 
@@ -282,7 +283,7 @@ const GestionCuotasPagos = () => {
 
     const accionesCuotaTemplate = (rowData) => {
         const deudaPendiente = (rowData.monto || 0) - (rowData.pagado || 0);
-        const estaCompleta = rowData.estado === 'PAGADO' || deudaPendiente <= 0;
+        const estaCompleta = rowData.estado === 'PAGADO_TOTAL' || deudaPendiente <= 0;
 
         return (
             <div className="flex justify-content-center align-items-center gap-2">

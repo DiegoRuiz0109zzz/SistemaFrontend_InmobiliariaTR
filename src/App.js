@@ -28,7 +28,7 @@ import Clientes from './pages/mantenimiento/Clientes';
 import Interesados from './pages/mantenimiento/Interesados';
 import Vendedores from './pages/mantenimiento/Vendedores';
 import Lotizacion from './pages/mantenimiento/Lotizacion';
-import Cotizacion from './pages/operaciones/Cotizacion';
+import NuevoRegistro from './pages/operaciones/NuevoRegistro';
 import ListaCotizaciones from './pages/operaciones/ListaCotizaciones';
 import Contrato from './pages/operaciones/Contrato';
 import ListaContratos from './pages/operaciones/ListaContratos';
@@ -52,7 +52,7 @@ function App() {
               <Route exact path="/interesados" element={<Interesados />} />
               <Route exact path="/vendedores" element={<Vendedores />} />
               <Route exact path="/lotizacion" element={<Lotizacion />} />
-              <Route exact path="/cotizacion" element={<Cotizacion />} />
+              <Route exact path="/cotizacion" element={<NuevoRegistro />} />
               <Route exact path="/cotizacion/lista" element={<ListaCotizaciones />} />
               <Route exact path="/contrato/nuevo" element={<Contrato />} />
               <Route exact path="/contrato/lista" element={<ListaContratos />} />

@@ -15,6 +15,7 @@ import { ClienteEntity } from '../../entity/ClienteEntity';
 import { ClienteService } from '../../service/ClienteService';
 import { ReniecService } from '../../service/ReniecService';
 import { UbigeoService } from '../../service/UbigeoService';
+import { filtrarDocumento, validarDocumento, maxLengthDocumento, placeholderDocumento } from '../../utils/documentoUtils';
 import '../Usuario.css';
 import './Clientes.css';
 
@@ -134,7 +135,16 @@ const Clientes = () => {
 
     const onInputChange = (e, name) => {
         const val = (e.target && e.target.value) || '';
-        setCliente((prev) => ({ ...prev, [name]: val }));
+        if (name === 'numeroDocumento') {
+            const filtered = filtrarDocumento(val, cliente.tipoDocumento || 'DNI');
+            setCliente((prev) => ({ ...prev, [name]: filtered }));
+        } else {
+            setCliente((prev) => ({ ...prev, [name]: val }));
+        }
+    };
+
+    const onTipoDocumentoChange = (value) => {
+        setCliente((prev) => ({ ...prev, tipoDocumento: value, numeroDocumento: '' }));
     };
 
     const onDepartamentoChange = async (value) => {
@@ -221,8 +231,14 @@ const Clientes = () => {
         const nombres = normalizeText(cliente.nombres);
         const apellidos = normalizeText(cliente.apellidos);
 
-        if (!numeroDocumento || !tipoDocumento || !nombres || !apellidos) {
+        if (!nombres || !apellidos) {
             toast.current?.show({ severity: 'warn', summary: 'Validacion', detail: 'Documento, tipo, nombres y apellidos son obligatorios.', life: 3000 });
+            return;
+        }
+
+        const docValidation = validarDocumento(numeroDocumento, tipoDocumento);
+        if (!docValidation.valid) {
+            toast.current?.show({ severity: 'warn', summary: 'Documento inválido', detail: docValidation.message, life: 3500 });
             return;
         }
 
@@ -400,7 +416,7 @@ const Clientes = () => {
                                     { label: 'Carnet de Extranjeria', value: 'CE' },
                                     { label: 'RUC', value: 'RUC' }
                                 ]}
-                                onChange={(e) => onInputChange(e, 'tipoDocumento')}
+                                onChange={(e) => onTipoDocumentoChange(e.value)}
                                 placeholder="Seleccione tipo"
                                 className="w-full"
                             />
@@ -414,7 +430,9 @@ const Clientes = () => {
                                     value={cliente.numeroDocumento}
                                     onChange={(e) => onInputChange(e, 'numeroDocumento')}
                                     required
-                                    placeholder="Ingrese documento"
+                                    keyfilter="pint"
+                                    maxLength={maxLengthDocumento(cliente.tipoDocumento)}
+                                    placeholder={placeholderDocumento(cliente.tipoDocumento)}
                                     className={submitted && !cliente.numeroDocumento ? 'p-invalid' : ''}
                                 />
                                 <Button icon="pi pi-search" className="p-button-outlined" type="button" onClick={buscarDni} />
