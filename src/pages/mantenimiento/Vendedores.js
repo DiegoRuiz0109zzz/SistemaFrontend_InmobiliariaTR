@@ -14,6 +14,7 @@ import { useAuth } from '../../context/AuthContext';
 import { VendedorEntity } from '../../entity/VendedorEntity';
 import { VendedorService } from '../../service/VendedorService';
 import { ReniecService } from '../../service/ReniecService';
+import { filtrarDocumento, validarDocumento, maxLengthDocumento, placeholderDocumento } from '../../utils/documentoUtils';
 import '../Usuario.css';
 
 const Vendedores = () => {
@@ -58,7 +59,16 @@ const Vendedores = () => {
 
     const onInputChange = (e, name) => {
         const val = (e.target && e.target.value) || '';
-        setVendedor((prev) => ({ ...prev, [name]: val }));
+        if (name === 'numeroDocumento') {
+            const filtered = filtrarDocumento(val, vendedor.tipoDocumento || 'DNI');
+            setVendedor((prev) => ({ ...prev, [name]: filtered }));
+        } else {
+            setVendedor((prev) => ({ ...prev, [name]: val }));
+        }
+    };
+
+    const onTipoDocumentoChange = (value) => {
+        setVendedor((prev) => ({ ...prev, tipoDocumento: value, numeroDocumento: '' }));
     };
 
     const normalizeText = (value) => (value || '').trim();
@@ -108,7 +118,13 @@ const Vendedores = () => {
 
     const saveVendedor = async () => {
         setSubmitted(true);
-        if (!vendedor.numeroDocumento || !vendedor.tipoDocumento || !vendedor.nombres) {
+        if (!vendedor.tipoDocumento || !vendedor.nombres) {
+            return;
+        }
+
+        const docValidation = validarDocumento(vendedor.numeroDocumento, vendedor.tipoDocumento);
+        if (!docValidation.valid) {
+            toast.current?.show({ severity: 'warn', summary: 'Documento inválido', detail: docValidation.message, life: 3500 });
             return;
         }
 
@@ -277,7 +293,7 @@ const Vendedores = () => {
                                     { label: 'Carnet de Extranjeria', value: 'CE' },
                                     { label: 'RUC', value: 'RUC' }
                                 ]}
-                                onChange={(e) => onInputChange(e, 'tipoDocumento')}
+                                onChange={(e) => onTipoDocumentoChange(e.value)}
                                 placeholder="Seleccione tipo"
                                 className="w-full"
                             />
@@ -291,7 +307,9 @@ const Vendedores = () => {
                                     value={vendedor.numeroDocumento}
                                     onChange={(e) => onInputChange(e, 'numeroDocumento')}
                                     required
-                                    placeholder="Ingrese documento"
+                                    keyfilter="pint"
+                                    maxLength={maxLengthDocumento(vendedor.tipoDocumento)}
+                                    placeholder={placeholderDocumento(vendedor.tipoDocumento)}
                                     className={submitted && !vendedor.numeroDocumento ? 'p-invalid' : ''}
                                 />
                                 <Button icon="pi pi-search" className="p-button-outlined" type="button" onClick={buscarDni} />

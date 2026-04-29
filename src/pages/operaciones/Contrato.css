@@ -1,8 +1,197 @@
+/* =====================================
+   Header de Navegación — Gestión Comercial
+   ===================================== */
+.gestion-top-card {
+    background: linear-gradient(135deg, #2b5b9e 0%, #2f6fb5 60%, #3b7ac2 100%);
+    border-radius: 16px;
+    padding: 1.35rem 1.6rem;
+    color: #f8fafc;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+    position: relative;
+    overflow: hidden;
+}
+
+.gestion-top-card::after {
+    content: '';
+    position: absolute;
+    right: -40px;
+    top: -50px;
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.18) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.gestion-top-card-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    position: relative;
+    z-index: 1;
+}
+
+.gestion-top-card-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.16);
+    display: grid;
+    place-items: center;
+    font-size: 1.4rem;
+    color: #ffffff;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+}
+
+.gestion-top-card-title {
+    margin: 0;
+    font-size: 1.45rem;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+}
+
+.gestion-top-card-subtitle {
+    margin: 0.3rem 0 0 0;
+    font-size: 0.85rem;
+    color: rgba(248, 250, 252, 0.8);
+}
+
+.gestion-header {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+    border-radius: 16px 16px 0 0;
+    padding: 1.5rem 2rem 0 2rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.gestion-header::before {
+    content: '';
+    position: absolute;
+    top: -40%;
+    right: -10%;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.gestion-header::after {
+    content: '';
+    position: absolute;
+    bottom: -50%;
+    left: -5%;
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle, rgba(139, 92, 246, 0.08) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.gestion-header-content {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    position: relative;
+    z-index: 1;
+}
+
+.gestion-header-title {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding-bottom: 1rem;
+}
+
+.gestion-header-icon {
+    font-size: 1.75rem;
+    color: #a78bfa;
+    background: rgba(139, 92, 246, 0.15);
+    padding: 0.85rem;
+    border-radius: 14px;
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.15);
+}
+
+.gestion-header-h1 {
+    margin: 0;
+    font-size: 1.55rem;
+    font-weight: 800;
+    color: #f8fafc;
+    letter-spacing: -0.5px;
+    line-height: 1.2;
+}
+
+.gestion-header-sub {
+    margin: 0.3rem 0 0;
+    color: #94a3b8;
+    font-size: 0.85rem;
+    font-weight: 400;
+}
+
+.gestion-tab-nav {
+    display: flex;
+    gap: 4px;
+    padding-bottom: 0;
+}
+
+.gestion-tab-btn {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: none;
+    color: #94a3b8;
+    font-size: 0.88rem;
+    font-weight: 600;
+    padding: 0.7rem 1.5rem;
+    border-radius: 12px 12px 0 0;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    position: relative;
+    bottom: -1px;
+    letter-spacing: 0.2px;
+}
+
+.gestion-tab-btn i {
+    font-size: 0.9rem;
+}
+
+.gestion-tab-btn:hover {
+    color: #e2e8f0;
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.gestion-tab-btn.active {
+    background: #f8fafc;
+    color: #1e293b;
+    font-weight: 700;
+    border-color: #e2e8f0;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.gestion-tab-btn.active i {
+    color: var(--theme-primary, #6366f1);
+}
+
+/* =====================================
+   Contenido Principal
+   ===================================== */
 .contrato-page .main-content {
     padding-top: 1rem;
     display: flex;
     flex-direction: column;
+    background: #f8fafc;
+    border-radius: 0 0 16px 16px;
+    border: 1px solid #e2e8f0;
+    border-top: none;
+    padding: 1.25rem;
 }
+
 
 .contrato-page .p-tabview {
     width: 100%;
@@ -184,4 +373,34 @@
 .contrato-page .p-inputnumber-button .pi,
 .contrato-page .p-datepicker-trigger .pi {
     color: var(--topbar-text, #ffffff) !important;
+}
+
+/* =====================================
+   ESTILOS ADICIONALES PARA CONTRATO
+   ===================================== */
+.input-highlight-orange .p-inputnumber-input,
+.input-highlight-orange .p-inputtext {
+    border-color: #fdba74;
+    background-color: #fff7ed;
+    color: #c2410c;
+    font-weight: 800;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+}
+
+.input-highlight-orange .p-inputnumber-input:focus {
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.2);
+    border-color: #f97316;
+    background-color: #ffffff;
+}
+
+.btn-success-custom {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+    border: none !important;
+    color: white !important;
+}
+
+.btn-success-custom:hover {
+    filter: brightness(1.1) !important;
+    transform: translateY(-1px);
 }

@@ -6,6 +6,10 @@ export const InteresadoEntity = {
     telefono: '',
     email: '',
     tipoDocumento: 'DNI',
+    departamento: '',
+    provincia: '',
+    distrito: '',
+    ubigeo: '',
     fechaIngreso: null,
     enabled: true
-};
+};

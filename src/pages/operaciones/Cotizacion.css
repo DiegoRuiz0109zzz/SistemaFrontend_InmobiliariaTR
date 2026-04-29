@@ -2,6 +2,9 @@
     padding-top: 1rem;
     display: flex;
     flex-direction: column;
+    background: transparent;
+    border: none;
+    padding: 0;
 }
 
 .cotizacion-page .p-tabview {
@@ -12,6 +15,49 @@
     padding-top: 0.5rem;
     background: transparent;
     border: none;
+}
+
+
+.cotizacion-page .gestion-entity-tabs {
+    margin-top: 0.5rem;
+}
+
+.cotizacion-page .gestion-entity-tabs .p-tabview-nav {
+    border: none;
+    background: transparent;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+}
+
+.cotizacion-page .gestion-entity-tabs .p-tabview-nav li .p-tabview-nav-link {
+    border-radius: 999px;
+    border: 1px solid var(--border-color, #e2e8f0);
+    background: var(--bg-card, #ffffff);
+    color: var(--text-secondary, #64748b);
+    font-weight: 600;
+    padding: 0.5rem 1.1rem;
+}
+
+.cotizacion-page .gestion-entity-tabs .p-tabview-nav li.p-highlight .p-tabview-nav-link {
+    background: linear-gradient(135deg, rgba(86, 119, 255, 0.15) 0%, rgba(24, 170, 130, 0.15) 100%);
+    border-color: rgba(86, 119, 255, 0.35);
+    color: var(--theme-primary, #4f46e5);
+    box-shadow: var(--shadow-sm);
+}
+
+.cotizacion-page .gestion-entity-tabs .p-tabview-nav li .p-tabview-nav-link:focus {
+    box-shadow: 0 0 0 2px rgba(86, 119, 255, 0.25);
+}
+
+@media (max-width: 768px) {
+    .cotizacion-page .gestion-entity-tabs .p-tabview-nav {
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    .cotizacion-page .gestion-entity-tabs .p-tabview-nav::-webkit-scrollbar {
+        height: 6px;
+    }
 }
 
 .cotizacion-page .grid.mt-3 {
@@ -215,4 +261,88 @@
 
 .custom-table .p-datatable-tbody>tr>td {
     padding: 0.75rem 1rem;
+}
+
+/* =====================================
+   LISTA VISUAL DE LOTES (REEMPLAZO DEL DROPDOWN)
+   ===================================== */
+.lotes-list-container {
+    max-height: 280px;
+    overflow-y: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.lote-item-card {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 0.8rem 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.lote-item-card:hover {
+    border-color: #94a3b8;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    transform: translateY(-1px);
+}
+
+.lote-item-card.selected {
+    background: #eff6ff;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 1px #3b82f6;
+}
+
+.lote-item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.lote-item-title {
+    font-weight: 800;
+    color: #334155;
+    font-size: 1rem;
+}
+
+.lote-item-area {
+    font-size: 0.8rem;
+    color: #64748b;
+    font-weight: 600;
+}
+
+.lote-item-price {
+    display: flex;
+    align-items: center;
+}
+
+.price-tag {
+    font-weight: 800;
+    color: #059669;
+    font-size: 1.1rem;
+}
+
+.lote-item-card.selected .price-tag {
+    color: #1d4ed8;
+}
+
+/* Opcional: Estilo de Scrollbar más fino para la lista */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 20px;
 }
