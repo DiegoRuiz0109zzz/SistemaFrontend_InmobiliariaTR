@@ -19,6 +19,7 @@ import { VendedorService } from '../../service/VendedorService';
 import { LoteService } from '../../service/LoteService';
 import { ReniecService } from '../../service/ReniecService';
 import { CotizacionService } from '../../service/CotizacionService';
+import { ContratoService } from '../../service/ContratoService';
 import { UbigeoService } from '../../service/UbigeoService';
 import { InteresadoService } from '../../service/InteresadoService';
 
@@ -51,9 +52,9 @@ const Cotizacion = ({ embedded = false }) => {
     const [manzanaSeleccionada, setManzanaSeleccionada] = useState(null);
 
     // Parámetros de la Cuota 0 (Inicial / Separación)
-    const [lotePrecio, setLotePrecio] = useState(15500);
-    const [inicialAcordada, setInicialAcordada] = useState(500);
-    const [abonoReal, setAbonoReal] = useState(100);
+    const [lotePrecio, setLotePrecio] = useState(0); 
+    const [inicialAcordada, setInicialAcordada] = useState(0); 
+    const [abonoReal, setAbonoReal] = useState(0);
     const [fechaLimiteInicial, setFechaLimiteInicial] = useState(new Date(new Date().setDate(new Date().getDate() + 15)));
     
     // Parámetros del Cronograma (1 a N)
@@ -65,28 +66,30 @@ const Cotizacion = ({ embedded = false }) => {
     const [cuotasEspeciales, setCuotasEspeciales] = useState(3);
     const [montoEspecial, setMontoEspecial] = useState(1000);
 
-    // Tipo de Inicial: CERO | PARCIAL | TOTAL
-    const [tipoInicial, setTipoInicial] = useState('PARCIAL');
+    // Tipo de Inicial
+    const [tipoInicial, setTipoInicial] = useState(null);
 
     // Observaciones manuales
     const [observacion, setObservacion] = useState('');
-
 
     // Resultados y UI
     const [cronograma, setCronograma] = useState([]);
     const [descripcionGenerada, setDescripcionGenerada] = useState('');
 
-    // Cálculo reactivo según TipoInicial
-    const montoInicialEfectivo = tipoInicial === 'CERO' ? 0 : inicialAcordada;
-    const abonoEfectivo = tipoInicial === 'TOTAL' ? inicialAcordada
-        : tipoInicial === 'CERO' ? 0
-        : abonoReal;
+    // Cálculos reactivos
+    const abonoEfectivo = tipoInicial === 'TOTAL' ? inicialAcordada : abonoReal;
     const esSeparacion = tipoInicial === 'PARCIAL' && abonoReal < inicialAcordada;
-    const faltaPagarInicial = montoInicialEfectivo - abonoEfectivo;
-    const saldoAFinanciar = lotePrecio - montoInicialEfectivo;
+    const faltaPagarInicial = inicialAcordada - abonoEfectivo;
+    const saldoAFinanciar = lotePrecio - inicialAcordada;
+
+    const bgCuotaCero = tipoInicial === 'PARCIAL' 
+        ? 'bg-orange-50 border-orange-300' 
+        : tipoInicial === 'TOTAL' 
+        ? 'bg-green-50 border-green-300' 
+        : 'bg-white border-300';
 
     // ==========================================
-    // EFECTOS INICIALES
+    // EFECTOS INICIALES Y CARGA DE DATOS
     // ==========================================
     useEffect(() => {
         cargarDatosBase();
@@ -155,15 +158,8 @@ const Cotizacion = ({ embedded = false }) => {
             const encontrado = lotesOptions.find((item) => item?.id === pendingLoteId);
             if (encontrado) {
                 setLoteSeleccionado(encontrado);
-                const manzana = encontrado?.manzana || null;
-                const etapa = manzana?.etapa || null;
-                const urbanizacion = etapa?.urbanizacion || null;
-                setUrbanizacionSeleccionada(urbanizacion);
-                setEtapaSeleccionada(etapa);
-                setManzanaSeleccionada(manzana);
-                if (encontrado.precioVenta != null) {
-                    setLotePrecio(encontrado.precioVenta);
-                }
+                syncLoteUbicacion(encontrado);
+                if (encontrado.precioVenta != null) setLotePrecio(encontrado.precioVenta);
                 setPendingLoteId(null);
             }
         }
@@ -203,12 +199,7 @@ const Cotizacion = ({ embedded = false }) => {
     };
 
     const cargarProvincias = async (departamento) => {
-        if (!departamento) {
-            setProvincias([]);
-            setDistritos([]);
-            return;
-        }
-
+        if (!departamento) { setProvincias([]); setDistritos([]); return; }
         try {
             const response = await UbigeoService.listarProvincias(departamento, axiosInstance);
             setProvincias(mapTextOptions(response));
@@ -219,11 +210,7 @@ const Cotizacion = ({ embedded = false }) => {
     };
 
     const cargarDistritos = async (departamento, provincia) => {
-        if (!departamento || !provincia) {
-            setDistritos([]);
-            return;
-        }
-
+        if (!departamento || !provincia) { setDistritos([]); return; }
         try {
             const response = await UbigeoService.listarDistritos(departamento, provincia, axiosInstance);
             setDistritos(mapDistritoOptions(response));
@@ -234,34 +221,19 @@ const Cotizacion = ({ embedded = false }) => {
     };
 
     const onDepartamentoChange = async (value) => {
-        setCliente((prev) => ({
-            ...(prev || {}),
-            departamento: value,
-            provincia: '',
-            distrito: '',
-            ubigeo: ''
-        }));
+        setCliente((prev) => ({ ...(prev || {}), departamento: value, provincia: '', distrito: '', ubigeo: '' }));
         await cargarProvincias(value);
         setDistritos([]);
     };
 
     const onProvinciaChange = async (value) => {
-        setCliente((prev) => ({
-            ...(prev || {}),
-            provincia: value,
-            distrito: '',
-            ubigeo: ''
-        }));
+        setCliente((prev) => ({ ...(prev || {}), provincia: value, distrito: '', ubigeo: '' }));
         await cargarDistritos(cliente?.departamento, value);
     };
 
     const onDistritoChange = (value) => {
         const distritoSelected = distritos.find((item) => item.value === value);
-        setCliente((prev) => ({
-            ...(prev || {}),
-            distrito: value,
-            ubigeo: distritoSelected?.ubigeo || ''
-        }));
+        setCliente((prev) => ({ ...(prev || {}), distrito: value, ubigeo: distritoSelected?.ubigeo || '' }));
     };
 
     const cargarDatosBase = async () => {
@@ -271,20 +243,20 @@ const Cotizacion = ({ embedded = false }) => {
                 LoteService.listar(axiosInstance),
                 VendedorService.listar(axiosInstance)
             ]);
-            setClientes(resClientes || []);
-            setLotes(resLotes || []);
-            setVendedores(resVendedores || []);
+            setClientes(resClientes || []); setLotes(resLotes || []); setVendedores(resVendedores || []);
             await cargarDepartamentos();
         } catch (error) {
             toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudieron cargar datos base.' });
         }
     };
 
-    const onLoteChange = (e) => {
-        setLoteSeleccionado(e.value);
-        syncLoteUbicacion(e.value);
-        if (e.value && e.value.precioVenta !== undefined && e.value.precioVenta !== null) {
-            setLotePrecio(e.value.precioVenta);
+    const onLoteChange = (lote) => {
+        setLoteSeleccionado(lote);
+        syncLoteUbicacion(lote);
+        if (lote && lote.precioVenta !== undefined && lote.precioVenta !== null) {
+            setLotePrecio(lote.precioVenta);
+        } else {
+            setLotePrecio(0);
         }
     };
 
@@ -298,15 +270,12 @@ const Cotizacion = ({ embedded = false }) => {
         try {
             const listadoClientes = Array.isArray(clientes) ? clientes : [];
             const clienteExistente = listadoClientes.find((item) => item.numeroDocumento === documento);
-
             const cotizaciones = await CotizacionService.buscarPorDni(documento, axiosInstance);
             const listaCotizaciones = Array.isArray(cotizaciones) ? cotizaciones : [];
 
             if (listaCotizaciones.length > 0) {
                 const sorted = [...listaCotizaciones].sort((a, b) => {
-                    const aDate = new Date(a.fechaCotizacion || a.createdAt || 0).getTime();
-                    const bDate = new Date(b.fechaCotizacion || b.createdAt || 0).getTime();
-                    return bDate - aDate;
+                    return new Date(b.fechaCotizacion || b.createdAt || 0).getTime() - new Date(a.fechaCotizacion || a.createdAt || 0).getTime();
                 });
                 const seleccionada = sorted[0];
                 const interesado = seleccionada.interesado || {};
@@ -326,49 +295,39 @@ const Cotizacion = ({ embedded = false }) => {
                     apellidos: interesado.apellidos || clienteExistente?.apellidos || '',
                     telefono: interesado.telefono || clienteExistente?.telefono || '',
                     email: interesado.email || clienteExistente?.email || '',
-                    departamento: dep,
-                    provincia: prov,
-                    distrito: dist,
-                    ubigeo: ubig,
+                    departamento: dep, provincia: prov, distrito: dist, ubigeo: ubig,
                     direccion: clienteExistente?.direccion || ''
                 }));
                 setDni(documento);
 
                 if (dep) {
                     await cargarProvincias(dep);
-                    if (prov) {
-                        await cargarDistritos(dep, prov);
-                    }
+                    if (prov) await cargarDistritos(dep, prov);
                 }
 
                 if (seleccionada.vendedor?.id) {
                     const vendedorEncontrado = vendedoresOptions.find((item) => item?.id === seleccionada.vendedor.id);
-                    if (vendedorEncontrado) {
-                        setVendedorSeleccionado(vendedorEncontrado);
-                    } else {
-                        setPendingVendedorId(seleccionada.vendedor.id);
-                    }
+                    if (vendedorEncontrado) setVendedorSeleccionado(vendedorEncontrado);
+                    else setPendingVendedorId(seleccionada.vendedor.id);
                 }
 
-                let precioLoteCargado = lotePrecio;
                 if (seleccionada.lote?.id) {
                     const loteEncontrado = lotesOptions.find((item) => item?.id === seleccionada.lote.id);
                     if (loteEncontrado) {
                         setLoteSeleccionado(loteEncontrado);
+                        syncLoteUbicacion(loteEncontrado);
                         if (loteEncontrado.precioVenta != null) {
                             setLotePrecio(loteEncontrado.precioVenta);
-                            precioLoteCargado = loteEncontrado.precioVenta;
                         }
                     } else {
                         setPendingLoteId(seleccionada.lote.id);
                         if (seleccionada.precioTotal != null) {
                             setLotePrecio(seleccionada.precioTotal);
-                            precioLoteCargado = seleccionada.precioTotal;
                         }
                     }
                 }
 
-                const inicialCargada = seleccionada.montoInicialAcordado ?? 0;
+                const inicialCargada = seleccionada.montoInicialAcordado ?? 500;
                 const cuotasCargadas = seleccionada.cantidadCuotas || 36;
                 const tipoCargado = seleccionada.tipoInicial || 'PARCIAL';
                 const flexCargado = !!(seleccionada.cuotasFlexibles || seleccionada.cuotasEspeciales || seleccionada.montoCuotaEspecial);
@@ -382,35 +341,28 @@ const Cotizacion = ({ embedded = false }) => {
                 setCuotasEspeciales(espCargadas);
                 setMontoEspecial(mtoEspCargado);
 
-                if (seleccionada.fechaInicioPago) {
-                    setFechaInicio(new Date(seleccionada.fechaInicioPago));
-                }
+                if (seleccionada.fechaInicioPago) setFechaInicio(new Date(seleccionada.fechaInicioPago));
 
                 setTimeout(() => {
-                    simularConDatos(precioLoteCargado, inicialCargada, cuotasCargadas, tipoCargado, flexCargado, espCargadas, mtoEspCargado);
+                    simular();
                 }, 300);
 
-                toast.current?.show({ severity: 'success', summary: 'Cotización encontrada', detail: 'Datos cargados. Puede modificar y guardar como cotización o generar contrato.' });
+                toast.current?.show({ severity: 'success', summary: 'Cotización encontrada', detail: 'Datos cargados.' });
                 return;
             }
 
             if (clienteExistente) {
                 setCliente(clienteExistente);
                 setDni(clienteExistente.numeroDocumento || documento);
-                if (clienteExistente.departamento) {
-                    await cargarProvincias(clienteExistente.departamento);
-                }
-                if (clienteExistente.provincia) {
-                    await cargarDistritos(clienteExistente.departamento, clienteExistente.provincia);
-                }
+                if (clienteExistente.departamento) await cargarProvincias(clienteExistente.departamento);
+                if (clienteExistente.provincia) await cargarDistritos(clienteExistente.departamento, clienteExistente.provincia);
                 toast.current?.show({ severity: 'success', summary: 'Encontrado', detail: 'Cliente cargado desde el sistema.' });
                 return;
             }
 
             const response = await ReniecService.consultarDNI(documento, axiosInstance);
             if (!response?.success) {
-                const message = response?.message || 'No se encontraron datos para el DNI.';
-                toast.current?.show({ severity: 'warn', summary: 'RENIEC', detail: message });
+                toast.current?.show({ severity: 'warn', summary: 'RENIEC', detail: response?.message || 'DNI no encontrado.' });
                 return;
             }
 
@@ -428,59 +380,66 @@ const Cotizacion = ({ embedded = false }) => {
     };
 
     // ==========================================
-    // SIMULADOR MATEMÁTICO (Incluye Cuota 0)
+    // SIMULACIÓN VÍA BACKEND
     // ==========================================
-
-    const simularConDatos = (pPrecio, pInicial, pCuotas, pTipo, pFlex, pEsp, pMtoEsp) => {
-        const iniEf = pTipo === 'CERO' ? 0 : pInicial;
-        const saldo = pPrecio - iniEf;
-        if (saldo <= 0 || pCuotas <= 0) return;
-
-        let nc = [];
-        const abonoEf = pTipo === 'TOTAL' ? pInicial : pTipo === 'CERO' ? 0 : abonoReal;
-        const esSep = pTipo === 'PARCIAL' && abonoReal < pInicial;
-        const falta = iniEf - abonoEf;
-
-        if (pTipo !== 'CERO') {
-            nc.push({
-                numero: 0, tipoCuota: 'INICIAL', montoTotal: iniEf,
-                montoPagado: abonoEf, saldoPendiente: Math.max(falta, 0),
-                fecha: fechaLimiteInicial.toISOString().split('T')[0],
-                estado: esSep ? 'PAGADO_PARCIAL' : 'PAGADO_TOTAL'
-            });
-        }
-
-        let eCant = pFlex ? pEsp : 0;
-        let eMto = pFlex ? pMtoEsp : 0;
-        let nCant = pCuotas;
-        let nSaldo = saldo;
-        if (pFlex) { nSaldo = saldo - (eCant * eMto); nCant = pCuotas - eCant; }
-        let base = nCant > 0 ? nSaldo / nCant : 0;
-        let bd = new Date(fechaInicio);
-        let dia = bd.getDate();
-
-        for (let i = 0; i < pCuotas; i++) {
-            let m = i < eCant ? eMto : base;
-            if (i === pCuotas - 1 && nCant > 0) m = saldo - (eCant * eMto) - (Math.round(base * 100) / 100) * (nCant - 1);
-            let dt = new Date(bd.getFullYear(), bd.getMonth() + i, 1);
-            dt.setDate(Math.min(dia, new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate()));
-            nc.push({ numero: i + 1, tipoCuota: 'MENSUAL', montoTotal: Math.round(m * 100) / 100, montoPagado: 0, saldoPendiente: Math.round(m * 100) / 100, fecha: dt.toISOString().split('T')[0], estado: 'PENDIENTE' });
-        }
-
-        setCronograma(nc);
-        let desc = pTipo === 'CERO' ? 'Sin cuota inicial. ' : `Cuota Inicial de S/ ${iniEf}. `;
-        desc += pFlex && eCant > 0
-            ? `Fraccionado en ${eCant} cuotas de S/ ${eMto} y ${nCant} cuotas con el saldo restante.`
-            : `Fraccionado en ${pCuotas} cuotas regulares.`;
-        setDescripcionGenerada(desc);
-    };
-
-    const simular = () => {
-        if (saldoAFinanciar <= 0 || cuotas <= 0) {
-            toast.current.show({ severity: 'warn', summary: 'Atención', detail: 'Revise el saldo y cuotas.' });
+    const simular = async () => {
+        if (!tipoInicial) {
+            toast.current.show({ severity: 'warn', summary: 'Atención', detail: 'Debe seleccionar un Tipo de Inicial.' });
             return;
         }
-        simularConDatos(lotePrecio, inicialAcordada, cuotas, tipoInicial, isFlexible, cuotasEspeciales, montoEspecial);
+        if (saldoAFinanciar <= 0 || cuotas <= 0) {
+            toast.current.show({ severity: 'warn', summary: 'Atención', detail: 'Revise el saldo a financiar y las cuotas.' });
+            return;
+        }
+
+        try {
+            const abonoEf = tipoInicial === 'TOTAL' ? inicialAcordada : abonoReal;
+            const simulacionRequest = {
+                precioTotal: lotePrecio,
+                montoInicial: abonoEf,
+                cantidadCuotas: cuotas,
+                fechaInicioPago: fechaInicio.toISOString().split('T')[0],
+                cuotasEspeciales: isFlexible ? cuotasEspeciales : 0,
+                montoCuotaEspecial: isFlexible ? montoEspecial : 0
+            };
+
+            const respuesta = await ContratoService.simular(simulacionRequest, axiosInstance);
+            if (Array.isArray(respuesta)) {
+                const cuotaInicial = {
+                    numero: 0,
+                    tipoCuota: 'INICIAL',
+                    montoTotal: inicialAcordada,
+                    montoPagado: abonoEf,
+                    saldoPendiente: Math.max(inicialAcordada - abonoEf, 0),
+                    fecha: fechaLimiteInicial.toISOString().split('T')[0],
+                    estado: esSeparacion ? 'PAGADO_PARCIAL' : 'PAGADO_TOTAL'
+                };
+
+                const cuotasBackend = respuesta.map((item) => {
+                    const esEspecial = isFlexible && Number(item.numeroCuota) <= Number(cuotasEspeciales || 0);
+                    return {
+                        numero: item.numeroCuota,
+                        tipoCuota: esEspecial ? 'ESPECIAL' : 'MENSUAL',
+                        montoTotal: item.monto,
+                        montoPagado: 0,
+                        saldoPendiente: item.monto,
+                        fecha: item.fechaVencimiento,
+                        estado: 'PENDIENTE'
+                    };
+                });
+                setCronograma([cuotaInicial, ...cuotasBackend]);
+                setDescripcionGenerada('Simulación completada');
+                return;
+            }
+            if (respuesta && respuesta.cuotas) {
+                setCronograma(respuesta.cuotas);
+                setDescripcionGenerada(respuesta.descripcion || 'Simulación completada');
+                return;
+            }
+            toast.current.show({ severity: 'warn', summary: 'Respuesta inesperada', detail: 'El servidor no devolvió los datos esperados.' });
+        } catch (error) {
+            toast.current.show({ severity: 'error', summary: 'Error en simulación', detail: error.response?.data?.message || 'No se pudo simular el cronograma.' });
+        }
     };
 
     // ==========================================
@@ -501,27 +460,47 @@ const Cotizacion = ({ embedded = false }) => {
                     return;
                 }
 
-                const nuevoInteresado = {
-                    tipoDocumento: cliente.tipoDocumento || 'DNI',
-                    numeroDocumento: dni,
-                    nombres: cliente.nombres,
-                    apellidos: cliente.apellidos || '',
-                    telefono: cliente.telefono || '',
-                    email: cliente.email || '',
-                    departamento: cliente.departamento || '',
-                    provincia: cliente.provincia || '',
-                    distrito: cliente.distrito || '',
-                    ubigeo: cliente.ubigeo || ''
-                };
+                const documentoNormalizado = (cliente.numeroDocumento || dni || '').trim();
+                const telefonoNormalizado = (cliente.telefono || '').trim();
 
-                const resInt = await InteresadoService.crear(nuevoInteresado, axiosInstance);
-                idInteresadoFinal = resInt?.data?.id || resInt?.id;
+                if (documentoNormalizado || telefonoNormalizado) {
+                    const interesados = await InteresadoService.listar(axiosInstance);
+                    const interesadoExistente = (interesados || []).find((item) => (
+                        (documentoNormalizado && (item?.numeroDocumento || '').trim() === documentoNormalizado) ||
+                        (telefonoNormalizado && (item?.telefono || '').trim() === telefonoNormalizado)
+                    ));
+                    if (interesadoExistente?.id) {
+                        idInteresadoFinal = interesadoExistente.id;
+                    }
+                }
+
+                if (!idInteresadoFinal) {
+                    if (!telefonoNormalizado) {
+                        toast.current.show({ severity: 'warn', summary: 'Telefono requerido', detail: 'Debe registrar un telefono para crear el interesado.' });
+                        return;
+                    }
+
+                    const nuevoInteresado = {
+                        tipoDocumento: cliente.tipoDocumento || 'DNI',
+                        numeroDocumento: documentoNormalizado,
+                        nombres: cliente.nombres,
+                        apellidos: cliente.apellidos || '',
+                        telefono: telefonoNormalizado,
+                        email: cliente.email || '',
+                        departamento: cliente.departamento || '',
+                        provincia: cliente.provincia || '',
+                        distrito: cliente.distrito || '',
+                        ubigeo: cliente.ubigeo || ''
+                    };
+
+                    const resInt = await InteresadoService.crear(nuevoInteresado, axiosInstance);
+                    idInteresadoFinal = resInt?.data?.id || resInt?.id;
+                }
             }
 
-            if (!idInteresadoFinal) {
-                toast.current.show({ severity: 'error', summary: 'Error', detail: 'No se pudo obtener el ID del interesado.' });
-                return;
-            }
+            const cuotaMensual = cronograma.find((item) => item?.numero !== 0 && item?.tipoCuota !== 'INICIAL');
+            const montoCuotaCotizacion = cuotaMensual?.montoTotal ?? (cuotas > 0 ? saldoAFinanciar / cuotas : 0);
+            const saldoFinanciar = saldoAFinanciar;
 
             const cotizacionPayload = {
                 loteId: loteSeleccionado.id,
@@ -529,32 +508,63 @@ const Cotizacion = ({ embedded = false }) => {
                 vendedorId: vendedorSeleccionado.id,
                 tipoInicial: tipoInicial,
                 precioTotal: lotePrecio,
-                montoInicialAcordado: tipoInicial === 'CERO' ? 0 : inicialAcordada,
+                montoInicialAcordado: inicialAcordada,
                 cantidadCuotas: cuotas,
                 fechaInicioPago: fechaInicio.toISOString().split('T')[0],
                 cuotasEspeciales: isFlexible ? cuotasEspeciales : 0,
                 montoCuotaEspecial: isFlexible ? montoEspecial : 0,
                 cuotasFlexibles: isFlexible,
-                diasValidez: 7
+                diasValidez: 7,
+                montoCuotaCotizacion: montoCuotaCotizacion,
+                saldoFinanciar: saldoFinanciar
             };
 
             await CotizacionService.crear(cotizacionPayload, axiosInstance);
-
             toast.current.show({ severity: 'success', summary: '¡Éxito!', detail: 'Cotización guardada correctamente.' });
             setCronograma([]);
             setObservacion('');
         } catch (error) {
-            console.error('Error al guardar cotización:', error);
             toast.current.show({ severity: 'error', summary: 'Error', detail: 'No se pudo guardar la cotización.' });
         }
     };
 
     // ==========================================
-    // TEMPLATES DE TABLA
+    // TEMPLATES VISUALES
     // ==========================================
+    const loteOptionTemplate = (option) => {
+        return (
+            <div className="flex justify-content-between align-items-center w-full border-bottom-1 surface-border py-2 px-1">
+                <div>
+                    <div className="font-bold text-700 text-lg">{option.descripcion || `Lote ${option.numero}`}</div>
+                    <div className="text-sm text-500 mt-1">
+                        <i className="pi pi-expand mr-1 text-blue-500"></i>{option.area || 0} m²
+                    </div>
+                </div>
+                <div className="text-right">
+                    <span className="font-bold text-blue-600 block text-lg">
+                        S/ {(option.precioVenta || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </span>
+                    <Tag severity="success" value="Disponible" className="text-xs mt-1" />
+                </div>
+            </div>
+        );
+    };
+
+    const loteSelectedTemplate = (option, props) => {
+        if (option) {
+            return (
+                <div className="flex align-items-center font-bold text-blue-800">
+                    <i className="pi pi-map-marker mr-2"></i>
+                    {option.descripcion || `Lote ${option.numero}`}
+                </div>
+            );
+        }
+        return <span>{props.placeholder}</span>;
+    };
+
     const estadoTemplate = (rowData) => {
         if (rowData.numero === 0) {
-            return rowData.estado === 'SEPARACIÓN' 
+            return rowData.estado === 'SEPARACIÓN' || rowData.estado === 'PAGADO_PARCIAL'
                 ? <Tag severity="warning" value="FALTA INICIAL" />
                 : <Tag severity="success" value="PAGADO" />;
         }
@@ -575,319 +585,339 @@ const Cotizacion = ({ embedded = false }) => {
         return <span className="font-bold">S/ {rowData.montoTotal.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>;
     };
 
+    // MEJORA 2: Template visual para la columna "Tipo" para resaltar la cuota Especial
+    const tipoTemplate = (rowData) => {
+        if (rowData.tipoCuota === 'ESPECIAL') {
+            return (
+                <span className="text-orange-600 font-bold flex align-items-center">
+                    <i className="pi pi-star-fill mr-1 text-xs"></i> ESPECIAL
+                </span>
+            );
+        }
+        return <span>{rowData.tipoCuota}</span>;
+    }
+
     const renderContenido = () => (
-        <div className="grid mt-3">
-            <div className="col-12 xl:col-6">
-                {/* Datos del Prospecto */}
-                <div className="custom-card mb-4">
+        <div className="grid mt-3 align-items-stretch">
+            
+            {/* PANEL IZQUIERDO: PROSPECTO E INMUEBLE */}
+            <div className="col-12 xl:col-6 flex">
+                <div className="custom-card mb-4 w-full flex flex-column">
                     <div className="card-header">
                         <i className="pi pi-user text-primary"></i>
-                        <span className="font-bold text-lg ml-2">Datos del Prospecto</span>
+                        <span className="font-bold text-lg ml-2">Datos del Prospecto e Inmueble</span>
                     </div>
-                    <div className="p-fluid mt-3">
-                        <div className="p-fluid grid">
-                            <div className="field col-12 md:col-4">
-                                <label className="font-medium">Tipo Documento</label>
-                                <Dropdown
-                                    value={cliente?.tipoDocumento || 'DNI'}
-                                    options={[
-                                        { label: 'DNI', value: 'DNI' },
-                                        { label: 'Carnet de Extranjeria', value: 'CE' },
-                                        { label: 'RUC', value: 'RUC' }
-                                    ]}
-                                    onChange={(e) => setCliente((prev) => ({
-                                        ...(prev || {}),
-                                        tipoDocumento: e.value,
-                                        numeroDocumento: ''
-                                    }))}
-                                    placeholder="Seleccione tipo"
-                                />
-                            </div>
-
-                            <div className="field col-12 md:col-8">
-                                <label className="font-medium">Documento</label>
-                                <div className="p-inputgroup">
-                                    <InputText
-                                        value={cliente?.numeroDocumento || dni}
-                                        onChange={(e) => {
-                                            setDni(e.target.value);
-                                            setCliente((prev) => ({
-                                                ...(prev || {}),
-                                                numeroDocumento: e.target.value
-                                            }));
-                                        }}
-                                        placeholder="Ej: 72384732"
+                    
+                    <div className="p-fluid mt-3 flex-grow-1 flex flex-column justify-content-between">
+                        <div>
+                            {/* --- DATOS DEL CLIENTE CON PLACEHOLDERS --- */}
+                            <div className="p-fluid grid">
+                                <div className="field col-12 md:col-4">
+                                    <label className="font-medium text-sm">Tipo Documento</label>
+                                    <Dropdown
+                                        value={cliente?.tipoDocumento || 'DNI'}
+                                        options={[ { label: 'DNI', value: 'DNI' }, { label: 'CE', value: 'CE' }, { label: 'RUC', value: 'RUC' } ]}
+                                        onChange={(e) => setCliente((prev) => ({ ...(prev || {}), tipoDocumento: e.value, numeroDocumento: '' }))}
+                                        placeholder="Seleccione tipo"
                                     />
-                                    <Button icon="pi pi-search" onClick={buscarCliente} className="btn-primary-custom" />
+                                </div>
+
+                                <div className="field col-12 md:col-8">
+                                    <label className="font-medium text-sm">Documento</label>
+                                    <div className="p-inputgroup">
+                                        <InputText
+                                            value={cliente?.numeroDocumento || dni}
+                                            onChange={(e) => {
+                                                setDni(e.target.value);
+                                                setCliente((prev) => ({ ...(prev || {}), numeroDocumento: e.target.value }));
+                                            }}
+                                            placeholder="Ej: 72384732"
+                                        />
+                                        <Button icon="pi pi-search" onClick={buscarCliente} className="btn-primary-custom" />
+                                    </div>
                                 </div>
                             </div>
+
+                            <div className="p-fluid grid">
+                                <div className="field col-12 md:col-6">
+                                    <label className="font-medium text-sm">Nombres</label>
+                                    <InputText value={cliente?.nombres || ''} onChange={(e) => setCliente((prev) => ({ ...(prev || {}), nombres: e.target.value }))} placeholder="Ej. Juan Carlos" />
+                                </div>
+                                <div className="field col-12 md:col-6">
+                                    <label className="font-medium text-sm">Apellidos</label>
+                                    <InputText value={cliente?.apellidos || ''} onChange={(e) => setCliente((prev) => ({ ...(prev || {}), apellidos: e.target.value }))} placeholder="Ej. Pérez Silva" />
+                                </div>
+                                <div className="field col-12 md:col-6">
+                                    <label className="font-medium text-sm">Teléfono</label>
+                                    <InputText value={cliente?.telefono || ''} onChange={(e) => setCliente((prev) => ({ ...(prev || {}), telefono: e.target.value }))} placeholder="Ej. 987654321" />
+                                </div>
+                                <div className="field col-12 md:col-6">
+                                    <label className="font-medium text-sm">Correo</label>
+                                    <InputText value={cliente?.email || ''} onChange={(e) => setCliente((prev) => ({ ...(prev || {}), email: e.target.value }))} placeholder="ejemplo@correo.com" />
+                                </div>
+                                <div className="field col-12 md:col-4">
+                                    <label className="font-medium text-sm">Departamento</label>
+                                    <Dropdown value={cliente?.departamento || ''} options={departamentos} onChange={(e) => onDepartamentoChange(e.value)} placeholder="Seleccione dep." />
+                                </div>
+                                <div className="field col-12 md:col-4">
+                                    <label className="font-medium text-sm">Provincia</label>
+                                    <Dropdown value={cliente?.provincia || ''} options={provincias} onChange={(e) => onProvinciaChange(e.value)} placeholder="Seleccione prov." disabled={!cliente?.departamento} />
+                                </div>
+                                <div className="field col-12 md:col-4">
+                                    <label className="font-medium text-sm">Distrito</label>
+                                    <Dropdown value={cliente?.distrito || ''} options={distritos} onChange={(e) => onDistritoChange(e.value)} placeholder="Seleccione dist." disabled={!cliente?.provincia} />
+                                </div>
+                                <div className="field col-12">
+                                    <label className="font-medium text-sm">Dirección</label>
+                                    <InputText value={cliente?.direccion || ''} onChange={(e) => setCliente((prev) => ({...(prev || {}), direccion: e.target.value}))} placeholder="Ej. Av. Los Libertadores 123" />
+                                </div>
+                            </div>
+
+                            <Divider align="left">
+                                <span className="p-tag p-tag-rounded p-tag-secondary px-3">Ubicación del Lote</span>
+                            </Divider>
+
+                            {/* --- FILTROS DE LOTE --- */}
+                            <div className="p-fluid grid">
+                                <div className="field col-12 md:col-4">
+                                    <label className="font-medium text-sm">Urbanización</label>
+                                    <Dropdown
+                                        value={urbanizacionSeleccionada}
+                                        options={urbanizacionesOptions}
+                                        onChange={(e) => {
+                                            setUrbanizacionSeleccionada(e.value);
+                                            setEtapaSeleccionada(null);
+                                            setManzanaSeleccionada(null);
+                                            setLoteSeleccionado(null);
+                                        }}
+                                        placeholder="Seleccione Proyecto"
+                                    />
+                                </div>
+                                <div className="field col-12 md:col-4">
+                                    <label className="font-medium text-sm">Etapa</label>
+                                    <Dropdown
+                                        value={etapaSeleccionada}
+                                        options={etapasOptions}
+                                        onChange={(e) => {
+                                            setEtapaSeleccionada(e.value);
+                                            setManzanaSeleccionada(null);
+                                            setLoteSeleccionado(null);
+                                        }}
+                                        placeholder="Seleccione Etapa"
+                                        disabled={!urbanizacionSeleccionada}
+                                    />
+                                </div>
+                                <div className="field col-12 md:col-4">
+                                    <label className="font-medium text-sm">Manzana</label>
+                                    <Dropdown
+                                        value={manzanaSeleccionada}
+                                        options={manzanasOptions}
+                                        onChange={(e) => {
+                                            setManzanaSeleccionada(e.value);
+                                            setLoteSeleccionado(null);
+                                        }}
+                                        placeholder="Seleccione Mz."
+                                        disabled={!etapaSeleccionada}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* --- LISTA VISUAL DE LOTES --- */}
+                            {manzanaSeleccionada && (
+                                <div className="field mt-3 fade-in">
+                                    <label className="font-bold text-blue-800 block mb-2">
+                                        <i className="pi pi-list mr-2"></i>Lotes Disponibles en la {manzanaSeleccionada.nombre || 'Manzana'}
+                                    </label>
+                                    {lotesFiltradosOptions.length === 0 ? (
+                                        <div className="p-3 border-round border-1 border-dashed surface-border text-center text-500">
+                                            No hay lotes disponibles en esta manzana.
+                                        </div>
+                                    ) : (
+                                        <div className="lotes-list-container custom-scrollbar">
+                                            {lotesFiltradosOptions.map((loteOpt) => (
+                                                <div 
+                                                    key={loteOpt.id} 
+                                                    className={`lote-item-card ${loteSeleccionado?.id === loteOpt.id ? 'selected' : ''}`}
+                                                    onClick={() => onLoteChange(loteOpt)}
+                                                >
+                                                    <div className="lote-item-info">
+                                                        <span className="lote-item-title">Lote {loteOpt.numero}</span>
+                                                        <span className="lote-item-area"><i className="pi pi-expand mr-1"></i>{loteOpt.area || 0} m²</span>
+                                                    </div>
+                                                    <div className="lote-item-price">
+                                                        <span className="price-tag">S/ {(loteOpt.precioVenta || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                                        <i className={`pi ${loteSeleccionado?.id === loteOpt.id ? 'pi-check-circle text-blue-600' : 'pi-circle text-400'} ml-3 text-xl`}></i>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                         </div>
 
-                        <div className="p-fluid grid">
-                            <div className="field col-12 md:col-6">
-                                <label className="font-medium">Nombres</label>
-                                <InputText
-                                    value={cliente?.nombres || ''}
-                                    onChange={(e) => setCliente((prev) => ({
-                                        ...(prev || {}),
-                                        nombres: e.target.value
-                                    }))}
-                                    placeholder="Ingrese nombres"
-                                />
-                            </div>
-                            <div className="field col-12 md:col-6">
-                                <label className="font-medium">Apellidos</label>
-                                <InputText
-                                    value={cliente?.apellidos || ''}
-                                    onChange={(e) => setCliente((prev) => ({
-                                        ...(prev || {}),
-                                        apellidos: e.target.value
-                                    }))}
-                                    placeholder="Ingrese apellidos"
-                                />
-                            </div>
-                            <div className="field col-12 md:col-6">
-                                <label className="font-medium">Teléfono</label>
-                                <InputText
-                                    value={cliente?.telefono || ''}
-                                    onChange={(e) => setCliente((prev) => ({
-                                        ...(prev || {}),
-                                        telefono: e.target.value
-                                    }))}
-                                    placeholder="Ingrese teléfono"
-                                />
-                            </div>
-                            <div className="field col-12 md:col-6">
-                                <label className="font-medium">Correo</label>
-                                <InputText
-                                    value={cliente?.email || ''}
-                                    onChange={(e) => setCliente((prev) => ({
-                                        ...(prev || {}),
-                                        email: e.target.value
-                                    }))}
-                                    placeholder="correo@ejemplo.com"
-                                />
-                            </div>
-                            <div className="field col-12 md:col-4">
-                                <label className="font-medium">Departamento</label>
-                                <Dropdown value={cliente?.departamento || ''} options={departamentos} onChange={(e) => onDepartamentoChange(e.value)} placeholder="Seleccione" />
-                            </div>
-                            <div className="field col-12 md:col-4">
-                                <label className="font-medium">Provincia</label>
-                                <Dropdown value={cliente?.provincia || ''} options={provincias} onChange={(e) => onProvinciaChange(e.value)} placeholder="Seleccione" disabled={!cliente?.departamento} />
-                            </div>
-                            <div className="field col-12 md:col-4">
-                                <label className="font-medium">Distrito</label>
-                                <Dropdown value={cliente?.distrito || ''} options={distritos} onChange={(e) => onDistritoChange(e.value)} placeholder="Seleccione" disabled={!cliente?.provincia} />
-                            </div>
-                            <div className="field col-12">
-                                <label className="font-medium">Dirección</label>
-                                <InputText value={cliente?.direccion || ''} onChange={(e) => setCliente((prev) => ({...(prev || {}), direccion: e.target.value}))} placeholder="Av. / Jr. / Calle" />
-                            </div>
-                        </div>
-                        <div className="field">
-                            <label className="font-medium">Vendedor Asignado</label>
-                            <Dropdown value={vendedorSeleccionado} options={vendedoresOptions} onChange={(e) => setVendedorSeleccionado(e.value)} optionLabel="nombreCompleto" placeholder="Seleccione Vendedor" />
+                        <div className="field mt-3 mb-0 pt-3 border-top-1 surface-border">
+                            <label className="font-medium text-sm">Vendedor Asignado</label>
+                            <Dropdown value={vendedorSeleccionado} options={vendedoresOptions} onChange={(e) => setVendedorSeleccionado(e.value)} optionLabel="nombreCompleto" placeholder="Seleccione Asesor Comercial" />
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div className="col-12 xl:col-6">
-                {/* Financiamiento */}
-                <div className="custom-card mb-4">
-                    <div className="card-header">
+            {/* PANEL DERECHO: FINANCIAMIENTO */}
+            <div className="col-12 xl:col-6 flex">
+                <div className="custom-card mb-4 w-full flex flex-column">
+                    <div className="card-header mb-3">
                         <i className="pi pi-wallet text-primary"></i>
-                        <span className="font-bold text-lg ml-2">Financiamiento</span>
+                        <span className="font-bold text-lg ml-2">Configuración de Financiamiento</span>
                     </div>
 
-                    <div className="p-fluid grid mt-3">
-                        <div className="field col-12 md:col-6">
-                            <label className="font-medium">Urbanización</label>
-                            <Dropdown
-                                value={urbanizacionSeleccionada}
-                                options={urbanizacionesOptions}
-                                onChange={(e) => {
-                                    setUrbanizacionSeleccionada(e.value);
-                                    setEtapaSeleccionada(null);
-                                    setManzanaSeleccionada(null);
-                                    setLoteSeleccionado(null);
-                                }}
-                                placeholder="Seleccione"
-                            />
-                        </div>
-                        <div className="field col-12 md:col-6">
-                            <label className="font-medium">Etapa</label>
-                            <Dropdown
-                                value={etapaSeleccionada}
-                                options={etapasOptions}
-                                onChange={(e) => {
-                                    setEtapaSeleccionada(e.value);
-                                    setManzanaSeleccionada(null);
-                                    setLoteSeleccionado(null);
-                                }}
-                                placeholder="Seleccione"
-                                disabled={!urbanizacionSeleccionada}
-                            />
-                        </div>
-                        <div className="field col-12 md:col-6">
-                            <label className="font-medium">Manzana</label>
-                            <Dropdown
-                                value={manzanaSeleccionada}
-                                options={manzanasOptions}
-                                onChange={(e) => {
-                                    setManzanaSeleccionada(e.value);
-                                    setLoteSeleccionado(null);
-                                }}
-                                placeholder="Seleccione"
-                                disabled={!etapaSeleccionada}
-                            />
-                        </div>
-                        <div className="field col-12 md:col-6">
-                            <label className="font-medium">Lote</label>
-                            <Dropdown
-                                value={loteSeleccionado}
-                                options={lotesFiltradosOptions}
-                                onChange={onLoteChange}
-                                optionLabel="descripcion"
-                                placeholder="Seleccione"
-                                disabled={!manzanaSeleccionada}
-                            />
-                        </div>
-                    </div>
-
-                    {loteSeleccionado && (
-                        <div className="info-box mt-2">
-                            <div className="font-bold text-800">{loteSeleccionado.descripcion}</div>
-                            <div className="text-sm text-600 mt-1">
-                                Área: {loteSeleccionado.area || '-'} m2 | Precio: S/ {(loteSeleccionado.precioVenta || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    {/* Tarjeta de Resumen Visual del Lote */}
+                    {loteSeleccionado ? (
+                        <div className="bg-green-50 border-1 border-green-200 border-round p-3 mb-4 fade-in flex justify-content-between align-items-center">
+                            <div>
+                                <span className="text-green-800 font-bold block mb-1">Área: {loteSeleccionado.area || '-'} m²</span>
+                                <span className="text-green-600 text-sm"><i className="pi pi-map-marker mr-1"></i>{loteSeleccionado.descripcion}</span>
                             </div>
+                            <div className="text-right">
+                                <span className="text-xs font-bold text-500 uppercase block">Precio Oficial</span>
+                                <span className="text-xl font-black text-green-700">S/ {(loteSeleccionado.precioVenta || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="p-3 mb-4 border-round surface-100 text-500 flex align-items-center border-1 surface-border">
+                            <i className="pi pi-info-circle mr-2 text-xl"></i>
+                            <span className="text-sm">Seleccione un lote en el panel izquierdo para ver sus detalles y configurar el financiamiento.</span>
                         </div>
                     )}
 
-                    {/* 2. La Cuota 0 (Inicial y Separación) */}
-                    <div className={`custom-card mb-4 ${esSeparacion ? 'border-warning' : ''}`}>
-                        <div className="card-header justify-content-between">
+                    {/* 1. Precio e Inicial */}
+                    <div className="custom-card mb-4">
+                        <div className="card-header justify-content-between border-bottom-1 border-300 pb-2">
                             <div className="flex align-items-center">
-                                <i className="pi pi-wallet text-primary"></i>
-                                <span className="font-bold text-lg ml-2">Cuota 0 — Inicial</span>
+                                <i className="pi pi-tag text-800"></i>
+                                <span className="font-bold text-lg ml-2 text-800">Precio a Tratar e Inicial</span>
                             </div>
-                            {tipoInicial === 'CERO' && <Tag severity="info" value="SIN INICIAL" icon="pi pi-info-circle" />}
-                            {tipoInicial === 'PARCIAL' && esSeparacion && <Tag severity="warning" value="SEPARACIÓN" icon="pi pi-exclamation-triangle" />}
-                            {tipoInicial === 'PARCIAL' && !esSeparacion && <Tag severity="success" value="VENTA FINAL" icon="pi pi-check-circle" />}
-                            {tipoInicial === 'TOTAL' && <Tag severity="success" value="INICIAL COMPLETA" icon="pi pi-check-circle" />}
                         </div>
 
-                        {/* Selector de Tipo de Inicial */}
-                        <div className="mt-3 mb-3">
-                            <label className="font-medium block mb-2"><i className="pi pi-tag mr-2 text-primary"></i>Tipo de Inicial</label>
+                        <div className="p-fluid grid mt-3">
+                            <div className="field col-12 md:col-6">
+                                <label className="font-medium text-sm">Precio a Tratar (S/)</label>
+                                <InputNumber value={lotePrecio} onValueChange={(e) => setLotePrecio(e.value)} mode="currency" currency="PEN" placeholder="Ej: 50000" />
+                            </div>
+                            <div className="field col-12 md:col-6">
+                                <label className="font-medium text-sm">Inicial Acordada (S/)</label>
+                                <InputNumber value={inicialAcordada} onValueChange={(e) => setInicialAcordada(e.value)} mode="currency" currency="PEN" className="input-highlight" placeholder="Ej: 500" />
+                            </div>
+                        </div>
+
+                        <div className="mt-2 bg-white p-3 border-round border-1 border-blue-200">
+                            <div className="flex align-items-center justify-content-between">
+                                <span className="text-sm text-600">Detalle de monto a financiar</span>
+                                <span className="font-bold text-blue-700">S/ {saldoAFinanciar.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 2. La Cuota 0 (Inicial y Separación) con fondos Dinámicos */}
+                    <div className={`custom-card mb-4 transition-colors transition-duration-300 ${bgCuotaCero}`}>
+                        <div className="card-header justify-content-between border-bottom-1 border-300 pb-2">
+                            <div className="flex align-items-center">
+                                <i className="pi pi-wallet text-800"></i>
+                                <span className="font-bold text-lg ml-2 text-800">Cuota 0 — Inicial</span>
+                            </div>
+                            <div className="flex align-items-center gap-2">
+                                {tipoInicial === 'PARCIAL' && esSeparacion && <Tag severity="warning" value="SEPARACIÓN" />}
+                                {tipoInicial === 'PARCIAL' && !esSeparacion && <Tag severity="success" value="VENTA FINAL" />}
+                                {tipoInicial === 'TOTAL' && <Tag severity="success" value="INICIAL COMPLETA" />}
+                            </div>
+                        </div>
+
+                        <div className="p-4">
+
+                                <label className="font-medium text-sm block mb-2 text-800"><i className="pi pi-tag mr-2"></i>Seleccione Intención de Compra:</label>
+                            
+
                             <SelectButton
                                 value={tipoInicial}
                                 onChange={(e) => e.value && setTipoInicial(e.value)}
                                 options={[
-                                    { label: '🚫 Sin Inicial (CERO)', value: 'CERO' },
                                     { label: '⚡ Abono Parcial', value: 'PARCIAL' },
                                     { label: '✅ Pago Total', value: 'TOTAL' }
                                 ]}
-                                className="w-full tipo-inicial-selector"
+                                className="w-full mb-4"
                             />
-                        </div>
 
-                        {/* Campos según tipo */}
-                        {tipoInicial === 'CERO' ? (
-                            <div className="p-3 bg-blue-50 border-round border-1 border-blue-200">
-                                <p className="m-0 text-blue-800 font-medium text-sm">
-                                    <i className="pi pi-info-circle mr-2"></i>
-                                    El cliente financia el 100% del precio del lote. No se cobra inicial.
-                                </p>
-                                <p className="m-0 mt-1 text-blue-700 text-sm">
-                                    Saldo a financiar: <strong>S/ {lotePrecio.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong>
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="p-fluid grid mt-2">
-                                <div className="field col-12 md:col-4">
-                                    <label className="font-medium">Precio Lote</label>
-                                    <InputNumber value={lotePrecio} onValueChange={(e) => setLotePrecio(e.value)} mode="currency" currency="PEN" />
-                                </div>
-                                <div className="field col-12 md:col-4">
-                                    <label className="font-medium">Inicial Acordada</label>
-                                    <InputNumber value={inicialAcordada} onValueChange={(e) => setInicialAcordada(e.value)} mode="currency" currency="PEN" className="input-highlight" />
-                                </div>
-                                {tipoInicial === 'PARCIAL' && (
-                                    <div className="field col-12 md:col-4">
-                                        <label className="font-medium text-blue-700">Abono Hoy</label>
-                                        <InputNumber value={abonoReal} onValueChange={(e) => setAbonoReal(e.value)} mode="currency" currency="PEN" className="input-highlight-blue" />
+                            {tipoInicial === 'PARCIAL' && (
+                                <div className="grid fade-in">
+                                    <div className="col-12 md:col-6">
+                                        <label className="font-bold text-xs uppercase text-orange-900">Abono Hoy (S/)</label>
+                                        <InputNumber value={abonoReal} onValueChange={(e) => setAbonoReal(e.value)} mode="currency" currency="PEN" className="input-highlight-orange" />
                                     </div>
-                                )}
-                                {tipoInicial === 'TOTAL' && (
-                                    <div className="field col-12 md:col-4">
-                                        <label className="font-medium text-green-700">Abono Hoy</label>
-                                        <InputNumber value={inicialAcordada} disabled mode="currency" currency="PEN" />
-                                    </div>
-                                )}
-
-                                {esSeparacion && tipoInicial === 'PARCIAL' && (
-                                    <div className="field col-12 fade-in bg-white p-3 border-round border-1 border-orange-200 mt-2">
-                                        <div className="flex align-items-center mb-2">
-                                            <i className="pi pi-info-circle text-orange-500 mr-2"></i>
-                                            <span className="text-sm font-bold text-orange-800">
-                                                Faltan S/ {faltaPagarInicial.toLocaleString()} para completar la Inicial.
-                                            </span>
+                                    {esSeparacion && (
+                                        <div className="col-12 md:col-6">
+                                            <label className="font-bold text-xs uppercase text-orange-900">Fecha Límite (Resto)</label>
+                                            <Calendar value={fechaLimiteInicial} onChange={(e) => setFechaLimiteInicial(e.value)} dateFormat="dd/mm/yy" showIcon className="w-full" />
                                         </div>
-                                        <label className="font-medium text-sm"><i className="pi pi-clock mr-2 text-orange-600"></i>Fecha Límite para completar la Cuota 0:</label>
-                                        <Calendar value={fechaLimiteInicial} onChange={(e) => setFechaLimiteInicial(e.value)} dateFormat="dd/mm/yy" showIcon className="mt-1" />
+                                    )}
+                                    <div className="col-12 mt-2">
+                                        <div className="bg-white p-2 border-round border-1 border-orange-200 flex align-items-center text-sm shadow-1">
+                                            <i className="pi pi-exclamation-triangle text-orange-500 mr-2"></i>
+                                            <span className="font-bold text-orange-800 font-size-5">Faltan S/ {faltaPagarInicial.toLocaleString()}</span>
+                                        </div>
                                     </div>
-                                )}
-                            </div>
-                        )}
+                                </div>
+                            )}
+
+                            {tipoInicial === 'TOTAL' && (
+                                <div className="text-center p-3 bg-white border-round border-1 border-green-200 fade-in">
+                                    <i className="pi pi-check-circle text-green-500 text-2xl mb-2"></i>
+                                    <p className="m-0 font-bold text-green-900">Inicial Cubierta al 100%</p>
+                                    <p className="m-0 text-lg font-black text-green-700">S/ {parseFloat(inicialAcordada).toLocaleString()}</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     <Divider />
 
                     <div className="p-fluid grid">
                         <div className="field col-12 md:col-6">
-                            <label className="font-medium"><i className="pi pi-sort-numeric-up mr-2 text-primary"></i>Cantidad de Cuotas</label>
+                            <label className="font-medium text-sm"><i className="pi pi-sort-numeric-up mr-2 text-primary"></i>Cantidad de Cuotas (Meses)</label>
                             <InputNumber value={cuotas} onValueChange={(e) => setCuotas(e.value)} showButtons min={1} max={120} />
                         </div>
                         <div className="field col-12 md:col-6">
-                            <label className="font-medium"><i className="pi pi-calendar-plus mr-2 text-primary"></i>Día Fijo Mensual</label>
+                            <label className="font-medium text-sm"><i className="pi pi-calendar-plus mr-2 text-primary"></i>Día Fijo de Pago Mensual</label>
                             <Calendar value={fechaInicio} onChange={(e) => setFechaInicio(e.value)} dateFormat="dd/mm/yy" showIcon />
                         </div>
                     </div>
 
-                    <div className="flex items-center mb-3">
+                    <div className="flex align-items-center mb-3">
                         <Checkbox inputId="flexible" checked={isFlexible} onChange={e => setIsFlexible(e.checked)} />
-                        <label htmlFor="flexible" className="ml-2 font-medium text-700 cursor-pointer">Simulación Especial (Cuotas Mixtas)</label>
+                        <label htmlFor="flexible" className="ml-2 font-medium text-sm text-700 cursor-pointer">Simulación Especial (Cuotas Mixtas)</label>
                     </div>
 
                     {isFlexible && (
                         <div className="p-fluid grid flexible-box fade-in">
                             <div className="field col-12 md:col-6 mb-0">
-                                <label className="text-sm font-bold text-orange-800">Primeras N Cuotas</label>
-                                <InputNumber value={cuotasEspeciales} onValueChange={(e) => setCuotasEspeciales(e.value)} />
+                                <label className="text-xs font-bold text-orange-800 uppercase">Primeras N Cuotas Fijas</label>
+                                <InputNumber value={cuotasEspeciales} onValueChange={(e) => setCuotasEspeciales(e.value)} placeholder="Ej: 3" />
                             </div>
                             <div className="field col-12 md:col-6 mb-0">
-                                <label className="text-sm font-bold text-orange-800">Monto Fijo (S/)</label>
-                                <InputNumber value={montoEspecial} onValueChange={(e) => setMontoEspecial(e.value)} mode="currency" currency="PEN" />
+                                <label className="text-xs font-bold text-orange-800 uppercase">Monto Especial Fijo (S/)</label>
+                                <InputNumber value={montoEspecial} onValueChange={(e) => setMontoEspecial(e.value)} mode="currency" currency="PEN" placeholder="Ej: 1000" />
                             </div>
                         </div>
                     )}
 
-                    <div className="p-fluid mt-3">
-                        <div className="field mb-0">
-                            <label className="font-medium">Observaciones del Vendedor (Opcional)</label>
-                            <InputTextarea value={observacion} onChange={(e) => setObservacion(e.target.value)} rows={3} autoResize placeholder="Ej: El cliente prometió traer el resto de la inicial en efectivo mañana." />
-                        </div>
-                    </div>
-
                     <div className="mt-4">
-                        <Button label="Simular y Previsualizar" icon="pi pi-cog" className="w-full btn-primary-custom p-button-lg shadow-3 border-round-xl" onClick={simular} />
+                        <Button label="Simular Cronograma Oficial" icon="pi pi-cog" className="w-full btn-primary-custom p-button-lg shadow-3 border-round-xl" onClick={simular} />
                     </div>
                 </div>
             </div>
 
-            {/* Proyeccion financiera debajo */}
+            {/* Proyeccion financiera (Ocupa el 100% de la grilla inferior) */}
             <div className="col-12">
                 <div className="custom-card h-full flex flex-column bg-gray-50 border-none">
                     <div className="card-header flex justify-content-between align-items-center mb-4 bg-white p-3 border-round shadow-1">
@@ -896,7 +926,7 @@ const Cotizacion = ({ embedded = false }) => {
                             <span className="font-bold text-xl ml-2 text-800">Proyección Financiera</span>
                         </div>
                         {cronograma.length > 0 && (
-                            <Button label="Guardar Cotización" icon="pi pi-file" className="p-button-outlined p-button-lg border-round-xl font-bold" onClick={guardarCotizacion} />
+                            <Button label="Guardar Cotización" icon="pi pi-save" className="p-button-outlined p-button-lg border-round-xl font-bold" onClick={guardarCotizacion} />
                         )}
                     </div>
 
@@ -904,43 +934,56 @@ const Cotizacion = ({ embedded = false }) => {
                         <div className="flex-grow-1 flex flex-column align-items-center justify-content-center text-400 p-5 bg-white border-round border-1 border-gray-200">
                             <i className="pi pi-file-o text-7xl mb-4 opacity-20"></i>
                             <p className="m-0 text-xl font-medium">Cotización no generada</p>
-                            <p className="m-0 mt-2">Configure los datos y simule para generar cotización.</p>
+                            <p className="m-0 mt-2">Configure los datos y simule para generar el cronograma.</p>
                         </div>
                     ) : (
                         <div className="flex-grow-1 flex flex-column fade-in">
                             <div className="bg-white p-4 border-round border-1 border-blue-100 shadow-1 mb-4 border-left-3 border-blue-500">
-                                <h4 className="m-0 mb-2 text-blue-800 font-bold text-sm uppercase">Descripción autogenerada por el sistema:</h4>
+                                <h4 className="m-0 mb-2 text-blue-800 font-bold text-sm uppercase">Descripción del sistema:</h4>
                                 <p className="m-0 text-700 italic">"{descripcionGenerada}"</p>
                             </div>
 
+                            {/* MEJORA 1: Resumen con Precio Total y Saldo a Financiar */}
                             <div className="grid mb-4">
-                                <div className="col-4">
-                                    <div className="summary-box bg-white">
+                                <div className="col-12 md:col-3">
+                                    <div className="summary-box bg-white h-full">
                                         <span className="summary-title">Estado Proyectado</span>
                                         <span className={`font-bold ${esSeparacion ? 'text-orange-600' : 'text-green-600'}`}>
                                             {esSeparacion ? 'SEPARADO' : 'VENDIDO'}
                                         </span>
                                     </div>
                                 </div>
-                                <div className="col-4">
-                                    <div className="summary-box bg-white">
-                                        <span className="summary-title">Saldo a Financiar</span>
-                                        <span className="summary-value">S/ {saldoAFinanciar.toLocaleString()}</span>
+                                <div className="col-12 md:col-3">
+                                    <div className="summary-box bg-white h-full">
+                                        <span className="summary-title text-blue-600">Precio Total Inmueble</span>
+                                        <span className="summary-value text-blue-800">S/ {(lotePrecio).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                                     </div>
                                 </div>
-                                <div className="col-4">
-                                    <div className="summary-box bg-white">
+                                <div className="col-12 md:col-3">
+                                    <div className="summary-box bg-white h-full">
+                                        <span className="summary-title">Saldo a Financiar</span>
+                                        <span className="summary-value">S/ {saldoAFinanciar.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                    </div>
+                                </div>
+                                <div className="col-12 md:col-3">
+                                    <div className="summary-box bg-white h-full">
                                         <span className="summary-title">Total Cuotas</span>
-                                        <span className="summary-value">{cuotas} + Cuota 0</span>
+                                        <span className="summary-value">{cuotas} + Inicial</span>
                                     </div>
                                 </div>
                             </div>
 
                             <div className="bg-white border-round shadow-1 overflow-hidden">
                                 <DataTable value={cronograma} scrollable scrollHeight="500px" className="p-datatable-sm custom-table" 
-                                    rowClassName={(data) => ({ 'bg-blue-50 font-bold': data.numero === 0 })}>
+                                    rowClassName={(data) => ({ 
+                                        'bg-blue-50 font-bold': data.numero === 0,
+                                        'bg-orange-50 font-bold': data.tipoCuota === 'ESPECIAL' // Resalta toda la fila de la cuota especial
+                                    })}>
                                     <Column field="numero" header="N°" style={{ width: '8%' }} body={(r) => r.numero === 0 ? '0' : r.numero}></Column>
-                                    <Column field="tipo" header="Tipo" style={{ width: '20%' }}></Column>
+                                    
+                                    {/* MEJORA 2: Template para destacar visualmente el Tipo "ESPECIAL" */}
+                                    <Column field="tipoCuota" header="Tipo" style={{ width: '20%' }} body={tipoTemplate}></Column>
+                                    
                                     <Column field="fecha" header="Vencimiento" style={{ width: '25%' }} body={(row) => <><i className="pi pi-calendar mr-2 text-400"></i>{row.fecha}</>}></Column>
                                     <Column header="Monto (S/)" body={montoTemplate} style={{ width: '25%', textAlign: 'right' }}></Column>
                                     <Column header="Estado" body={estadoTemplate} style={{ width: '22%', textAlign: 'center' }}></Column>
@@ -949,6 +992,8 @@ const Cotizacion = ({ embedded = false }) => {
                         </div>
                     )}
                 </div>
+
+                   
             </div>
         </div>
     );

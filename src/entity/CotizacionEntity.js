@@ -21,6 +21,9 @@ export const CotizacionEntity = {
     montoCuotaEspecial: null,
     cuotasFlexibles: false,
 
+    montoCuotaCotizacion:null,
+    saldoFinanciar: null,
+
     // Fechas
     fechaCotizacion: null,
     fechaValidez: null,

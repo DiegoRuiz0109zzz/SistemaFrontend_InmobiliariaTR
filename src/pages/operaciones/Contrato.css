@@ -374,3 +374,33 @@
 .contrato-page .p-datepicker-trigger .pi {
     color: var(--topbar-text, #ffffff) !important;
 }
+
+/* =====================================
+   ESTILOS ADICIONALES PARA CONTRATO
+   ===================================== */
+.input-highlight-orange .p-inputnumber-input,
+.input-highlight-orange .p-inputtext {
+    border-color: #fdba74;
+    background-color: #fff7ed;
+    color: #c2410c;
+    font-weight: 800;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+}
+
+.input-highlight-orange .p-inputnumber-input:focus {
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.2);
+    border-color: #f97316;
+    background-color: #ffffff;
+}
+
+.btn-success-custom {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+    border: none !important;
+    color: white !important;
+}
+
+.btn-success-custom:hover {
+    filter: brightness(1.1) !important;
+    transform: translateY(-1px);
+}
