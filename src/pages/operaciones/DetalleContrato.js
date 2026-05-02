@@ -103,6 +103,13 @@ const DetalleContrato = () => {
                     telefono: data.cliente?.telefono || 'N/A',
                     email: data.cliente?.email || 'N/A'
                 },
+                coComprador: data.coComprador ? {
+                    nombres: data.coComprador.nombres || 'Desconocido',
+                    apellidos: data.coComprador.apellidos || '',
+                    numeroDocumento: data.coComprador.numeroDocumento || 'N/A',
+                    telefono: data.coComprador.telefono || 'N/A',
+                    email: data.coComprador.email || 'N/A'
+                } : null,
                 lote: { 
                     descripcion: data.lote?.descripcion || (data.lote?.numero ? `Mza ${data.lote?.manzana?.nombre || ''} - Lote ${data.lote?.numero}` : 'No asignado'), 
                     area: data.lote?.area ? `${data.lote.area} m2` : 'N/A', 
@@ -121,7 +128,7 @@ const DetalleContrato = () => {
                     faltaPagarInicial: faltaPagarInicial
                 },
                 estadoLote: data.lote?.estadoVenta || 'SEPARADO',
-                estadoContrato: data.estado || 'ACTIVO',
+                estadoContrato: data.estadoContrato || data.estado || 'ACTIVO',
                 cuotas: cuotasFormateadas
             });
         } catch (error) {
@@ -161,12 +168,23 @@ const DetalleContrato = () => {
         }
     };
 
+    const handleVistaPrevia = async () => {
+        try {
+            toast.current?.show({ severity: 'info', summary: 'Generando...', detail: 'Cargando vista previa del contrato.' });
+            const blob = await ContratoService.generarVistaPreviaPdf(contrato.id, axiosInstance);
+            const url = URL.createObjectURL(blob);
+            setPdfViewer(url);
+        } catch (error) {
+            console.error(error);
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo generar la vista previa.' });
+        }
+    };
+
     const handleGenerarDocumento = async () => {
         setGenerandoPdf(true);
         try {
-            await ContratoService.generarDocumento(contrato.id, nuevoEstadoSeleccionado, axiosInstance);
+            await ContratoService.generarDocumento(contrato.id, axiosInstance);
             toast.current?.show({ severity: 'success', summary: 'Éxito', detail: 'Documento generado e historial actualizado.' });
-            setShowGenerarDialog(false);
             cargarDetalleContrato(contrato.id); // Recargar para mostrar el nuevo historial
         } catch (error) {
             console.error(error);
@@ -255,38 +273,7 @@ const DetalleContrato = () => {
                 )}
             </Dialog>
 
-            {/* ===== MODAL GENERAR DOCUMENTO ===== */}
-            <Dialog
-                header={<><i className="pi pi-cog text-primary mr-2"></i>Generar Documento Oficial</>}
-                visible={showGenerarDialog}
-                style={{ width: '400px' }}
-                onHide={() => setShowGenerarDialog(false)}
-                footer={
-                    <div className="flex justify-content-end gap-2">
-                        <Button label="Cancelar" icon="pi pi-times" className="p-button-text p-button-secondary" onClick={() => setShowGenerarDialog(false)} disabled={generandoPdf} />
-                        <Button label="Generar" icon="pi pi-check" className="btn-primary-custom" onClick={handleGenerarDocumento} loading={generandoPdf} />
-                    </div>
-                }
-            >
-                <div className="flex flex-column gap-3 pt-2">
-                    <p className="m-0 text-600">Seleccione el estado que se asignará al contrato y para el cual se generará el documento oficial.</p>
-                    <div className="flex flex-column gap-2">
-                        <label className="font-bold text-700">Estado del Contrato</label>
-                        <Dropdown 
-                            value={nuevoEstadoSeleccionado} 
-                            options={[
-                                { label: 'Separado (Abono Parcial)', value: 'SEPARADO' },
-                                { label: 'Activo (Venta Concretada)', value: 'ACTIVO' },
-                                { label: 'Finalizado (Pagado al 100%)', value: 'FINALIZADO' },
-                                { label: 'Resuelto (Anulado)', value: 'RESUELTO' }
-                            ]} 
-                            onChange={(e) => setNuevoEstadoSeleccionado(e.value)} 
-                            placeholder="Seleccione un estado" 
-                            className="w-full"
-                        />
-                    </div>
-                </div>
-            </Dialog>
+            {/* ELIMINADO: MODAL GENERAR DOCUMENTO. Ahora se genera directamente o se ve la vista previa */}
             
             {/* Header de la Página con Botón de Regreso */}
             <div className="flex justify-content-between align-items-center mb-4 pt-3 pl-3 pr-3">
@@ -296,13 +283,18 @@ const DetalleContrato = () => {
                         <h1 className="m-0 text-3xl font-bold text-800 flex align-items-center">
                             <i className="pi pi-file text-primary mr-3 text-3xl"></i> 
                             Detalle del Contrato {contrato.codigo}
-                            <Tag className="ml-3" value={contrato.estadoContrato} severity={contrato.estadoContrato === 'ACTIVO' ? 'success' : 'info'} />
+                            <Tag className="ml-3" value={contrato.estadoContrato} severity={
+                                contrato.estadoContrato === 'ACTIVO' ? 'success' : 
+                                contrato.estadoContrato === 'SEPARADO' ? 'warning' : 
+                                contrato.estadoContrato === 'FINALIZADO' ? 'info' : 'danger'
+                            } />
                         </h1>
                         <span className="text-500 text-sm ml-5 pl-2">Emitido el {contrato.fechaEmision} por {contrato.vendedor}</span>
                     </div>
                 </div>
                 <div>
-                    <Button label="Generar Documento" icon="pi pi-file-pdf" className="p-button-outlined p-button-danger mr-3 border-round-xl font-bold shadow-1" onClick={() => setShowGenerarDialog(true)} />
+                    <Button label="Vista Previa" icon="pi pi-eye" className="p-button-outlined p-button-secondary mr-3 border-round-xl font-bold bg-white" onClick={handleVistaPrevia} />
+                    <Button label="Generar Documento" icon="pi pi-file-pdf" className="p-button-outlined p-button-danger mr-3 border-round-xl font-bold shadow-1 bg-white" onClick={handleGenerarDocumento} loading={generandoPdf} />
                     <Button label="Ir a Cobranza" icon="pi pi-wallet" className="btn-primary-custom border-round-xl shadow-2" onClick={() => navigate('/cuotas-pagos', { state: { buscarContrato: contrato.cliente.numeroDocumento } })} />
                 </div>
             </div>
@@ -316,37 +308,59 @@ const DetalleContrato = () => {
                     
                     {/* Tarjeta 1: Cliente */}
                     <div className="col-12 lg:col-4">
-                        <div className="resumen-card shadow-2 border-none">
-                            <div className="icon-wrapper bg-blue-50 text-blue-600">
-                                <i className="pi pi-user text-3xl"></i>
-                            </div>
-                            <div className="resumen-info w-full">
-                                <span className="text-xs font-bold text-500 uppercase tracking-wide">Titular del Contrato</span>
-                                <span className="font-black text-xl text-800 mt-1">{contrato.cliente.nombres} {contrato.cliente.apellidos}</span>
-                                <div className="flex flex-column gap-1 mt-2 text-sm text-600">
-                                    <span><i className="pi pi-id-card mr-2 text-400"></i>DNI: {contrato.cliente.numeroDocumento}</span>
-                                    <span><i className="pi pi-phone mr-2 text-400"></i>{contrato.cliente.telefono}</span>
-                                    <span><i className="pi pi-envelope mr-2 text-400"></i>{contrato.cliente.email}</span>
+                        <div className="resumen-card shadow-2 border-none h-full p-4 flex flex-column justify-content-center">
+                            <div className="flex align-items-start gap-3">
+                                <div className="icon-wrapper bg-blue-50 text-blue-600 flex-shrink-0">
+                                    <i className="pi pi-user text-3xl"></i>
+                                </div>
+                                <div className="resumen-info w-full">
+                                    <span className="text-xs font-bold text-500 uppercase tracking-wide block mb-1">Titular del Contrato</span>
+                                    <span className="font-black text-xl text-800 block line-height-2">{contrato.cliente.nombres} {contrato.cliente.apellidos}</span>
+                                    <div className="flex flex-column gap-1 mt-2 text-sm text-600">
+                                        <span><i className="pi pi-id-card mr-2 text-400"></i>DNI: {contrato.cliente.numeroDocumento}</span>
+                                        <span><i className="pi pi-phone mr-2 text-400"></i>{contrato.cliente.telefono}</span>
+                                        <span><i className="pi pi-envelope mr-2 text-400"></i>{contrato.cliente.email}</span>
+                                    </div>
                                 </div>
                             </div>
+
+                            {contrato.coComprador && (
+                                <>
+                                    <Divider className="my-3" />
+                                    <div className="flex align-items-start gap-3">
+                                        <div className="icon-wrapper bg-indigo-50 text-indigo-600 flex-shrink-0" style={{ width: '2.5rem', height: '2.5rem' }}>
+                                            <i className="pi pi-users text-xl"></i>
+                                        </div>
+                                        <div className="resumen-info w-full">
+                                            <span className="text-xs font-bold text-indigo-500 uppercase tracking-wide block mb-1">Co-comprador</span>
+                                            <span className="font-bold text-lg text-800 block line-height-2">{contrato.coComprador.nombres} {contrato.coComprador.apellidos}</span>
+                                            <div className="flex flex-column gap-1 mt-1 text-xs text-600">
+                                                <span><i className="pi pi-id-card mr-2 text-400"></i>DNI: {contrato.coComprador.numeroDocumento}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
 
                     {/* Tarjeta 2: Lote */}
                     <div className="col-12 lg:col-4">
-                        <div className="resumen-card shadow-2 border-none">
-                            <div className="icon-wrapper bg-green-50 text-green-600">
-                                <i className="pi pi-map-marker text-3xl"></i>
-                            </div>
-                            <div className="resumen-info w-full">
-                                <div className="flex justify-content-between align-items-start">
-                                    <span className="text-xs font-bold text-500 uppercase tracking-wide">Inmueble Adquirido</span>
-                                    <Tag severity={contrato.estadoLote === 'VENDIDO' ? 'success' : 'warning'} value={contrato.estadoLote} />
+                        <div className="resumen-card shadow-2 border-none h-full p-4 flex flex-column justify-content-center">
+                            <div className="flex align-items-start gap-3">
+                                <div className="icon-wrapper bg-green-50 text-green-600 flex-shrink-0">
+                                    <i className="pi pi-map-marker text-3xl"></i>
                                 </div>
-                                <span className="font-black text-xl text-800 mt-1">{contrato.lote.descripcion}</span>
-                                <div className="flex flex-column gap-1 mt-2 text-sm text-600">
-                                    <span><i className="pi pi-building mr-2 text-400"></i>Proyecto: {contrato.lote.proyecto}</span>
-                                    <span><i className="pi pi-clone mr-2 text-400"></i>Área: {contrato.lote.area}</span>
+                                <div className="resumen-info w-full">
+                                    <div className="flex justify-content-between align-items-start mb-1">
+                                        <span className="text-xs font-bold text-500 uppercase tracking-wide">Inmueble Adquirido</span>
+                                        <Tag severity={contrato.estadoLote === 'VENDIDO' ? 'success' : 'warning'} value={contrato.estadoLote} />
+                                    </div>
+                                    <span className="font-black text-xl text-800 block line-height-2">{contrato.lote.descripcion}</span>
+                                    <div className="flex flex-column gap-1 mt-3 text-sm text-600">
+                                        <span><i className="pi pi-building mr-2 text-400"></i>Proyecto: {contrato.lote.proyecto}</span>
+                                        <span><i className="pi pi-clone mr-2 text-400"></i>Área: {contrato.lote.area}</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -354,7 +368,7 @@ const DetalleContrato = () => {
 
                     {/* Tarjeta 3: Finanzas */}
                     <div className="col-12 lg:col-4">
-                        <div className="resumen-card shadow-2 border-none bg-blue-900 text-white">
+                        <div className="resumen-card shadow-2 border-none bg-blue-900 text-white h-full p-4 flex flex-column justify-content-center">
                             <div className="resumen-info w-full">
                                 <div className="flex justify-content-between mb-2">
                                     <span className="text-sm font-medium text-blue-200 uppercase">Precio Total</span>

@@ -29,10 +29,16 @@ export const ContratoService = {
         return response.data;
     },
 
-    generarDocumento: async (id, nuevoEstado, httpClient) => {
+    generarDocumento: async (id, httpClient) => {
         const client = resolveClient(httpClient);
-        const response = await client.post(`${RESOURCE}/${id}/generar-documento`, null, {
-            params: { nuevoEstado }
+        const response = await client.post(`${RESOURCE}/${id}/generar-documento`);
+        return response.data;
+    },
+
+    generarVistaPreviaPdf: async (id, httpClient) => {
+        const client = resolveClient(httpClient);
+        const response = await client.get(`${RESOURCE}/${id}/vista-previa`, {
+            responseType: 'blob'
         });
         return response.data;
     }
