@@ -3,6 +3,7 @@ export const ClienteEntity = {
     numeroDocumento: '',
     nombres: '',
     apellidos: '',
+    estadoCivil: '',
     fechaIngreso: '',
     departamento: '',
     provincia: '',

@@ -7,13 +7,16 @@ import { Calendar } from 'primereact/calendar';
 import { InputNumber } from 'primereact/inputnumber';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { Button } from 'primereact/button';
+import { Dialog } from 'primereact/dialog';
 import { Toast } from 'primereact/toast';
 import { Checkbox } from 'primereact/checkbox';
 import { Divider } from 'primereact/divider';
 import { Tag } from 'primereact/tag';
 import { SelectButton } from 'primereact/selectbutton';
 import PageHeader from '../../components/ui/PageHeader';
+import DialogHeader from '../../components/ui/DialogHeader';
 import { useAuth } from '../../context/AuthContext';
+import { filtrarDocumento, maxLengthDocumento, placeholderDocumento } from '../../utils/documentoUtils';
 import { ClienteService } from '../../service/ClienteService';
 import { VendedorService } from '../../service/VendedorService';
 import { LoteService } from '../../service/LoteService';
@@ -29,16 +32,43 @@ import './Cotizacion.css';
 const Cotizacion = ({ embedded = false }) => {
     const { axiosInstance } = useAuth();
     const toast = useRef(null);
+    const crearCoCompradorVacio = () => ({
+        tipoDocumento: 'DNI',
+        numeroDocumento: '',
+        nombres: '',
+        apellidos: '',
+        estadoCivil: '',
+        telefono: '',
+        email: '',
+        direccion: '',
+        departamento: '',
+        provincia: '',
+        distrito: '',
+        ubigeo: ''
+    });
 
     // ==========================================
     // ESTADOS DEL FORMULARIO
     // ==========================================
     const [dni, setDni] = useState('');
+    const [provinciasCo, setProvinciasCo] = useState([]);
+    const [distritosCo, setDistritosCo] = useState([]);
     const [cliente, setCliente] = useState(null);
+    const [coCompradorSeleccionado, setCoCompradorSeleccionado] = useState(null);
+    const [mostrarCoComprador, setMostrarCoComprador] = useState(false);
+    const [coCompradorModalVisible, setCoCompradorModalVisible] = useState(false);
+    const [coCompradorDraft, setCoCompradorDraft] = useState(crearCoCompradorVacio());
     const [clientes, setClientes] = useState([]);
     const [departamentos, setDepartamentos] = useState([]);
     const [provincias, setProvincias] = useState([]);
     const [distritos, setDistritos] = useState([]);
+    const estadoCivilOptions = [
+        { label: 'Soltero(a)', value: 'Soltero(a)' },
+        { label: 'Casado(a)', value: 'Casado(a)' },
+        { label: 'Divorciado(a)', value: 'Divorciado(a)' },
+        { label: 'Viudo(a)', value: 'Viudo(a)' },
+        { label: 'Conviviente', value: 'Conviviente' }
+    ];
     
     // Selectores
     const [lotes, setLotes] = useState([]);
@@ -152,6 +182,115 @@ const Cotizacion = ({ embedded = false }) => {
         })),
         [vendedores]
     );
+
+    const coCompradoresOptions = useMemo(() => {
+        const titularId = cliente?.id;
+        const titularDocumento = (cliente?.numeroDocumento || '').trim();
+
+        return (clientes || [])
+            .filter((item) => item?.id && item.id !== titularId)
+            .filter((item) => (item?.numeroDocumento || '').trim() !== titularDocumento)
+            .map((item) => ({
+                ...item,
+                nombreCompleto: `${item.nombres || ''} ${item.apellidos || ''}`.trim(),
+                detalleDocumento: `${item.tipoDocumento || 'DNI'}: ${item.numeroDocumento || 'N/A'}`
+            }));
+    }, [clientes, cliente]);
+
+    const abrirModalCoComprador = () => {
+        setCoCompradorDraft((prev) => ({
+            ...crearCoCompradorVacio(),
+            ...prev,
+            tipoDocumento: prev?.tipoDocumento || 'DNI'
+        }));
+        setCoCompradorModalVisible(true);
+        setMostrarCoComprador(true);
+    };
+
+    const cerrarModalCoComprador = () => {
+        setCoCompradorModalVisible(false);
+    };
+
+    const buscarDniCoComprador = async () => {
+        if (coCompradorDraft.tipoDocumento && coCompradorDraft.tipoDocumento !== 'DNI') {
+            toast.current?.show({ severity: 'warn', summary: 'Validación', detail: 'La consulta RENIEC aplica solo para DNI.' });
+            return;
+        }
+        const dniCo = (coCompradorDraft.numeroDocumento || '').trim();
+        if (dniCo.length !== 8) {
+            toast.current?.show({ severity: 'warn', summary: 'Validación', detail: 'El DNI debe tener 8 dígitos.' });
+            return;
+        }
+        try {
+            const response = await ReniecService.consultarDNI(dniCo, axiosInstance);
+            if (!response?.success) {
+                toast.current?.show({ severity: 'warn', summary: 'RENIEC', detail: response?.message || 'DNI no encontrado.' });
+                return;
+            }
+            const data = response.data || {};
+            const nombres = data.nombres || data.nombre || '';
+            const apellidoPaterno = data.apellidoPaterno || data.apellido_paterno || '';
+            const apellidoMaterno = data.apellidoMaterno || data.apellido_materno || '';
+            const apellidos = data.apellidos || `${apellidoPaterno} ${apellidoMaterno}`.trim();
+            setCoCompradorDraft((prev) => ({ ...prev, nombres, apellidos }));
+            toast.current?.show({ severity: 'success', summary: 'RENIEC', detail: 'Datos cargados correctamente.' });
+        } catch (error) {
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo consultar RENIEC.' });
+        }
+    };
+
+    const onDepartamentoCoChange = async (value) => {
+        setCoCompradorDraft((prev) => ({ ...prev, departamento: value, provincia: '', distrito: '', ubigeo: '' }));
+        if (!value) { setProvinciasCo([]); setDistritosCo([]); return; }
+        try {
+            const response = await UbigeoService.listarProvincias(value, axiosInstance);
+            setProvinciasCo(mapTextOptions(response));
+        } catch (error) { setProvinciasCo([]); }
+        setDistritosCo([]);
+    };
+
+    const onProvinciaCoChange = async (value) => {
+        setCoCompradorDraft((prev) => ({ ...prev, provincia: value, distrito: '', ubigeo: '' }));
+        if (!value || !coCompradorDraft.departamento) { setDistritosCo([]); return; }
+        try {
+            const response = await UbigeoService.listarDistritos(coCompradorDraft.departamento, value, axiosInstance);
+            setDistritosCo(mapDistritoOptions(response));
+        } catch (error) { setDistritosCo([]); }
+    };
+
+    const onDistritoCoChange = (value) => {
+        const distritoSelected = distritosCo.find((item) => item.value === value);
+        setCoCompradorDraft((prev) => ({ ...prev, distrito: value, ubigeo: distritoSelected?.ubigeo || '' }));
+    };
+
+    const guardarCoCompradorDraft = () => {
+        const nombres = (coCompradorDraft.nombres || '').trim();
+        const apellidos = (coCompradorDraft.apellidos || '').trim();
+        const telefono = (coCompradorDraft.telefono || '').trim();
+
+        if (!nombres || !apellidos) {
+            toast.current?.show({ severity: 'warn', summary: 'Atención', detail: 'Ingrese nombres y apellidos del co-comprador.' });
+            return;
+        }
+
+        if (!telefono) {
+            toast.current?.show({ severity: 'warn', summary: 'Atención', detail: 'Ingrese un teléfono para el co-comprador.' });
+            return;
+        }
+
+        const resumenCoComprador = {
+            ...coCompradorDraft,
+            nombres,
+            apellidos,
+            telefono,
+            nombreCompleto: `${nombres} ${apellidos}`.trim(),
+            detalleDocumento: `${coCompradorDraft.tipoDocumento || 'DNI'}: ${(coCompradorDraft.numeroDocumento || '').trim() || 'N/A'}`
+        };
+
+        setCoCompradorSeleccionado(resumenCoComprador);
+        setMostrarCoComprador(true);
+        setCoCompradorModalVisible(false);
+    };
 
     useEffect(() => {
         if (pendingLoteId && lotesOptions.length > 0) {
@@ -293,10 +432,11 @@ const Cotizacion = ({ embedded = false }) => {
                     tipoDocumento: interesado.tipoDocumento || clienteExistente?.tipoDocumento || 'DNI',
                     nombres: interesado.nombres || clienteExistente?.nombres || '',
                     apellidos: interesado.apellidos || clienteExistente?.apellidos || '',
+                    estadoCivil: interesado.estadoCivil || clienteExistente?.estadoCivil || '',
                     telefono: interesado.telefono || clienteExistente?.telefono || '',
                     email: interesado.email || clienteExistente?.email || '',
                     departamento: dep, provincia: prov, distrito: dist, ubigeo: ubig,
-                    direccion: clienteExistente?.direccion || ''
+                    direccion: interesado.direccion || clienteExistente?.direccion || ''
                 }));
                 setDni(documento);
 
@@ -327,6 +467,24 @@ const Cotizacion = ({ embedded = false }) => {
                     }
                 }
 
+                const coCompradorId = seleccionada.coComprador?.id || seleccionada.coCompradorId || null;
+                if (coCompradorId) {
+                    const coCompradorEncontrado = (clientes || []).find((item) => item?.id === coCompradorId);
+                    if (coCompradorEncontrado) {
+                        setCoCompradorSeleccionado(coCompradorEncontrado);
+                    } else if (seleccionada.coComprador) {
+                        setCoCompradorSeleccionado({
+                            ...seleccionada.coComprador,
+                            nombreCompleto: `${seleccionada.coComprador.nombres || ''} ${seleccionada.coComprador.apellidos || ''}`.trim(),
+                            detalleDocumento: `${seleccionada.coComprador.tipoDocumento || 'DNI'}: ${seleccionada.coComprador.numeroDocumento || 'N/A'}`
+                        });
+                    }
+                    setMostrarCoComprador(true);
+                } else {
+                    setCoCompradorSeleccionado(null);
+                    setMostrarCoComprador(false);
+                }
+
                 const inicialCargada = seleccionada.montoInicialAcordado ?? 500;
                 const cuotasCargadas = seleccionada.cantidadCuotas || 36;
                 const tipoCargado = seleccionada.tipoInicial || 'PARCIAL';
@@ -354,6 +512,8 @@ const Cotizacion = ({ embedded = false }) => {
             if (clienteExistente) {
                 setCliente(clienteExistente);
                 setDni(clienteExistente.numeroDocumento || documento);
+                setCoCompradorSeleccionado(null);
+                setMostrarCoComprador(false);
                 if (clienteExistente.departamento) await cargarProvincias(clienteExistente.departamento);
                 if (clienteExistente.provincia) await cargarDistritos(clienteExistente.departamento, clienteExistente.provincia);
                 toast.current?.show({ severity: 'success', summary: 'Encontrado', detail: 'Cliente cargado desde el sistema.' });
@@ -371,8 +531,20 @@ const Cotizacion = ({ embedded = false }) => {
             const apellidoPaterno = data.apellidoPaterno || data.apellido_paterno || '';
             const apellidoMaterno = data.apellidoMaterno || data.apellido_materno || '';
             const apellidos = data.apellidos || `${apellidoPaterno} ${apellidoMaterno}`.trim();
-            setCliente({ id: undefined, numeroDocumento: documento, tipoDocumento: 'DNI', nombres, apellidos, email: '' });
+            setCliente({
+                id: undefined,
+                numeroDocumento: documento,
+                tipoDocumento: 'DNI',
+                nombres,
+                apellidos,
+                estadoCivil: '',
+                telefono: '',
+                email: '',
+                direccion: ''
+            });
             setDni(documento);
+            setCoCompradorSeleccionado(null);
+            setMostrarCoComprador(false);
             toast.current?.show({ severity: 'success', summary: 'Encontrado', detail: 'Cliente cargado desde RENIEC.' });
         } catch (error) {
             toast.current?.show({ severity: 'error', summary: 'Error', detail: 'Ocurrió un error en la búsqueda.' });
@@ -453,6 +625,9 @@ const Cotizacion = ({ embedded = false }) => {
 
         try {
             let idInteresadoFinal = cliente?.interesadoId;
+            let coCompradorTemporalId = null;
+            const coCompradorConId = coCompradorSeleccionado?.id ? coCompradorSeleccionado : null;
+            const coCompradorNuevo = coCompradorSeleccionado && !coCompradorSeleccionado.id ? coCompradorSeleccionado : null;
 
             if (!idInteresadoFinal) {
                 if (!cliente || !cliente.nombres) {
@@ -485,8 +660,10 @@ const Cotizacion = ({ embedded = false }) => {
                         numeroDocumento: documentoNormalizado,
                         nombres: cliente.nombres,
                         apellidos: cliente.apellidos || '',
+                        estadoCivil: (cliente.estadoCivil || '').trim(),
                         telefono: telefonoNormalizado,
                         email: cliente.email || '',
+                        direccion: (cliente.direccion || '').trim(),
                         departamento: cliente.departamento || '',
                         provincia: cliente.provincia || '',
                         distrito: cliente.distrito || '',
@@ -498,6 +675,38 @@ const Cotizacion = ({ embedded = false }) => {
                 }
             }
 
+            if (coCompradorNuevo) {
+                const nombresCo = (coCompradorNuevo.nombres || '').trim();
+                const apellidosCo = (coCompradorNuevo.apellidos || '').trim();
+                const telefonoCo = (coCompradorNuevo.telefono || '').trim();
+
+                if (!nombresCo || !apellidosCo || !telefonoCo) {
+                    toast.current.show({ severity: 'warn', summary: 'Co-comprador incompleto', detail: 'Complete los datos del co-comprador antes de guardar.' });
+                    return;
+                }
+
+                const nuevoCoComprador = {
+                    tipoDocumento: coCompradorNuevo.tipoDocumento || 'DNI',
+                    numeroDocumento: (coCompradorNuevo.numeroDocumento || '').trim(),
+                    nombres: nombresCo,
+                    apellidos: apellidosCo,
+                    estadoCivil: (coCompradorNuevo.estadoCivil || '').trim(),
+                    telefono: telefonoCo,
+                    email: (coCompradorNuevo.email || '').trim(),
+                    direccion: (coCompradorNuevo.direccion || '').trim(),
+                    departamento: coCompradorNuevo.departamento || '',
+                    provincia: coCompradorNuevo.provincia || '',
+                    distrito: coCompradorNuevo.distrito || '',
+                    ubigeo: coCompradorNuevo.ubigeo || ''
+                };
+
+                const resCo = await InteresadoService.crear(nuevoCoComprador, axiosInstance);
+                coCompradorTemporalId = resCo?.data?.id || resCo?.id || null;
+                if (!coCompradorTemporalId) {
+                    throw new Error('No se pudo registrar el co-comprador.');
+                }
+            }
+
             const cuotaMensual = cronograma.find((item) => item?.numero !== 0 && item?.tipoCuota !== 'INICIAL');
             const montoCuotaCotizacion = cuotaMensual?.montoTotal ?? (cuotas > 0 ? saldoAFinanciar / cuotas : 0);
             const saldoFinanciar = saldoAFinanciar;
@@ -505,6 +714,7 @@ const Cotizacion = ({ embedded = false }) => {
             const cotizacionPayload = {
                 loteId: loteSeleccionado.id,
                 interesadoId: idInteresadoFinal,
+                coCompradorId: coCompradorConId?.id || coCompradorTemporalId || null,
                 vendedorId: vendedorSeleccionado.id,
                 tipoInicial: tipoInicial,
                 precioTotal: lotePrecio,
@@ -519,10 +729,21 @@ const Cotizacion = ({ embedded = false }) => {
                 saldoFinanciar: saldoFinanciar
             };
 
-            await CotizacionService.crear(cotizacionPayload, axiosInstance);
+            try {
+                await CotizacionService.crear(cotizacionPayload, axiosInstance);
+            } catch (cotizacionError) {
+                if (coCompradorTemporalId) {
+                    await InteresadoService.eliminar(coCompradorTemporalId, axiosInstance).catch(() => null);
+                }
+                throw cotizacionError;
+            }
             toast.current.show({ severity: 'success', summary: '¡Éxito!', detail: 'Cotización guardada correctamente.' });
             setCronograma([]);
             setObservacion('');
+            setCoCompradorSeleccionado(null);
+            setCoCompradorDraft(crearCoCompradorVacio());
+            setMostrarCoComprador(false);
+            setCoCompradorModalVisible(false);
         } catch (error) {
             toast.current.show({ severity: 'error', summary: 'Error', detail: 'No se pudo guardar la cotización.' });
         }
@@ -648,10 +869,20 @@ const Cotizacion = ({ embedded = false }) => {
                                     <InputText value={cliente?.apellidos || ''} onChange={(e) => setCliente((prev) => ({ ...(prev || {}), apellidos: e.target.value }))} placeholder="Ej. Pérez Silva" />
                                 </div>
                                 <div className="field col-12 md:col-6">
+                                    <label className="font-medium text-sm">Estado Civil</label>
+                                    <Dropdown
+                                        value={cliente?.estadoCivil || ''}
+                                        options={estadoCivilOptions}
+                                        onChange={(e) => setCliente((prev) => ({ ...(prev || {}), estadoCivil: e.value }))}
+                                        placeholder="Seleccione estado civil"
+                                        showClear
+                                    />
+                                </div>
+                                <div className="field col-12 md:col-6">
                                     <label className="font-medium text-sm">Teléfono</label>
                                     <InputText value={cliente?.telefono || ''} onChange={(e) => setCliente((prev) => ({ ...(prev || {}), telefono: e.target.value }))} placeholder="Ej. 987654321" />
                                 </div>
-                                <div className="field col-12 md:col-6">
+                                <div className="field col-12 ">
                                     <label className="font-medium text-sm">Correo</label>
                                     <InputText value={cliente?.email || ''} onChange={(e) => setCliente((prev) => ({ ...(prev || {}), email: e.target.value }))} placeholder="ejemplo@correo.com" />
                                 </div>
@@ -670,6 +901,65 @@ const Cotizacion = ({ embedded = false }) => {
                                 <div className="field col-12">
                                     <label className="font-medium text-sm">Dirección</label>
                                     <InputText value={cliente?.direccion || ''} onChange={(e) => setCliente((prev) => ({...(prev || {}), direccion: e.target.value}))} placeholder="Ej. Av. Los Libertadores 123" />
+                                </div>
+                                <div className="field col-12">
+                                    <div className="flex justify-content-between align-items-center mb-2">
+                                        <label className="font-medium text-sm mb-0">Co-comprador (Opcional)</label>
+                                        <div className="flex gap-2">
+                                            <Button
+                                                type="button"
+                                                icon="pi pi-plus"
+                                                label="Nuevo"
+                                                className="p-button-text p-button-sm"
+                                                onClick={abrirModalCoComprador}
+                                            />
+                                            {(coCompradorSeleccionado?.id || coCompradorSeleccionado?.nombreCompleto) && (
+                                                <Button
+                                                    type="button"
+                                                    icon="pi pi-times"
+                                                    label="Limpiar"
+                                                    className="p-button-text p-button-sm"
+                                                    onClick={() => {
+                                                        setCoCompradorSeleccionado(null);
+                                                        setMostrarCoComprador(false);
+                                                        setCoCompradorDraft(crearCoCompradorVacio());
+                                                    }}
+                                                />
+                                            )}
+                                        </div>
+                                    </div>
+                                    {mostrarCoComprador && coCompradorSeleccionado && !coCompradorSeleccionado.id && (
+                                        <div className="mb-2 p-3 border-1 border-dashed border-300 border-round surface-50">
+                                            <div className="text-sm font-bold text-700 mb-1">
+                                                {coCompradorSeleccionado?.nombreCompleto || 'Co-comprador nuevo'}
+                                            </div>
+                                            <div className="text-xs text-500">
+                                                {coCompradorSeleccionado?.detalleDocumento || 'Borrador local pendiente de guardar.'}
+                                            </div>
+                                        </div>
+                                    )}
+                                    {mostrarCoComprador && (
+                                        <Dropdown
+                                            value={coCompradorSeleccionado?.id ? coCompradorSeleccionado : null}
+                                            options={coCompradoresOptions}
+                                            onChange={(e) => {
+                                                setCoCompradorSeleccionado(e.value);
+                                                setCoCompradorDraft(crearCoCompradorVacio());
+                                            }}
+                                            optionLabel="nombreCompleto"
+                                            placeholder="Seleccione co-comprador existente"
+                                            showClear
+                                            filter
+                                            filterBy="nombreCompleto,numeroDocumento"
+                                            disabled={coCompradoresOptions.length === 0}
+                                            itemTemplate={(option) => (
+                                                <div className="flex flex-column">
+                                                    <span className="font-medium">{option.nombreCompleto || 'Sin nombre'}</span>
+                                                    <small className="text-500">{option.detalleDocumento}</small>
+                                                </div>
+                                            )}
+                                        />
+                                    )}
                                 </div>
                             </div>
 
@@ -1003,6 +1293,182 @@ const Cotizacion = ({ embedded = false }) => {
     return (
         <div className="contrato-page cotizacion-page">
             <Toast ref={toast} />
+            <Dialog
+                visible={coCompradorModalVisible}
+                style={{ width: '800px', maxWidth: '95vw' }}
+                header={
+                    <DialogHeader
+                        title="Nuevo Co-comprador"
+                        subtitle="Registrar un nuevo co-comprador para la cotización"
+                        icon="pi pi-users"
+                    />
+                }
+                modal
+                className="p-fluid custom-profile-dialog"
+                footer={(
+                    <div className="dialog-footer-buttons">
+                        <Button label="Cancelar" icon="pi pi-times" className="p-button-text p-button-secondary" onClick={cerrarModalCoComprador} />
+                        <Button label="Guardar borrador" icon="pi pi-check" onClick={guardarCoCompradorDraft} autoFocus />
+                    </div>
+                )}
+                onHide={cerrarModalCoComprador}
+            >
+                <div className="formgrid grid dialog-content-specific pt-2">
+                    {/* Tipo de documento */}
+                    <div className="field col-12 md:col-6">
+                        <label htmlFor="tipoDocumentoCo">Tipo Documento</label>
+                        <Dropdown
+                            id="tipoDocumentoCo"
+                            value={coCompradorDraft.tipoDocumento || 'DNI'}
+                            options={[
+                                { label: 'DNI', value: 'DNI' },
+                                { label: 'Carnet de Extranjeria', value: 'CE' },
+                                { label: 'RUC', value: 'RUC' }
+                            ]}
+                            onChange={(e) => setCoCompradorDraft((prev) => ({ ...prev, tipoDocumento: e.value, numeroDocumento: '' }))}
+                            placeholder="Seleccione tipo"
+                            className="w-full"
+                        />
+                    </div>
+
+                    {/* N° de documento + RENIEC */}
+                    <div className="field col-12 md:col-6">
+                        <label htmlFor="numeroDocumentoCo">Documento</label>
+                        <div className="p-inputgroup">
+                            <InputText
+                                id="numeroDocumentoCo"
+                                value={coCompradorDraft.numeroDocumento}
+                                onChange={(e) => {
+                                    const val = e.target.value || '';
+                                    const filtered = filtrarDocumento(val, coCompradorDraft.tipoDocumento || 'DNI');
+                                    setCoCompradorDraft((prev) => ({ ...prev, numeroDocumento: filtered }));
+                                }}
+                                keyfilter="pint"
+                                maxLength={maxLengthDocumento(coCompradorDraft.tipoDocumento)}
+                                placeholder={placeholderDocumento(coCompradorDraft.tipoDocumento)}
+                            />
+                            <Button icon="pi pi-search" className="p-button-outlined" type="button" onClick={buscarDniCoComprador} />
+                        </div>
+                    </div>
+
+                    {/* Nombres */}
+                    <div className="field col-12 md:col-6">
+                        <label htmlFor="nombresCo">Nombres</label>
+                        <InputText
+                            id="nombresCo"
+                            value={coCompradorDraft.nombres}
+                            onChange={(e) => setCoCompradorDraft((prev) => ({ ...prev, nombres: e.target.value }))}
+                            placeholder="Ingrese nombres"
+                        />
+                    </div>
+
+                    {/* Apellidos */}
+                    <div className="field col-12 md:col-6">
+                        <label htmlFor="apellidosCo">Apellidos</label>
+                        <InputText
+                            id="apellidosCo"
+                            value={coCompradorDraft.apellidos}
+                            onChange={(e) => setCoCompradorDraft((prev) => ({ ...prev, apellidos: e.target.value }))}
+                            placeholder="Ingrese apellidos"
+                        />
+                    </div>
+
+                    {/* Email */}
+                    <div className="field col-12 md:col-6">
+                        <label htmlFor="emailCo">Correo Electrónico</label>
+                        <InputText
+                            id="emailCo"
+                            value={coCompradorDraft.email}
+                            onChange={(e) => setCoCompradorDraft((prev) => ({ ...prev, email: e.target.value }))}
+                            placeholder="ejemplo@correo.com"
+                        />
+                    </div>
+
+                    {/* Teléfono */}
+                    <div className="field col-12 md:col-6">
+                        <label htmlFor="telefonoCo">Teléfono</label>
+                        <InputText
+                            id="telefonoCo"
+                            value={coCompradorDraft.telefono}
+                            onChange={(e) => setCoCompradorDraft((prev) => ({ ...prev, telefono: e.target.value }))}
+                            placeholder="Ingrese teléfono"
+                        />
+                    </div>
+
+                    <div className="field col-12 md:col-6">
+                        <label htmlFor="estadoCivilCo">Estado Civil</label>
+                        <Dropdown
+                            id="estadoCivilCo"
+                            value={coCompradorDraft.estadoCivil || ''}
+                            options={estadoCivilOptions}
+                            onChange={(e) => setCoCompradorDraft((prev) => ({ ...prev, estadoCivil: e.value }))}
+                            placeholder="Seleccione estado civil"
+                            className="w-full"
+                            showClear
+                        />
+                    </div>
+
+                    <div className="field col-12 md:col-6">
+                        <label htmlFor="direccionCo">Dirección</label>
+                        <InputText
+                            id="direccionCo"
+                            value={coCompradorDraft.direccion || ''}
+                            onChange={(e) => setCoCompradorDraft((prev) => ({ ...prev, direccion: e.target.value }))}
+                            placeholder="Ingrese dirección"
+                        />
+                    </div>
+
+                    {/* Departamento */}
+                    <div className="field col-12 md:col-4">
+                        <label htmlFor="departamentoCo">Departamento</label>
+                        <Dropdown
+                            id="departamentoCo"
+                            value={coCompradorDraft.departamento}
+                            options={departamentos}
+                            onChange={(e) => onDepartamentoCoChange(e.value)}
+                            placeholder="Seleccione dep."
+                            className="w-full"
+                            filter
+                            filterPlaceholder="Buscar"
+                            showClear
+                        />
+                    </div>
+
+                    {/* Provincia */}
+                    <div className="field col-12 md:col-4">
+                        <label htmlFor="provinciaCo">Provincia</label>
+                        <Dropdown
+                            id="provinciaCo"
+                            value={coCompradorDraft.provincia}
+                            options={provinciasCo}
+                            onChange={(e) => onProvinciaCoChange(e.value)}
+                            placeholder="Seleccione prov."
+                            className="w-full"
+                            filter
+                            filterPlaceholder="Buscar"
+                            showClear
+                            disabled={!coCompradorDraft.departamento}
+                        />
+                    </div>
+
+                    {/* Distrito */}
+                    <div className="field col-12 md:col-4">
+                        <label htmlFor="distritoCo">Distrito</label>
+                        <Dropdown
+                            id="distritoCo"
+                            value={coCompradorDraft.distrito}
+                            options={distritosCo}
+                            onChange={(e) => onDistritoCoChange(e.value)}
+                            placeholder="Seleccione dist."
+                            className="w-full"
+                            filter
+                            filterPlaceholder="Buscar"
+                            showClear
+                            disabled={!coCompradorDraft.provincia}
+                        />
+                    </div>
+                </div>
+            </Dialog>
             {!embedded && (
                 <PageHeader
                     title="Gestión Comercial"

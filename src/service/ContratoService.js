@@ -27,6 +27,14 @@ export const ContratoService = {
         const client = resolveClient(httpClient);
         const response = await client.post(`${RESOURCE}/`, payload);
         return response.data;
+    },
+
+    generarDocumento: async (id, nuevoEstado, httpClient) => {
+        const client = resolveClient(httpClient);
+        const response = await client.post(`${RESOURCE}/${id}/generar-documento`, null, {
+            params: { nuevoEstado }
+        });
+        return response.data;
     }
 };
 

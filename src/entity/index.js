@@ -14,3 +14,4 @@ export { PagoEntity } from './PagoEntity';
 export { EstadoCuota, EstadoCuotaOptions } from './EstadoCuota';
 export { EstadoCotizacion, EstadoCotizacionOptions } from './EstadoCotizacion';
 export { CotizacionEntity } from './CotizacionEntity';
+export { ContratoHistorialEntity } from './ContratoHistorialEntity';
