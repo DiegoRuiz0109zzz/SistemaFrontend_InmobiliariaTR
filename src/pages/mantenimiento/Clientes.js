@@ -33,6 +33,13 @@ const Clientes = () => {
     const [departamentos, setDepartamentos] = useState([]);
     const [provincias, setProvincias] = useState([]);
     const [distritos, setDistritos] = useState([]);
+    const estadoCivilOptions = [
+        { label: 'Soltero(a)', value: 'Soltero(a)' },
+        { label: 'Casado(a)', value: 'Casado(a)' },
+        { label: 'Divorciado(a)', value: 'Divorciado(a)' },
+        { label: 'Viudo(a)', value: 'Viudo(a)' },
+        { label: 'Conviviente', value: 'Conviviente' }
+    ];
 
     const toast = useRef(null);
     const dt = useRef(null);
@@ -248,6 +255,7 @@ const Clientes = () => {
             nombres,
             apellidos,
             tipoDocumento,
+            estadoCivil: normalizeText(cliente.estadoCivil),
             departamento: normalizeText(cliente.departamento),
             provincia: normalizeText(cliente.provincia),
             distrito: normalizeText(cliente.distrito),
@@ -374,7 +382,7 @@ const Clientes = () => {
                             paginator
                             rows={10}
                             globalFilter={globalFilter}
-                            globalFilterFields={['numeroDocumento', 'tipoDocumento', 'nombres', 'apellidos', 'telefono', 'email', 'direccion']}
+                            globalFilterFields={['numeroDocumento', 'tipoDocumento', 'nombres', 'apellidos', 'estadoCivil', 'telefono', 'email', 'direccion']}
                             emptyMessage="No se encontraron clientes."
                         >
                             <Column header="N°" body={indexBodyTemplate} style={{ width: '80px', textAlign: 'center' }} />
@@ -382,6 +390,7 @@ const Clientes = () => {
                             <Column field="tipoDocumento" header="Tipo" style={{ minWidth: '120px' }} />
                             <Column field="nombres" header="Nombres" style={{ minWidth: '180px' }} />
                             <Column field="apellidos" header="Apellidos" style={{ minWidth: '180px' }} />
+                            <Column field="estadoCivil" header="Estado Civil" style={{ minWidth: '160px' }} />
                             <Column field="telefono" header="Teléfono" style={{ minWidth: '140px' }} />
                             <Column field="email" header="Correo" style={{ minWidth: '200px' }} />
                             <Column field="direccion" header="Dirección" style={{ minWidth: '220px' }} />
@@ -464,6 +473,19 @@ const Clientes = () => {
                                 className={submitted && !cliente.apellidos ? 'p-invalid' : ''}
                             />
                             {submitted && !cliente.apellidos && <small className="p-error">Los apellidos son requeridos.</small>}
+                        </div>
+
+                        <div className="field col-12 md:col-6">
+                            <label htmlFor="estadoCivil">Estado Civil</label>
+                            <Dropdown
+                                id="estadoCivil"
+                                value={cliente.estadoCivil || ''}
+                                options={estadoCivilOptions}
+                                onChange={(e) => onInputChange({ target: { value: e.value } }, 'estadoCivil')}
+                                placeholder="Seleccione estado civil"
+                                className="w-full"
+                                showClear
+                            />
                         </div>
 
                         <div className="field col-12 md:col-6">

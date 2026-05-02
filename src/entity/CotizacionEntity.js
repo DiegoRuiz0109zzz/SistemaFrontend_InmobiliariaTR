@@ -6,6 +6,7 @@ export const CotizacionEntity = {
     // Relaciones
     lote: null,
     interesado: null,
+    coCompradorId: null,
     vendedor: null,
 
     // Tipo de inicial: 'SEPARACION' | 'VENTA'

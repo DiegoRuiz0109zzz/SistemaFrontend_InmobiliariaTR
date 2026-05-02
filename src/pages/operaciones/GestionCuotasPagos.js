@@ -32,6 +32,12 @@ const GestionCuotasPagos = () => {
     const [contratoActivo, setContratoActivo] = useState(null);
 
     // ==========================================
+    // ESTADOS DE DETALLE CUOTA
+    // ==========================================
+    const [cuotaDetalle, setCuotaDetalle] = useState(null);
+    const [detalleCuotaVisible, setDetalleCuotaVisible] = useState(false);
+
+    // ==========================================
     // ESTADOS DE PAGOS Y MODALES
     // ==========================================
     const [cuotaPagar, setCuotaPagar] = useState(null);
@@ -267,14 +273,39 @@ const GestionCuotasPagos = () => {
     // ==========================================
     // TEMPLATES PRIMEREACT
     // ==========================================
-    const estadoLoteTemplate = (estado) => {
-        switch (estado) {
-            case 'PAGADO_TOTAL': return <Tag severity="success" value="PAGADO" icon="pi pi-check-circle" />;
-            case 'PAGADO_PARCIAL': return <Tag severity="warning" value="PARCIAL" icon="pi pi-clock" />;
-            case 'PENDIENTE': return <Tag severity="info" value="PENDIENTE" icon="pi pi-clock" />;
-            case 'VENCIDO': return <Tag severity="danger" value="VENCIDO" icon="pi pi-exclamation-triangle" />;
-            default: return <Tag value={estado || '-'} />;
+    const calcularDiasVencidos = (fechaVencimientoStr) => {
+        if (!fechaVencimientoStr) return 0;
+        let fecha;
+        if (fechaVencimientoStr.includes('/')) {
+            const [dia, mes, anio] = fechaVencimientoStr.split('/');
+            fecha = new Date(anio, mes - 1, dia);
+        } else {
+            fecha = new Date(fechaVencimientoStr + 'T00:00:00');
         }
+
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        fecha.setHours(0, 0, 0, 0);
+        
+        const diffTime = hoy.getTime() - fecha.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays > 0 ? diffDays : 0;
+    };
+
+    const estadoLoteTemplate = (estado, rowData) => {
+        if (estado === 'PAGADO_TOTAL') return <Tag severity="success" value="PAGADO" icon="pi pi-check-circle" />;
+        if (estado === 'PAGADO_PARCIAL') return <Tag severity="warning" value="PARCIAL" icon="pi pi-clock" />;
+        if (estado === 'PENDIENTE') return <Tag severity="info" value="PENDIENTE" icon="pi pi-clock" />;
+        if (estado === 'VENCIDA' || estado === 'VENCIDO') {
+            const dias = rowData ? calcularDiasVencidos(rowData.vencimiento) : 0;
+            return (
+                <div className="flex flex-column align-items-center">
+                    <Tag severity="danger" value="VENCIDA" icon="pi pi-exclamation-triangle" />
+                    {dias > 0 && <span className="text-xs text-red-600 font-bold mt-1">{dias} días de retraso</span>}
+                </div>
+            );
+        }
+        return <Tag value={estado || '-'} />;
     };
 
     const estadoReciboTemplate = (estado) => {
@@ -287,37 +318,19 @@ const GestionCuotasPagos = () => {
 
         return (
             <div className="flex justify-content-center align-items-center gap-2">
+                <Button icon="pi pi-eye" className="p-button-rounded p-button-text p-button-info bg-blue-50 hover:bg-blue-100" tooltip="Ver Detalle de Pagos" onClick={() => abrirDetalleCuota(rowData)} />
                 {estaCompleta ? (
-                    <span className="text-xs font-bold text-green-600 px-3 py-2 bg-green-50 border-round-xl shadow-1"><i className="pi pi-check-circle mr-1"></i>Completado</span>
+                    <span className="text-xs font-bold text-green-600 px-3 py-2 bg-green-50 border-round-xl shadow-1 flex align-items-center justify-content-center" style={{ minWidth: '95px' }}><i className="pi pi-check-circle mr-1"></i>Completado</span>
                 ) : (
-                    <Button label="Cobrar" icon="pi pi-wallet" className="p-button-sm btn-primary-custom shadow-2 border-round-xl font-bold" onClick={() => abrirPanelPago(rowData)} />
+                    <Button label="Cobrar" icon="pi pi-wallet" className="p-button-sm btn-primary-custom shadow-2 border-round-xl font-bold" style={{ minWidth: '95px' }} onClick={() => abrirPanelPago(rowData)} />
                 )}
             </div>
         );
     };
 
-    const rowExpansionTemplate = (cuota) => {
-        const pagosDeCuota = historialPagos.filter(p => p.cuotaId === cuota.id);
-        
-        return (
-            <div className="p-3 bg-indigo-50 border-round-xl border-1 border-indigo-100 shadow-inset-1 ml-4 mr-4 mb-2 mt-2 fade-in">
-                <h5 className="mt-0 mb-3 text-indigo-800 flex align-items-center text-lg"><i className="pi pi-list mr-2 text-xl text-primary"></i>Detalle de Pagos - Cuota N° {cuota.numero}</h5>
-                {pagosDeCuota.length > 0 ? (
-                    <DataTable value={pagosDeCuota} className="p-datatable-sm shadow-1 border-round-xl overflow-hidden custom-table">
-                        <Column field="id" header="Recibo" body={(r) => <span className="font-bold text-700">REC-{r.id}</span>}></Column>
-                        <Column field="fecha" header="Fecha"></Column>
-                        <Column field="metodo" header="Método"></Column>
-                        <Column field="numeroOperacion" header="N° Operación" body={(r) => r.numeroOperacion || '-'}></Column>
-                        <Column header="Voucher" body={(r) => r.fotoVoucherUrl ? <Button icon="pi pi-image" className="p-button-rounded p-button-text p-button-info" tooltip="Ver Voucher" onClick={() => setVoucherViewer(buildVoucherUrl(r.fotoVoucherUrl))} /> : <span className="text-400">-</span>} style={{ textAlign: 'center' }}></Column>
-                        <Column header="Monto" body={(r) => <span className="text-green-700 font-bold">S/ {r.monto.toLocaleString('en-US',{minimumFractionDigits:2})}</span>}></Column>
-                        <Column header="Estado" body={(r) => estadoReciboTemplate(r.estado)}></Column>
-                        <Column header="Acción" body={(r) => isPendiente(r.estado) ? <Button label="Procesar" icon="pi pi-cog" className="btn-warning-custom p-button-sm border-round-xl shadow-2 font-bold" onClick={() => abrirDialogoProcesar(r)} /> : <Button icon="pi pi-check" className="p-button-rounded p-button-text p-button-success" disabled />} style={{ width: '8rem', textAlign: 'center' }}></Column>
-                    </DataTable>
-                ) : (
-                    <div className="text-500 font-italic text-sm py-3 px-3 bg-white border-round-xl flex align-items-center shadow-1"><i className="pi pi-info-circle mr-2 text-primary text-lg"></i>No hay pagos registrados para esta cuota.</div>
-                )}
-            </div>
-        );
+    const abrirDetalleCuota = (cuota) => {
+        setCuotaDetalle(cuota);
+        setDetalleCuotaVisible(true);
     };
 
     const buildVoucherUrl = (url) => url ? `http://localhost:8080/${url.replace(/^\//, '')}` : null;
@@ -395,6 +408,33 @@ const GestionCuotasPagos = () => {
                             <Button label="Cancelar" icon="pi pi-times" className="p-button-text p-button-secondary" onClick={() => setPagoPendiente(null)} />
                             <Button label="Procesar Pago" icon="pi pi-check" className="p-button-success" onClick={procesarPagoPendienteAction} />
                         </div>
+                    </div>
+                )}
+            </Dialog>
+
+            {/* ===== MODAL DETALLE DE CUOTA ===== */}
+            <Dialog 
+                header={<><i className="pi pi-list text-primary mr-2"></i>Detalle de Pagos - Cuota N° {cuotaDetalle?.numero}</>} 
+                visible={detalleCuotaVisible} 
+                style={{ width: '800px', maxWidth: '95vw' }} 
+                onHide={() => setDetalleCuotaVisible(false)}
+            >
+                {cuotaDetalle && (
+                    <div className="pt-2">
+                        {historialPagos.filter(p => p.cuotaId === cuotaDetalle.id).length > 0 ? (
+                            <DataTable value={historialPagos.filter(p => p.cuotaId === cuotaDetalle.id)} className="p-datatable-sm shadow-1 border-round-xl overflow-hidden custom-table">
+                                <Column field="id" header="Recibo" body={(r) => <span className="font-bold text-700">REC-{r.id}</span>}></Column>
+                                <Column field="fecha" header="Fecha"></Column>
+                                <Column field="metodo" header="Método"></Column>
+                                <Column field="numeroOperacion" header="N° Operación" body={(r) => r.numeroOperacion || '-'}></Column>
+                                <Column header="Voucher" body={(r) => r.fotoVoucherUrl ? <Button icon="pi pi-image" className="p-button-rounded p-button-text p-button-info" tooltip="Ver Voucher" onClick={() => setVoucherViewer(buildVoucherUrl(r.fotoVoucherUrl))} /> : <span className="text-400">-</span>} style={{ textAlign: 'center' }}></Column>
+                                <Column header="Monto" body={(r) => <span className="text-green-700 font-bold">S/ {r.monto.toLocaleString('en-US',{minimumFractionDigits:2})}</span>}></Column>
+                                <Column header="Estado" body={(r) => estadoReciboTemplate(r.estado)}></Column>
+                                <Column header="Acción" body={(r) => isPendiente(r.estado) ? <Button label="Procesar" icon="pi pi-cog" className="btn-warning-custom p-button-sm border-round-xl shadow-2 font-bold" onClick={() => { setDetalleCuotaVisible(false); abrirDialogoProcesar(r); }} /> : <Button icon="pi pi-check" className="p-button-rounded p-button-text p-button-success" disabled />} style={{ width: '8rem', textAlign: 'center' }}></Column>
+                            </DataTable>
+                        ) : (
+                            <div className="text-500 font-italic text-sm py-4 px-3 bg-indigo-50 border-round-xl flex align-items-center justify-content-center shadow-inset-1"><i className="pi pi-info-circle mr-2 text-primary text-xl"></i>No hay pagos registrados para esta cuota.</div>
+                        )}
                     </div>
                 )}
             </Dialog>
@@ -569,13 +609,12 @@ const GestionCuotasPagos = () => {
                                             </div>
                                         </div>
 
-                                        <DataTable dataKey="id" value={contratoActivo.cuotas} expandedRows={expandedRows} onRowToggle={(e) => setExpandedRows(e.data)} rowExpansionTemplate={rowExpansionTemplate} scrollable scrollHeight="500px" className="p-datatable-sm custom-table" rowClassName={(data) => ({ 'bg-red-50': data.estado === 'VENCIDA' })}>
-                                            <Column expander style={{ width: '3rem' }} />
+                                        <DataTable dataKey="id" value={contratoActivo.cuotas} scrollable scrollHeight="500px" className="p-datatable-sm custom-table" rowClassName={(data) => ({ 'bg-red-50': data.estado === 'VENCIDA' })}>
                                             <Column field="numero" header="N°" style={{ width: '8%' }} body={(r) => r.numero === 0 ? '0 (Inicial)' : r.numero}></Column>
                                             <Column field="vencimiento" header="Vencimiento" style={{ width: '15%' }} body={(r) => <><i className="pi pi-calendar mr-2 text-400"></i>{r.vencimiento}</>}></Column>
                                             <Column header="Monto" body={(r) => `S/ ${r.monto.toLocaleString('en-US',{minimumFractionDigits:2})}`} style={{ width: '17%', textAlign: 'right', fontWeight: '500' }}></Column>
                                             <Column header="Deuda" body={(r) => r.monto - r.pagado > 0 ? <span className="font-bold text-orange-600">S/ {(r.monto - r.pagado).toLocaleString('en-US',{minimumFractionDigits:2})}</span> : '-'} style={{ width: '17%', textAlign: 'right' }}></Column>
-                                            <Column header="Estado" body={(r) => estadoLoteTemplate(r.estado)} style={{ width: '20%', textAlign: 'center' }}></Column>
+                                            <Column header="Estado" body={(r) => estadoLoteTemplate(r.estado, r)} style={{ width: '20%', textAlign: 'center' }}></Column>
                                             <Column header="Acción" body={accionesCuotaTemplate} style={{ width: '23%', textAlign: 'center' }}></Column>
                                         </DataTable>
                                     </div>

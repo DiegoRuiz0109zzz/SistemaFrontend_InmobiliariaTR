@@ -354,6 +354,22 @@
     border-bottom: 1px solid #f1f5f9;
 }
 
+.custom-table .p-datatable-tbody > tr:hover {
+    background-color: #f0f9ff !important;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.custom-table .p-datatable-tbody > tr.p-highlight {
+    background-color: #bae6fd !important;
+    color: #0369a1 !important;
+}
+
+.custom-table .p-datatable-tbody > tr.p-highlight td {
+    color: #0369a1 !important;
+    font-weight: 600;
+}
+
 /* =====================================
    Corregir contraste y adecuar colores de botones en inputs (N° Cuotas, Calendar)
    ===================================== */

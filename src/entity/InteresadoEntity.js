@@ -3,6 +3,8 @@ export const InteresadoEntity = {
     numeroDocumento: '',
     nombres: '',
     apellidos: '',
+    estadoCivil: '',
+    direccion: '',
     telefono: '',
     email: '',
     tipoDocumento: 'DNI',
@@ -12,4 +14,4 @@ export const InteresadoEntity = {
     ubigeo: '',
     fechaIngreso: null,
     enabled: true
-};
+};

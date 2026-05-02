@@ -33,6 +33,13 @@ const Interesados = () => {
     const [departamentos, setDepartamentos] = useState([]);
     const [provincias, setProvincias] = useState([]);
     const [distritos, setDistritos] = useState([]);
+    const estadoCivilOptions = [
+        { label: 'Soltero(a)', value: 'Soltero(a)' },
+        { label: 'Casado(a)', value: 'Casado(a)' },
+        { label: 'Divorciado(a)', value: 'Divorciado(a)' },
+        { label: 'Viudo(a)', value: 'Viudo(a)' },
+        { label: 'Conviviente', value: 'Conviviente' }
+    ];
 
     const toast = useRef(null);
     const dt = useRef(null);
@@ -246,6 +253,8 @@ const Interesados = () => {
             apellidos,
             telefono,
             tipoDocumento,
+            estadoCivil: normalizeText(interesado.estadoCivil),
+            direccion: normalizeText(interesado.direccion),
             email: normalizeText(interesado.email),
             departamento: normalizeText(interesado.departamento),
             provincia: normalizeText(interesado.provincia),
@@ -366,7 +375,7 @@ const Interesados = () => {
                             paginator
                             rows={10}
                             globalFilter={globalFilter}
-                            globalFilterFields={['numeroDocumento', 'tipoDocumento', 'nombres', 'apellidos', 'telefono', 'email', 'departamento', 'provincia', 'distrito']}
+                            globalFilterFields={['numeroDocumento', 'tipoDocumento', 'nombres', 'apellidos', 'estadoCivil', 'telefono', 'email', 'direccion', 'departamento', 'provincia', 'distrito']}
                             emptyMessage="No se encontraron interesados."
                         >
                             <Column header="N°" body={indexBodyTemplate} style={{ width: '80px', textAlign: 'center' }} />
@@ -374,8 +383,10 @@ const Interesados = () => {
                             <Column field="tipoDocumento" header="Tipo" style={{ minWidth: '120px' }} />
                             <Column field="nombres" header="Nombres" style={{ minWidth: '180px' }} />
                             <Column field="apellidos" header="Apellidos" style={{ minWidth: '180px' }} />
+                            <Column field="estadoCivil" header="Estado Civil" style={{ minWidth: '160px' }} />
                             <Column field="telefono" header="Teléfono" style={{ minWidth: '140px' }} />
                             <Column field="email" header="Correo" style={{ minWidth: '200px' }} />
+                            <Column field="direccion" header="Dirección" style={{ minWidth: '220px' }} />
                             <Column header="Fecha ingreso" body={(rowData) => formatFechaIngreso(rowData.fechaIngreso)} style={{ minWidth: '140px' }} />
                             <Column header="Acciones" body={actionBodyTemplate} style={{ minWidth: '140px', textAlign: 'center' }} />
                         </DataTable>
@@ -489,6 +500,29 @@ const Interesados = () => {
                                 className={submitted && !interesado.telefono ? 'p-invalid' : ''}
                             />
                             {submitted && !interesado.telefono && <small className="p-error">El teléfono es requerido.</small>}
+                        </div>
+
+                        <div className="field col-12 md:col-6">
+                            <label htmlFor="estadoCivil">Estado Civil</label>
+                            <Dropdown
+                                id="estadoCivil"
+                                value={interesado.estadoCivil || ''}
+                                options={estadoCivilOptions}
+                                onChange={(e) => onInputChange({ target: { value: e.value } }, 'estadoCivil')}
+                                placeholder="Seleccione estado civil"
+                                className="w-full"
+                                showClear
+                            />
+                        </div>
+
+                        <div className="field col-12 md:col-6">
+                            <label htmlFor="direccion">Dirección</label>
+                            <InputText
+                                id="direccion"
+                                value={interesado.direccion || ''}
+                                onChange={(e) => onInputChange(e, 'direccion')}
+                                placeholder="Ingrese dirección"
+                            />
                         </div>
 
                         {/* Departamento */}

@@ -27,6 +27,20 @@ export const ContratoService = {
         const client = resolveClient(httpClient);
         const response = await client.post(`${RESOURCE}/`, payload);
         return response.data;
+    },
+
+    generarDocumento: async (id, httpClient) => {
+        const client = resolveClient(httpClient);
+        const response = await client.post(`${RESOURCE}/${id}/generar-documento`);
+        return response.data;
+    },
+
+    generarVistaPreviaPdf: async (id, httpClient) => {
+        const client = resolveClient(httpClient);
+        const response = await client.get(`${RESOURCE}/${id}/vista-previa`, {
+            responseType: 'blob'
+        });
+        return response.data;
     }
 };
 

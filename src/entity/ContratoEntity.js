@@ -4,6 +4,7 @@ export const ContratoEntity = {
     // Relaciones
     lote: null,
     cliente: null,
+    coCompradorId: null,
     vendedor: null,
     cotizacionOrigen: null,
 
