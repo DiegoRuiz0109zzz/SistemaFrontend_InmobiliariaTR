@@ -21,7 +21,7 @@ import Register from './pages/Register';
 import Usuario from './pages/configuracion/Usuario';
 import Permisos from './pages/configuracion/Permisos';
 import Perfil from './pages/Perfil';
-import Dashboard from './pages/Dashboard';
+import Dashboard from './pages/dashboard/Dashboard';
 import Temas from './pages/Temas';
 import Empresas from './pages/Empresas';
 import Clientes from './pages/mantenimiento/Clientes';
