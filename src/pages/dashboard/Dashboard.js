@@ -3,6 +3,7 @@ import { Dropdown } from 'primereact/dropdown';
 import { Toast } from 'primereact/toast';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { Home, DollarSign, TrendingUp, AlertCircle, Calendar } from 'lucide-react';
+
 import { useAuth } from '../../context/AuthContext';
 import { DashboardService } from '../../service/DashboardService';
 import { UrbanizacionService } from '../../service/UrbanizacionService';
@@ -13,11 +14,12 @@ const Dashboard = () => {
     const { axiosInstance } = useAuth();
     const toast = useRef(null);
 
-    // Filters
+    // Estados para los selectores
     const [urbanizaciones, setUrbanizaciones] = useState([]);
     const [etapas, setEtapas] = useState([]);
     const [manzanas, setManzanas] = useState([]);
     
+    // Estado de filtros actual
     const [filtros, setFiltros] = useState({
         urbanizacionId: null,
         etapaId: null,
@@ -33,7 +35,7 @@ const Dashboard = () => {
         return Array.from({ length: 5 }, (_, i) => ({ label: `${currentYear - i}`, value: currentYear - i }));
     }, []);
 
-    // Cargar datos base para filtros
+    // 1. Cargar Urbanizaciones al inicio
     useEffect(() => {
         const cargarUbicaciones = async () => {
             try {
@@ -43,9 +45,10 @@ const Dashboard = () => {
                 console.error("Error cargando urbanizaciones", error);
             }
         };
-        cargarUbicaciones();
+        if(axiosInstance) cargarUbicaciones();
     }, [axiosInstance]);
 
+    // 2. Cargar Etapas cuando cambia la Urbanización
     useEffect(() => {
         const cargarEtapas = async () => {
             if (!filtros.urbanizacionId) {
@@ -56,11 +59,14 @@ const Dashboard = () => {
             try {
                 const res = await EtapaService.listarPorUrbanizacion(filtros.urbanizacionId, axiosInstance);
                 setEtapas(res.map(e => ({ label: e.nombre, value: e.id })));
-            } catch (error) {}
+            } catch (error) {
+                console.error("Error cargando etapas", error);
+            }
         };
         cargarEtapas();
     }, [filtros.urbanizacionId, axiosInstance]);
 
+    // 3. Cargar Manzanas cuando cambia la Etapa
     useEffect(() => {
         const cargarManzanas = async () => {
             if (!filtros.etapaId) {
@@ -70,14 +76,18 @@ const Dashboard = () => {
             try {
                 const res = await ManzanaService.listarPorEtapa(filtros.etapaId, axiosInstance);
                 setManzanas(res.map(m => ({ label: `Mz. ${m.nombre}`, value: m.id })));
-            } catch (error) {}
+            } catch (error) {
+                console.error("Error cargando manzanas", error);
+            }
         };
         cargarManzanas();
     }, [filtros.etapaId, axiosInstance]);
 
-    // Cargar Datos del Dashboard
+    // 4. Cargar la data maestra del Dashboard
     useEffect(() => {
         const fetchDashboardData = async () => {
+            if (!axiosInstance) return;
+            
             setLoading(true);
             try {
                 const result = await DashboardService.getDashboardData(
@@ -85,11 +95,11 @@ const Dashboard = () => {
                     filtros.etapaId, 
                     filtros.manzanaId, 
                     filtros.anio, 
-                    axiosInstance
+                    axiosInstance // PASAMOS EL TOKEN AQUÍ
                 );
                 setData(result);
             } catch (error) {
-                toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar el Dashboard.' });
+                toast.current?.show({ severity: 'error', summary: 'Acceso Denegado', detail: 'No se pudo cargar el Dashboard.' });
             } finally {
                 setLoading(false);
             }
@@ -103,13 +113,13 @@ const Dashboard = () => {
         return `S/ ${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     };
 
-    const COLORS_PIE = ['#10b981', '#f43f5e']; // Green for Sold, Red/Rose for Available
+    const COLORS_PIE = ['#10b981', '#f43f5e']; 
 
     return (
         <div className="dashboard-container p-4 min-h-screen bg-gray-50">
             <Toast ref={toast} />
             
-            {/* Header & Filters */}
+            {/* Cabecera y Filtros */}
             <div className="bg-white p-4 rounded-xl shadow-sm mb-6 border border-gray-100 flex flex-column md:flex-row justify-content-between align-items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-800 m-0 flex align-items-center"><TrendingUp className="mr-2 text-indigo-600" /> Panel de Control y KPI's</h1>
@@ -168,7 +178,7 @@ const Dashboard = () => {
                 <div className="flex justify-content-center align-items-center h-20rem">
                     <i className="pi pi-spin pi-spinner text-4xl text-indigo-500"></i>
                 </div>
-            ) : data && (
+            ) : data && data.kpis && (
                 <>
                     {/* Hero Card: Valor Total Proyectado */}
                     <div className="p-5 border-round-2xl shadow-4 mb-6 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #312e81 100%)' }}>
@@ -270,13 +280,13 @@ const Dashboard = () => {
 
                         {/* Finanzas: Cobrado vs Por Cobrar */}
                         <div className="col-12 lg:col-4">
-                            <div className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-l-orange-500 h-full flex flex-column justify-content-center relative overflow-hidden group">
+                            <div className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-orange-500 h-full flex flex-column justify-content-center relative overflow-hidden group">
                                 <div className="flex align-items-center justify-content-between mb-3 relative z-10">
                                     <div className="flex align-items-center">
                                         <div className="w-3rem h-3rem flex align-items-center justify-content-center bg-orange-100 rounded-full mr-3 text-orange-600">
                                             <AlertCircle size={24} />
                                         </div>
-                                        <h3 className="text-lg font-bold text-gray-800 m-0">Estado de Recaudación</h3>
+                                        <h3 className="text-lg font-bold text-gray-800 m-0">Estado Recaudación</h3>
                                     </div>
                                     <span className="text-sm font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-md border border-orange-200">
                                         {data.kpis.porcentajeRecaudacion}% Cobrado
@@ -322,8 +332,7 @@ const Dashboard = () => {
                                                 contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                                             />
                                             <Bar dataKey="montoVendido" radius={[4, 4, 0, 0]}>
-                                                {data.ventasPorMes.map((entry, index) => {
-                                                    // Destacar el mes con mayor venta
+                                                {data.ventasPorMes && data.ventasPorMes.map((entry, index) => {
                                                     const maxVenta = Math.max(...data.ventasPorMes.map(d => d.montoVendido));
                                                     const isMax = entry.montoVendido === maxVenta && maxVenta > 0;
                                                     return <Cell key={`cell-${index}`} fill={isMax ? '#4f46e5' : '#a5b4fc'} />;
@@ -346,8 +355,8 @@ const Dashboard = () => {
                                         <PieChart>
                                             <Pie
                                                 data={[
-                                                    { name: 'Vendidos', value: data.kpis.lotesVendidos },
-                                                    { name: 'Disponibles', value: data.kpis.lotesDisponibles }
+                                                    { name: 'Vendidos', value: data.kpis.lotesVendidos || 0 },
+                                                    { name: 'Disponibles', value: data.kpis.lotesDisponibles || 0 }
                                                 ]}
                                                 cx="50%"
                                                 cy="50%"

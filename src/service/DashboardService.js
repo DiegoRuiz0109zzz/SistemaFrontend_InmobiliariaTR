@@ -5,19 +5,27 @@ const RESOURCE = 'dashboard';
 const resolveClient = (httpClient) => httpClient || api;
 
 export const DashboardService = {
-    getDashboardData: async (urbanizacionId, etapaId, manzanaId, anio, httpClient) => {
-        const client = resolveClient(httpClient);
-        let url = `${RESOURCE}?`;
-        if (urbanizacionId) url += `urbanizacionId=${urbanizacionId}&`;
-        if (etapaId) url += `etapaId=${etapaId}&`;
-        if (manzanaId) url += `manzanaId=${manzanaId}&`;
-        if (anio) url += `anio=${anio}&`;
+    getDashboardData: async (urbanizacionId, etapaId, manzanaId, anio, axiosInstance) => {
+        // Validación de seguridad para asegurar que el token viaja
+        if (!axiosInstance) {
+            console.error("Crítico: No se proporcionó axiosInstance a DashboardService");
+            throw new Error("axiosInstance es requerido para la autenticación.");
+        }
+
+        // Usamos URLSearchParams para armar la URL de forma limpia y segura
+        const params = new URLSearchParams();
+        if (urbanizacionId) params.append('urbanizacionId', urbanizacionId);
+        if (etapaId) params.append('etapaId', etapaId);
+        if (manzanaId) params.append('manzanaId', manzanaId);
+        if (anio) params.append('anio', anio);
         
         try {
-            const response = await client.get(url);
+            // Nota: En tu proyecto, axiosInstance ya tiene configurado el baseURL (ej: /api)
+            // por lo que solo llamamos a 'dashboard'
+            const response = await axiosInstance.get('dashboard', { params });
             return response.data;
         } catch (error) {
-            console.error("Error fetching dashboard data", error);
+            console.error("Error al obtener los datos del dashboard:", error);
             throw error;
         }
     }
