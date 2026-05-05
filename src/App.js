@@ -34,6 +34,7 @@ import Contrato from './pages/operaciones/Contrato';
 import ListaContratos from './pages/operaciones/ListaContratos';
 import DetalleContrato from './pages/operaciones/DetalleContrato';
 import GestionCuotasPagos from './pages/operaciones/GestionCuotasPagos';
+import HistorialComercial from './pages/operaciones/HistorialComercial';
 
 function App() {
   return (
@@ -53,6 +54,7 @@ function App() {
               <Route exact path="/vendedores" element={<Vendedores />} />
               <Route exact path="/lotizacion" element={<Lotizacion />} />
               <Route exact path="/cotizacion" element={<NuevoRegistro />} />
+              <Route exact path="/historial-comercial" element={<HistorialComercial />} />
               <Route exact path="/cotizacion/lista" element={<ListaCotizaciones />} />
               <Route exact path="/contrato/nuevo" element={<Contrato />} />
               <Route exact path="/contrato/lista" element={<ListaContratos />} />

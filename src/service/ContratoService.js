@@ -23,6 +23,12 @@ export const ContratoService = {
         return response.data;
     },
 
+    simularResumen: async (payload, httpClient) => {
+        const client = resolveClient(httpClient);
+        const response = await client.post(`${RESOURCE}/simular/resumen`, payload);
+        return response.data;
+    },
+
     crear: async (payload, httpClient) => {
         const client = resolveClient(httpClient);
         const response = await client.post(`${RESOURCE}/`, payload);

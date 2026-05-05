@@ -6,6 +6,7 @@ export const CotizacionEntity = {
     // Relaciones
     lote: null,
     interesado: null,
+    coComprador: null,
     coCompradorId: null,
     vendedor: null,
 
@@ -17,13 +18,10 @@ export const CotizacionEntity = {
     montoInicialAcordado: null,
     cantidadCuotas: null,
 
-    // Cuotas especiales (flexibles)
-    cuotasEspeciales: null,
-    montoCuotaEspecial: null,
-    cuotasFlexibles: false,
-
-    montoCuotaCotizacion:null,
+    detalleTramos: '',
+    montoCuotaCotizacion: null,
     saldoFinanciar: null,
+    cuotasFlexibles: false,
 
     // Fechas
     fechaCotizacion: null,

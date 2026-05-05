@@ -53,15 +53,10 @@ const Menu = () => {
         ];
 
         menu.push({
-            label: 'Gestion Comercial',
-            items: [
-                { label: 'Nuevo Registro', icon: 'pi pi-fw pi-plus', to: 'cotizacion' }
-            ]
-        });
-
-        menu.push({
             label: 'Operaciones Inmobiliarias',
             items: [
+                { label: 'Cotizacion y contrato', icon: 'pi pi-fw pi-plus', to: 'cotizacion' },
+                { label: 'Historial comercial', icon: 'pi pi-fw pi-history', to: 'historial-comercial' },
                 {
                     label: 'Cotizacion',
                     icon: 'pi pi-fw pi-calculator',
@@ -76,13 +71,7 @@ const Menu = () => {
                         { label: 'Lista de Contratos', icon: 'pi pi-fw pi-list', to: 'contrato/lista' }
                     ]
                 },
-                {
-                    label: 'Gestion de Cuotas y Pagos',
-                    icon: 'pi pi-fw pi-money-bill',
-                    items: [
-                        { label: 'Cobranza', icon: 'pi pi-fw pi-wallet', to: 'cuotas-pagos' }
-                    ]
-                }
+                { label: 'Cobranza', icon: 'pi pi-fw pi-wallet', to: 'cuotas-pagos' }
             ]
         });
 

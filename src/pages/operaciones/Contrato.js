@@ -32,6 +32,14 @@ const Contrato = ({ embedded = false }) => {
     const navigate = useNavigate();
     const { axiosInstance } = useAuth();
     const toast = useRef(null);
+    const parseDetalleTramos = (value) => {
+        if (!value) return null;
+        try {
+            return JSON.parse(value);
+        } catch (error) {
+            return null;
+        }
+    };
 
     // ==========================================
     // ESTADOS DEL FORMULARIO
@@ -94,6 +102,13 @@ const Contrato = ({ embedded = false }) => {
     // Resultados y UI
     const [cronograma, setCronograma] = useState([]);
     const [descripcionGenerada, setDescripcionGenerada] = useState('');
+    const buildDetalleTramos = () => {
+        if (!isFlexible) return '';
+        return JSON.stringify({
+            cuotasEspeciales: Number(cuotasEspeciales) || 0,
+            montoEspecial: Number(montoEspecial) || 0
+        });
+    };
 
     // Cálculos reactivos
     const montoInicialEfectivo = tipoInicial === 'CERO' ? 0 : inicialAcordada;
@@ -330,9 +345,16 @@ const Contrato = ({ embedded = false }) => {
         const inicialCargada = seleccionada.montoInicialAcordado ?? 500;
         const cuotasCargadas = seleccionada.cantidadCuotas || 36;
         const tipoCargado = seleccionada.tipoInicial || 'PARCIAL';
-        const flexCargado = !!(seleccionada.cuotasFlexibles || seleccionada.cuotasEspeciales || seleccionada.montoCuotaEspecial);
-        const espCargadas = seleccionada.cuotasEspeciales || 0;
-        const mtoEspCargado = seleccionada.montoCuotaEspecial || 0;
+        const detalleTramos = parseDetalleTramos(seleccionada.detalleTramos);
+        const flexCargado = !!(
+            seleccionada.cuotasFlexibles ||
+            detalleTramos?.cuotasEspeciales ||
+            detalleTramos?.montoEspecial ||
+            seleccionada.cuotasEspeciales ||
+            seleccionada.montoCuotaEspecial
+        );
+        const espCargadas = detalleTramos?.cuotasEspeciales ?? seleccionada.cuotasEspeciales ?? 0;
+        const mtoEspCargado = detalleTramos?.montoEspecial ?? seleccionada.montoCuotaEspecial ?? 0;
 
         setInicialAcordada(inicialCargada);
         setAbonoReal(tipoCargado === 'TOTAL' ? inicialCargada : (inicialCargada * 0.2));
@@ -698,11 +720,10 @@ const Contrato = ({ embedded = false }) => {
                 cantidadCuotas: cuotas,
                 fechaInicioPago: fechaInicio.toISOString().split('T')[0],
                 fechaContrato: fechaRegistro.toISOString().split('T')[0],
-                cuotasEspeciales: isFlexible ? cuotasEspeciales : 0,
-                montoCuotaEspecial: isFlexible ? montoEspecial : 0,
                 cotizacionId: cotizacionOrigenId,
                 tipoInicial: tipoInicial,
                 cuotasFlexibles: isFlexible,
+                detalleTramos: buildDetalleTramos(),
                 observacion: observacion || ''
             };
 

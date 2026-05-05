@@ -26,6 +26,17 @@ const ListaCotizaciones = () => {
 
     // Estado para el Modal de Detalle
     const [cotizacionDetalle, setCotizacionDetalle] = useState(null);
+    const parseDetalleTramos = (value) => {
+        if (!value) return null;
+        try {
+            return JSON.parse(value);
+        } catch (error) {
+            return null;
+        }
+    };
+    const detalleTramos = parseDetalleTramos(cotizacionDetalle?.detalleTramos);
+    const cuotasEspeciales = detalleTramos?.cuotasEspeciales ?? cotizacionDetalle?.cuotasEspeciales ?? 0;
+    const montoEspecial = detalleTramos?.montoEspecial ?? cotizacionDetalle?.montoCuotaEspecial ?? 0;
 
     const cargarHistorial = async () => {
         setLoading(true);
@@ -291,13 +302,13 @@ const ListaCotizaciones = () => {
                                     </div>
 
                                     {/* Mostrar condiciones especiales si las hay */}
-                                    {cotizacionDetalle.cuotasEspeciales > 0 && (
+                                    {cuotasEspeciales > 0 && (
                                         <div className="mt-4 bg-orange-50 p-3 border-round border-1 border-orange-200 text-sm text-orange-800 shadow-1">
                                             <div className="flex align-items-center font-bold mb-2">
                                                 <i className="pi pi-star-fill mr-2 text-orange-500 text-lg"></i> 
                                                 Condición Especial
                                             </div>
-                                            <div>Las primeras <strong>{cotizacionDetalle.cuotasEspeciales} cuotas</strong> serán fijas por un monto de <strong>S/ {cotizacionDetalle.montoCuotaEspecial?.toLocaleString('en-US',{minimumFractionDigits:2})}</strong>.</div>
+                                            <div>Las primeras <strong>{cuotasEspeciales} cuotas</strong> serán fijas por un monto de <strong>S/ {montoEspecial?.toLocaleString('en-US',{minimumFractionDigits:2})}</strong>.</div>
                                         </div>
                                     )}
                                 </div>

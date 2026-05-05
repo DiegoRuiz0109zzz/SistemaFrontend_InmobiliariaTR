@@ -10,7 +10,7 @@ const NuevoRegistro = () => {
     return (
         <div className="contrato-page cotizacion-page">
             <PageHeader
-                title="Gestion Comercial"
+                title="Cotizacion y contrato"
                 description="Registro de cotizacion y contrato en un solo flujo."
                 icon="pi pi-briefcase"
             />

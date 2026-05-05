@@ -46,6 +46,14 @@ const Cotizacion = ({ embedded = false }) => {
         distrito: '',
         ubigeo: ''
     });
+    const parseDetalleTramos = (value) => {
+        if (!value) return null;
+        try {
+            return JSON.parse(value);
+        } catch (error) {
+            return null;
+        }
+    };
 
     // ==========================================
     // ESTADOS DEL FORMULARIO
@@ -95,6 +103,9 @@ const Cotizacion = ({ embedded = false }) => {
     const [isFlexible, setIsFlexible] = useState(false);
     const [cuotasEspeciales, setCuotasEspeciales] = useState(3);
     const [montoEspecial, setMontoEspecial] = useState(1000);
+    const [bloquesFlexibles, setBloquesFlexibles] = useState([
+        { cantidad: 3, monto: 1000, tipo: 'ESPECIAL' }
+    ]);
 
     // Tipo de Inicial
     const [tipoInicial, setTipoInicial] = useState(null);
@@ -105,6 +116,119 @@ const Cotizacion = ({ embedded = false }) => {
     // Resultados y UI
     const [cronograma, setCronograma] = useState([]);
     const [descripcionGenerada, setDescripcionGenerada] = useState('');
+    const [resumenSimulacion, setResumenSimulacion] = useState(null);
+    const buildDetalleTramos = () => {
+        if (!isFlexible) return '';
+        const bloques = (bloquesFlexibles || []).map((item) => ({
+            cantidad: Number(item.cantidad) || 0,
+            monto: Number(item.monto) || 0,
+            tipo: item.tipo || 'ESPECIAL'
+        }));
+        return JSON.stringify({
+            cuotasEspeciales: Number(cuotasEspeciales) || 0,
+            montoEspecial: Number(montoEspecial) || 0,
+            bloquesFlexibles: bloques
+        });
+    };
+    const buildBloquesFlexibles = () => {
+        const saldo = Number(saldoAFinanciar) || 0;
+        if (saldo <= 0 || !cuotas) return null;
+
+        if (!isFlexible) {
+            return [
+                {
+                    cantidad: Number(cuotas),
+                    monto: saldo / Number(cuotas),
+                    tipo: 'MENSUAL'
+                }
+            ];
+        }
+
+        const bloques = (bloquesFlexibles || [])
+            .map((item) => ({
+                cantidad: Number(item.cantidad) || 0,
+                monto: Number(item.monto) || 0,
+                tipo: item.tipo || 'ESPECIAL'
+            }))
+            .filter((item) => item.cantidad > 0 && item.monto > 0);
+
+        if (bloques.length === 0) return null;
+
+        return bloques;
+    };
+    const getAbonoEfectivo = () => (tipoInicial === 'TOTAL' ? inicialAcordada : abonoReal);
+    const buildSimulacionRequest = (abonoEf) => ({
+        precioTotal: lotePrecio,
+        montoInicial: abonoEf,
+        cantidadCuotas: isFlexible ? cuotas : cuotas,
+        fechaInicioPago: fechaInicio?.toISOString().split('T')[0],
+        cuotasFlexibles: isFlexible,
+        detalleTramos: buildDetalleTramos(),
+        cuotasEspeciales: isFlexible ? cuotasEspeciales : 0,
+        montoCuotaEspecial: isFlexible ? montoEspecial : 0,
+        bloquesFlexibles: buildBloquesFlexibles()
+    });
+    const buildBloquesParaSimulacion = (bloquesBase) => {
+        if (!isFlexible || !Array.isArray(bloquesBase)) return bloquesBase;
+
+        const diferencia = Number(resumenSimulacion?.diferencia || 0);
+        const excede = Boolean(resumenSimulacion?.excede);
+        const totalCuotas = bloquesBase.reduce((acc, item) => acc + (Number(item.cantidad) || 0), 0);
+        const restantes = Math.max(Number(cuotas) - totalCuotas, 0);
+        if (diferencia <= 0.1 || excede) return bloquesBase;
+
+        return [
+            ...bloquesBase,
+            { cantidad: restantes > 0 ? restantes : 1, monto: diferencia / (restantes > 0 ? restantes : 1), tipo: 'MENSUAL' }
+        ];
+    };
+    const solicitarResumen = async (payload) => {
+        try {
+            const resumen = await ContratoService.simularResumen(payload, axiosInstance);
+            if (resumen?.exito === false) {
+                setResumenSimulacion({
+                    exito: false,
+                    recomendacion: resumen?.mensaje || 'No se pudo calcular el resumen de tramos.'
+                });
+                return;
+            }
+
+            setResumenSimulacion({
+                exito: true,
+                ...(resumen?.datos || {})
+            });
+        } catch (error) {
+            setResumenSimulacion({
+                exito: false,
+                recomendacion: 'No se pudo obtener el resumen de tramos.'
+            });
+        }
+    };
+    const ensureBloqueInicial = (nextFlexible) => {
+        if (!nextFlexible) return;
+        if (bloquesFlexibles && bloquesFlexibles.length > 0) return;
+        setBloquesFlexibles([
+            {
+                cantidad: Number(cuotasEspeciales) || 3,
+                monto: Number(montoEspecial) || 1000,
+                tipo: 'ESPECIAL'
+            }
+        ]);
+    };
+    const addBloqueFlexible = () => {
+        setBloquesFlexibles((prev) => ([
+            ...(prev || []),
+            { cantidad: 1, monto: 0, tipo: 'ESPECIAL' }
+        ]));
+    };
+    const updateBloqueFlexible = (index, key, value) => {
+        setBloquesFlexibles((prev) =>
+            (prev || []).map((item, idx) => (idx === index ? { ...item, [key]: value } : item))
+        );
+    };
+    const removeBloqueFlexible = (index) => {
+        setBloquesFlexibles((prev) => (prev || []).filter((_, idx) => idx !== index));
+    };
 
     // Cálculos reactivos
     const abonoEfectivo = tipoInicial === 'TOTAL' ? inicialAcordada : abonoReal;
@@ -124,6 +248,37 @@ const Cotizacion = ({ embedded = false }) => {
     useEffect(() => {
         cargarDatosBase();
     }, []);
+
+    useEffect(() => {
+        if (!isFlexible) {
+            setResumenSimulacion(null);
+            return undefined;
+        }
+        if (!tipoInicial || !fechaInicio || saldoAFinanciar <= 0 || cuotas <= 0) {
+            setResumenSimulacion(null);
+            return undefined;
+        }
+
+        const handler = setTimeout(() => {
+            const abonoEf = getAbonoEfectivo();
+            const payload = buildSimulacionRequest(abonoEf);
+            solicitarResumen(payload);
+        }, 400);
+
+        return () => clearTimeout(handler);
+    }, [
+        isFlexible,
+        tipoInicial,
+        fechaInicio,
+        saldoAFinanciar,
+        cuotas,
+        lotePrecio,
+        inicialAcordada,
+        abonoReal,
+        cuotasEspeciales,
+        montoEspecial,
+        bloquesFlexibles
+    ]);
 
     const lotesOptions = useMemo(() =>
         lotes.map((item) => ({
@@ -488,9 +643,21 @@ const Cotizacion = ({ embedded = false }) => {
                 const inicialCargada = seleccionada.montoInicialAcordado ?? 500;
                 const cuotasCargadas = seleccionada.cantidadCuotas || 36;
                 const tipoCargado = seleccionada.tipoInicial || 'PARCIAL';
-                const flexCargado = !!(seleccionada.cuotasFlexibles || seleccionada.cuotasEspeciales || seleccionada.montoCuotaEspecial);
-                const espCargadas = seleccionada.cuotasEspeciales || 0;
-                const mtoEspCargado = seleccionada.montoCuotaEspecial || 0;
+                const detalleTramos = parseDetalleTramos(seleccionada.detalleTramos);
+                const flexCargado = !!(
+                    seleccionada.cuotasFlexibles ||
+                    detalleTramos?.cuotasEspeciales ||
+                    detalleTramos?.montoEspecial ||
+                    seleccionada.cuotasEspeciales ||
+                    seleccionada.montoCuotaEspecial
+                );
+                const espCargadas = detalleTramos?.cuotasEspeciales ?? seleccionada.cuotasEspeciales ?? 0;
+                const mtoEspCargado = detalleTramos?.montoEspecial ?? seleccionada.montoCuotaEspecial ?? 0;
+                const bloquesCargados = Array.isArray(detalleTramos?.bloquesFlexibles)
+                    ? detalleTramos.bloquesFlexibles
+                    : (flexCargado
+                        ? [{ cantidad: espCargadas || 0, monto: mtoEspCargado || 0, tipo: 'ESPECIAL' }]
+                        : []);
 
                 setInicialAcordada(inicialCargada);
                 setCuotas(cuotasCargadas);
@@ -498,6 +665,7 @@ const Cotizacion = ({ embedded = false }) => {
                 setIsFlexible(flexCargado);
                 setCuotasEspeciales(espCargadas);
                 setMontoEspecial(mtoEspCargado);
+                setBloquesFlexibles(bloquesCargados);
 
                 if (seleccionada.fechaInicioPago) setFechaInicio(new Date(seleccionada.fechaInicioPago));
 
@@ -564,16 +732,34 @@ const Cotizacion = ({ embedded = false }) => {
             return;
         }
 
+        const bloquesFlexibles = buildBloquesFlexibles();
+        if (!bloquesFlexibles || bloquesFlexibles.length === 0) {
+            toast.current.show({
+                severity: 'warn',
+                summary: 'Atención',
+                detail: 'Configure correctamente los tramos para simular.'
+            });
+            return;
+        }
+
         try {
-            const abonoEf = tipoInicial === 'TOTAL' ? inicialAcordada : abonoReal;
-            const simulacionRequest = {
-                precioTotal: lotePrecio,
-                montoInicial: abonoEf,
-                cantidadCuotas: cuotas,
-                fechaInicioPago: fechaInicio.toISOString().split('T')[0],
-                cuotasEspeciales: isFlexible ? cuotasEspeciales : 0,
-                montoCuotaEspecial: isFlexible ? montoEspecial : 0
-            };
+            const abonoEf = getAbonoEfectivo();
+            const simulacionRequest = buildSimulacionRequest(abonoEf);
+            if (isFlexible) {
+                const bloquesAjustados = buildBloquesParaSimulacion(simulacionRequest.bloquesFlexibles || []);
+                simulacionRequest.bloquesFlexibles = bloquesAjustados;
+                const totalProgramadas = bloquesAjustados.reduce((acc, item) => acc + item.cantidad, 0);
+                const diferencia = Number(resumenSimulacion?.diferencia || 0);
+                const excede = Boolean(resumenSimulacion?.excede);
+                const necesitaExtra = diferencia > 0.1 && !excede && cuotas <= totalProgramadas;
+                simulacionRequest.cantidadCuotas = necesitaExtra ? totalProgramadas + 1 : cuotas;
+            }
+
+            if (isFlexible) {
+                await solicitarResumen(simulacionRequest);
+            } else {
+                setResumenSimulacion(null);
+            }
 
             const respuesta = await ContratoService.simular(simulacionRequest, axiosInstance);
             if (Array.isArray(respuesta)) {
@@ -721,8 +907,7 @@ const Cotizacion = ({ embedded = false }) => {
                 montoInicialAcordado: inicialAcordada,
                 cantidadCuotas: cuotas,
                 fechaInicioPago: fechaInicio.toISOString().split('T')[0],
-                cuotasEspeciales: isFlexible ? cuotasEspeciales : 0,
-                montoCuotaEspecial: isFlexible ? montoEspecial : 0,
+                detalleTramos: buildDetalleTramos(),
                 cuotasFlexibles: isFlexible,
                 diasValidez: 7,
                 montoCuotaCotizacion: montoCuotaCotizacion,
@@ -1143,7 +1328,7 @@ const Cotizacion = ({ embedded = false }) => {
                                 <div className="grid fade-in">
                                     <div className="col-12 md:col-6">
                                         <label className="font-bold text-xs uppercase text-orange-900">Abono Hoy (S/)</label>
-                                        <InputNumber value={abonoReal} onValueChange={(e) => setAbonoReal(e.value)} mode="currency" currency="PEN" className="input-highlight-orange" />
+                                        <InputNumber value={abonoReal} onValueChange={(e) => setAbonoReal(e.value)} mode="currency" currency="PEN" className="input-highlight-orange w-full" />
                                     </div>
                                     {esSeparacion && (
                                         <div className="col-12 md:col-6">
@@ -1184,25 +1369,90 @@ const Cotizacion = ({ embedded = false }) => {
                     </div>
 
                     <div className="flex align-items-center mb-3">
-                        <Checkbox inputId="flexible" checked={isFlexible} onChange={e => setIsFlexible(e.checked)} />
+                        <Checkbox
+                            inputId="flexible"
+                            checked={isFlexible}
+                            onChange={(e) => {
+                                setIsFlexible(e.checked);
+                                ensureBloqueInicial(e.checked);
+                            }}
+                        />
                         <label htmlFor="flexible" className="ml-2 font-medium text-sm text-700 cursor-pointer">Simulación Especial (Cuotas Mixtas)</label>
                     </div>
 
                     {isFlexible && (
-                        <div className="p-fluid grid flexible-box fade-in">
-                            <div className="field col-12 md:col-6 mb-0">
-                                <label className="text-xs font-bold text-orange-800 uppercase">Primeras N Cuotas Fijas</label>
-                                <InputNumber value={cuotasEspeciales} onValueChange={(e) => setCuotasEspeciales(e.value)} placeholder="Ej: 3" />
+                        <div className="p-fluid flexible-box fade-in">
+                            <div className="flex justify-content-between align-items-center mb-2">
+                                <span className="text-xs font-bold text-orange-800 uppercase">Tramos de cuotas</span>
+                                <Button
+                                    type="button"
+                                    icon="pi pi-plus"
+                                    label="Agregar tramo"
+                                    className="p-button-text p-button-sm"
+                                    onClick={addBloqueFlexible}
+                                />
                             </div>
-                            <div className="field col-12 md:col-6 mb-0">
-                                <label className="text-xs font-bold text-orange-800 uppercase">Monto Especial Fijo (S/)</label>
-                                <InputNumber value={montoEspecial} onValueChange={(e) => setMontoEspecial(e.value)} mode="currency" currency="PEN" placeholder="Ej: 1000" />
-                            </div>
+                            {bloquesFlexibles.length === 0 && (
+                                <div className="text-sm text-500">Agregue al menos un tramo para continuar.</div>
+                            )}
+                            {bloquesFlexibles.map((bloque, index) => (
+                                <div key={`bloque-${index}`} className="grid mb-2">
+                                    <div className="field col-12 md:col-4 mb-0">
+                                        <label className="text-xs font-bold text-orange-800 uppercase">Cantidad</label>
+                                        <InputNumber
+                                            value={bloque.cantidad}
+                                            onValueChange={(e) => {
+                                                updateBloqueFlexible(index, 'cantidad', e.value);
+                                                if (index === 0) setCuotasEspeciales(e.value);
+                                            }}
+                                            min={1}
+                                        />
+                                    </div>
+                                    <div className="field col-12 md:col-4 mb-0">
+                                        <label className="text-xs font-bold text-orange-800 uppercase">Monto (S/)</label>
+                                        <InputNumber
+                                            value={bloque.monto}
+                                            onValueChange={(e) => {
+                                                updateBloqueFlexible(index, 'monto', e.value);
+                                                if (index === 0) setMontoEspecial(e.value);
+                                            }}
+                                            mode="currency"
+                                            currency="PEN"
+                                        />
+                                    </div>
+                                    <div className="field col-12 md:col-3 mb-0">
+                                        <label className="text-xs font-bold text-orange-800 uppercase">Tipo</label>
+                                        <Dropdown
+                                            value={bloque.tipo || 'ESPECIAL'}
+                                            options={[
+                                                { label: 'Especial', value: 'ESPECIAL' },
+                                                { label: 'Mensual', value: 'MENSUAL' }
+                                            ]}
+                                            onChange={(e) => updateBloqueFlexible(index, 'tipo', e.value)}
+                                            className="w-full"
+                                        />
+                                    </div>
+                                    <div className="field col-12 md:col-1 mb-0 flex align-items-end">
+                                        <Button
+                                            type="button"
+                                            icon="pi pi-trash"
+                                            className="p-button-text p-button-danger"
+                                            onClick={() => removeBloqueFlexible(index)}
+                                            disabled={bloquesFlexibles.length === 1}
+                                        />
+                                    </div>
+                                </div>
+                            ))}
+                            {resumenSimulacion && (
+                                <div className={`mt-3 p-3 border-round border-1 text-sm ${resumenSimulacion.exito === false ? 'border-red-200 bg-red-50 text-red-800' : (resumenSimulacion.excede ? 'border-orange-200 bg-orange-50 text-orange-800' : 'border-green-200 bg-green-50 text-green-800')}`}>
+                                    {resumenSimulacion.recomendacion || 'Resumen de tramos no disponible.'}
+                                </div>
+                            )}
                         </div>
                     )}
 
                     <div className="mt-4">
-                        <Button label="Simular Cronograma Oficial" icon="pi pi-cog" className="w-full btn-primary-custom p-button-lg shadow-3 border-round-xl" onClick={simular} />
+                        <Button label="Simular Cronograma" icon="pi pi-cog" className="w-full btn-primary-custom p-button-lg shadow-3 border-round-xl" onClick={simular} />
                     </div>
                 </div>
             </div>

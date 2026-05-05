@@ -4,6 +4,7 @@ export const ContratoEntity = {
     // Relaciones
     lote: null,
     cliente: null,
+    coComprador: null,
     coCompradorId: null,
     vendedor: null,
     cotizacionOrigen: null,
@@ -17,6 +18,7 @@ export const ContratoEntity = {
     saldoFinanciar: null,
 
     cantidadCuotas: null,
+    detalleTramos: '',
     descripcion: '',
     observacion: '',
 
