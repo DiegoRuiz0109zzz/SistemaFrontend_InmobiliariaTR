@@ -94,8 +94,8 @@ const Cotizacion = ({ embedded = false }) => {
     
     // Parámetros Flexibles (Cuotas Especiales)
     const [isFlexible, setIsFlexible] = useState(false);
-    const [cuotasEspeciales, setCuotasEspeciales] = useState(3);
-    const [montoEspecial, setMontoEspecial] = useState(1000);
+    const [cuotasEspeciales, setCuotasEspeciales] = useState(0);
+    const [montoEspecial, setMontoEspecial] = useState(0);
 
     // Tipo de Inicial
     const [tipoInicial, setTipoInicial] = useState(null);
@@ -106,6 +106,24 @@ const Cotizacion = ({ embedded = false }) => {
     // Resultados y UI
     const [cronograma, setCronograma] = useState([]);
     const [descripcionGenerada, setDescripcionGenerada] = useState('');
+
+    // Utilidades de Fechas
+    const parseLocalYMD = (dateString) => {
+        if (!dateString) return null;
+        if (dateString.includes('T')) return new Date(dateString);
+        const [y, m, d] = dateString.split('-');
+        return new Date(y, m - 1, d);
+    };
+
+    const getLocalYMD = (dateObj) => {
+        if (!dateObj) return null;
+        const d = dateObj instanceof Date ? dateObj : new Date(dateObj);
+        if (Number.isNaN(d.getTime())) return null;
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    };
 
     // Cálculos reactivos
     const abonoEfectivo = tipoInicial === 'TOTAL' ? inicialAcordada : abonoReal;
@@ -539,7 +557,7 @@ const Cotizacion = ({ embedded = false }) => {
                 setCuotasEspeciales(espCargadas);
                 setMontoEspecial(mtoEspCargado);
 
-                if (seleccionada.fechaInicioPago) setFechaInicio(new Date(seleccionada.fechaInicioPago));
+                if (seleccionada.fechaInicioPago) setFechaInicio(parseLocalYMD(seleccionada.fechaInicioPago));
 
                 setTimeout(() => {
                     simular();
@@ -608,9 +626,9 @@ const Cotizacion = ({ embedded = false }) => {
             const abonoEf = tipoInicial === 'TOTAL' ? inicialAcordada : abonoReal;
             const simulacionRequest = {
                 precioTotal: lotePrecio,
-                montoInicial: abonoEf,
+                montoInicial: inicialAcordada,
                 cantidadCuotas: cuotas,
-                fechaInicioPago: fechaInicio.toISOString().split('T')[0],
+                fechaInicioPago: getLocalYMD(fechaInicio),
                 cuotasEspeciales: isFlexible ? cuotasEspeciales : 0,
                 montoCuotaEspecial: isFlexible ? montoEspecial : 0
             };
@@ -623,7 +641,7 @@ const Cotizacion = ({ embedded = false }) => {
                     montoTotal: inicialAcordada,
                     montoPagado: abonoEf,
                     saldoPendiente: Math.max(inicialAcordada - abonoEf, 0),
-                    fecha: fechaLimiteInicial.toISOString().split('T')[0],
+                    fecha: getLocalYMD(fechaLimiteInicial),
                     estado: esSeparacion ? 'PAGADO_PARCIAL' : 'PAGADO_TOTAL'
                 };
 
@@ -761,7 +779,7 @@ const Cotizacion = ({ embedded = false }) => {
                 montoInicialAcordado: inicialAcordada,
                 montoAbonadoIncial: abonoEfectivo,
                 cantidadCuotas: cuotas,
-                fechaInicioPago: fechaInicio.toISOString().split('T')[0],
+                fechaInicioPago: getLocalYMD(fechaInicio),
                 cuotasEspeciales: isFlexible ? cuotasEspeciales : 0,
                 montoCuotaEspecial: isFlexible ? montoEspecial : 0,
                 cuotasFlexibles: isFlexible,
@@ -830,8 +848,8 @@ const Cotizacion = ({ embedded = false }) => {
 
     const formatFechaLarga = (value) => {
         if (!value) return '';
-        const date = value instanceof Date ? value : new Date(value);
-        if (Number.isNaN(date.getTime())) return '';
+        const date = value instanceof Date ? value : parseLocalYMD(value);
+        if (!date || Number.isNaN(date.getTime())) return '';
         const meses = [
             'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
             'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'

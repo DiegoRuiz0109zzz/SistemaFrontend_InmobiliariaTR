@@ -98,6 +98,24 @@ const Contrato = ({ embedded = false }) => {
     const [cronograma, setCronograma] = useState([]);
     const [descripcionGenerada, setDescripcionGenerada] = useState('');
 
+    // Utilidades de Fechas
+    const parseLocalYMD = (dateString) => {
+        if (!dateString) return null;
+        if (dateString.includes('T')) return new Date(dateString);
+        const [y, m, d] = dateString.split('-');
+        return new Date(y, m - 1, d);
+    };
+
+    const getLocalYMD = (dateObj) => {
+        if (!dateObj) return null;
+        const d = dateObj instanceof Date ? dateObj : new Date(dateObj);
+        if (Number.isNaN(d.getTime())) return null;
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    };
+
     // Cálculos reactivos
     const montoInicialEfectivo = tipoInicial === 'CERO' ? 0 : inicialAcordada;
     const abonoEfectivo = tipoInicial === 'TOTAL' ? inicialAcordada : tipoInicial === 'CERO' ? 0 : abonoReal;
@@ -397,7 +415,7 @@ const Contrato = ({ embedded = false }) => {
         setCuotasEspeciales(espCargadas);
         setMontoEspecial(mtoEspCargado);
 
-        if (seleccionada.fechaInicioPago) setFechaInicio(new Date(seleccionada.fechaInicioPago));
+        if (seleccionada.fechaInicioPago) setFechaInicio(parseLocalYMD(seleccionada.fechaInicioPago));
 
         setTimeout(() => {
             simularConDatos(precioLoteCargado, inicialCargada, cuotasCargadas, tipoCargado, flexCargado, espCargadas, mtoEspCargado);
@@ -619,7 +637,7 @@ const Contrato = ({ embedded = false }) => {
             nc.push({
                 numero: 0, tipoCuota: 'INICIAL', montoTotal: iniEf,
                 montoPagado: abonoEf, saldoPendiente: Math.max(falta, 0),
-                fecha: fechaLimiteInicial.toISOString().split('T')[0],
+                fecha: getLocalYMD(fechaLimiteInicial),
                 estado: esSep ? 'PAGADO_PARCIAL' : 'PAGADO_TOTAL'
             });
         }
@@ -646,7 +664,7 @@ const Contrato = ({ embedded = false }) => {
                 montoTotal: Math.round(m * 100) / 100, 
                 montoPagado: 0, 
                 saldoPendiente: Math.round(m * 100) / 100, 
-                fecha: dt.toISOString().split('T')[0], 
+                fecha: getLocalYMD(dt), 
                 estado: 'PENDIENTE' 
             });
         }
@@ -669,8 +687,8 @@ const Contrato = ({ embedded = false }) => {
 
     const formatDate = (value) => {
         if (!value) return '';
-        const date = value instanceof Date ? value : new Date(value);
-        if (Number.isNaN(date.getTime())) return '';
+        const date = value instanceof Date ? value : parseLocalYMD(value);
+        if (!date || Number.isNaN(date.getTime())) return '';
         return date.toLocaleDateString('es-PE');
     };
 
@@ -749,10 +767,10 @@ const Contrato = ({ embedded = false }) => {
                 precioTotal: lotePrecio,
                 montoInicialAcordado: inicialAcordada,
                 abonoInicialReal: abonoEfectivo,
-                fechaLimiteInicial: tipoInicial !== 'CERO' ? fechaLimiteInicial.toISOString().split('T')[0] : null,
+                fechaLimiteInicial: tipoInicial !== 'CERO' ? getLocalYMD(fechaLimiteInicial) : null,
                 cantidadCuotas: cuotas,
-                fechaInicioPago: fechaInicio.toISOString().split('T')[0],
-                fechaContrato: fechaRegistro.toISOString().split('T')[0],
+                fechaInicioPago: getLocalYMD(fechaInicio),
+                fechaContrato: getLocalYMD(fechaRegistro),
                 cuotasEspeciales: isFlexible ? cuotasEspeciales : 0,
                 montoCuotaEspecial: isFlexible ? montoEspecial : 0,
                 cotizacionId: cotizacionOrigenId,
@@ -938,10 +956,10 @@ const Contrato = ({ embedded = false }) => {
                                                 {loteSeleccionado ? (
                                                     <>
                                                         <span className="text-lg font-bold text-green-900 block">{`${loteSeleccionado.manzana?.etapa?.urbanizacion?.nombre || ''}`}</span>
-                                                        <span className="text-sm text-green-700 font-medium block mb-2">{`${loteSeleccionado.manzana?.etapa?.nombre || ''} - Mz ${loteSeleccionado.manzana?.nombre || ''} Lt ${loteSeleccionado.numero || ''}`}</span>
+                                                        <span className="text-sm text-green-700 font-bold block mb-2">{`${loteSeleccionado.manzana?.etapa?.nombre || ''} - Mz ${loteSeleccionado.manzana?.nombre || ''} Lt ${loteSeleccionado.numero || ''}`}</span>
                                                         <div className="mt-auto pt-2 flex justify-content-between align-items-center">
                                                             <span className="text-green-800 font-bold bg-green-200 px-2 py-1 border-round text-sm"><i className="pi pi-expand mr-1"></i>Área: {loteSeleccionado.area} m²</span>
-                                                            <span className="text-xl font-black text-green-700">S/ {parseFloat(loteSeleccionado.precioVenta || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                                            <span className="text-xl font-bold text-green-700">S/ {parseFloat(loteSeleccionado.precioVenta || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                                                         </div>
                                                     </>
                                                 ) : (
@@ -969,37 +987,37 @@ const Contrato = ({ embedded = false }) => {
                                             {/* Highlighted core numbers */}
                                             <div className="col-12 md:col-6 mb-3">
                                                 <span className="text-xs text-blue-600 uppercase font-bold block mb-1">Saldo a Financiar</span>
-                                                <span className="text-3xl font-black text-blue-800">S/ {saldoAFinanciar.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                                <span className="text-3xl font-bold text-blue-800">S/ {saldoAFinanciar.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                                             </div>
                                             <div className="col-12 md:col-6 mb-3">
                                                 <span className="text-xs text-green-600 uppercase font-bold block mb-1">Promedio por Cuota ({cuotas})</span>
-                                                <span className="text-3xl font-black text-green-700">S/ {cuotaPromedio.toLocaleString('en-US', { minimumFractionDigits: 2 })} <span className="text-sm font-normal text-600">/ mes</span></span>
+                                                <span className="text-3xl font-bold text-green-700">S/ {cuotaPromedio.toLocaleString('en-US', { minimumFractionDigits: 2 })} <span className="text-sm font-bold text-600">/ mes</span></span>
                                             </div>
                                             
                                             {/* Details row */}
                                             <div className="col-12 md:col-3 mb-2">
                                                 <div className="p-3 border-round border-1 surface-border bg-white shadow-1 h-full text-center">
                                                     <span className="text-xs text-700 uppercase font-bold block mb-1">Precio Inmueble</span>
-                                                    <span className="text-xl font-black text-800">S/ {parseFloat(lotePrecio || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                                    <span className="text-xl font-bold text-800">S/ {parseFloat(lotePrecio || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                                                 </div>
                                             </div>
                                             <div className="col-12 md:col-3 mb-2">
                                                 <div className="p-3 border-round border-1 surface-border bg-white shadow-1 h-full text-center">
                                                     <span className="text-xs text-700 uppercase font-bold block mb-1">Inicial Acordada</span>
-                                                    <span className="text-xl font-black text-green-700">S/ {parseFloat(inicialAcordada || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                                    <span className="text-xl font-bold text-green-700">S/ {parseFloat(inicialAcordada || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                                                 </div>
                                             </div>
                                             <div className="col-12 md:col-3 mb-2">
                                                 <div className="p-3 border-round border-1 surface-border bg-white shadow-1 h-full text-center">
                                                     <span className="text-xs text-700 uppercase font-bold block mb-1">Plan de Cuotas</span>
-                                                    <span className="text-xl font-black text-800">{cuotas} meses</span>
+                                                    <span className="text-xl font-bold text-800">{cuotas} meses</span>
                                                     {isFlexible && <div className="text-xs text-orange-600 mt-1 font-bold"><i className="pi pi-star-fill text-xs mr-1"></i>Mixtas</div>}
                                                 </div>
                                             </div>
                                             <div className="col-12 md:col-3 mb-2">
                                                 <div className="p-3 border-round border-1 surface-border bg-white shadow-1 h-full text-center">
                                                     <span className="text-xs text-700 uppercase font-bold block mb-1">Día de Pago</span>
-                                                    <span className="text-xl font-black text-800">{fechaInicio instanceof Date ? fechaInicio.toLocaleDateString('es-PE', { day: '2-digit' }) : '-'}</span>
+                                                    <span className="text-xl font-bold text-800">{fechaInicio instanceof Date ? fechaInicio.toLocaleDateString('es-PE', { day: '2-digit' }) : '-'}</span>
                                                 </div>
                                             </div>
                                             <div className="col-12 mt-2">
