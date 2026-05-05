@@ -25,6 +25,7 @@ import { CotizacionService } from '../../service/CotizacionService';
 import { ContratoService } from '../../service/ContratoService';
 import { UbigeoService } from '../../service/UbigeoService';
 import { InteresadoService } from '../../service/InteresadoService';
+import { EstadoLote } from '../../entity/EstadoLote';
 
 import './Contrato.css';
 import './Cotizacion.css';
@@ -108,8 +109,8 @@ const Cotizacion = ({ embedded = false }) => {
 
     // Cálculos reactivos
     const abonoEfectivo = tipoInicial === 'TOTAL' ? inicialAcordada : abonoReal;
-    const esSeparacion = tipoInicial === 'PARCIAL' && abonoReal < inicialAcordada;
-    const faltaPagarInicial = inicialAcordada - abonoEfectivo;
+    const esSeparacion = tipoInicial === 'PARCIAL' && (inicialAcordada === 100 || abonoReal < inicialAcordada);
+    const faltaPagarInicial = Math.max(inicialAcordada - abonoEfectivo, 0);
     const saldoAFinanciar = lotePrecio - inicialAcordada;
 
     const bgCuotaCero = tipoInicial === 'PARCIAL' 
@@ -125,11 +126,48 @@ const Cotizacion = ({ embedded = false }) => {
         cargarDatosBase();
     }, []);
 
+    useEffect(() => {
+        if (inicialAcordada === 100) {
+            setTipoInicial('PARCIAL');
+            setAbonoReal(100);
+        }
+    }, [inicialAcordada]);
+
+    const resetFormulario = () => {
+        setDni('');
+        setCliente(null);
+        setCoCompradorSeleccionado(null);
+        setMostrarCoComprador(false);
+        setCoCompradorModalVisible(false);
+        setCoCompradorDraft(crearCoCompradorVacio());
+        setLoteSeleccionado(null);
+        setVendedorSeleccionado(null);
+        setUrbanizacionSeleccionada(null);
+        setEtapaSeleccionada(null);
+        setManzanaSeleccionada(null);
+        setLotePrecio(0);
+        setInicialAcordada(0);
+        setAbonoReal(0);
+        setFechaLimiteInicial(new Date(new Date().setDate(new Date().getDate() + 15)));
+        setCuotas(36);
+        setFechaInicio(new Date(new Date().setMonth(new Date().getMonth() + 1)));
+        setIsFlexible(false);
+        setCuotasEspeciales(3);
+        setMontoEspecial(1000);
+        setTipoInicial(null);
+        setObservacion('');
+        setCronograma([]);
+        setDescripcionGenerada('');
+    };
+
     const lotesOptions = useMemo(() =>
-        lotes.map((item) => ({
-            ...item,
-            descripcion: `${item?.manzana?.etapa?.urbanizacion?.nombre || ''} / ${item?.manzana?.etapa?.nombre || ''} / Mz ${item?.manzana?.nombre || ''} - Lote ${item?.numero || ''}`.trim()
-        })),
+        (lotes || [])
+            .filter((item) => item?.enabled !== false)
+            .filter((item) => (item?.estadoVenta || '').toUpperCase() === EstadoLote.DISPONIBLE)
+            .map((item) => ({
+                ...item,
+                descripcion: `${item?.manzana?.etapa?.urbanizacion?.nombre || ''} / ${item?.manzana?.etapa?.nombre || ''} / Mz ${item?.manzana?.nombre || ''} - Lote ${item?.numero || ''}`.trim()
+            })),
         [lotes]
     );
 
@@ -488,6 +526,7 @@ const Cotizacion = ({ embedded = false }) => {
                 const inicialCargada = seleccionada.montoInicialAcordado ?? 500;
                 const cuotasCargadas = seleccionada.cantidadCuotas || 36;
                 const tipoCargado = seleccionada.tipoInicial || 'PARCIAL';
+                const abonoCargado = seleccionada.montoAbonadoIncial ?? (tipoCargado === 'TOTAL' ? inicialCargada : 0);
                 const flexCargado = !!(seleccionada.cuotasFlexibles || seleccionada.cuotasEspeciales || seleccionada.montoCuotaEspecial);
                 const espCargadas = seleccionada.cuotasEspeciales || 0;
                 const mtoEspCargado = seleccionada.montoCuotaEspecial || 0;
@@ -495,6 +534,7 @@ const Cotizacion = ({ embedded = false }) => {
                 setInicialAcordada(inicialCargada);
                 setCuotas(cuotasCargadas);
                 setTipoInicial(tipoCargado);
+                setAbonoReal(abonoCargado);
                 setIsFlexible(flexCargado);
                 setCuotasEspeciales(espCargadas);
                 setMontoEspecial(mtoEspCargado);
@@ -719,6 +759,7 @@ const Cotizacion = ({ embedded = false }) => {
                 tipoInicial: tipoInicial,
                 precioTotal: lotePrecio,
                 montoInicialAcordado: inicialAcordada,
+                montoAbonadoIncial: abonoEfectivo,
                 cantidadCuotas: cuotas,
                 fechaInicioPago: fechaInicio.toISOString().split('T')[0],
                 cuotasEspeciales: isFlexible ? cuotasEspeciales : 0,
@@ -738,12 +779,7 @@ const Cotizacion = ({ embedded = false }) => {
                 throw cotizacionError;
             }
             toast.current.show({ severity: 'success', summary: '¡Éxito!', detail: 'Cotización guardada correctamente.' });
-            setCronograma([]);
-            setObservacion('');
-            setCoCompradorSeleccionado(null);
-            setCoCompradorDraft(crearCoCompradorVacio());
-            setMostrarCoComprador(false);
-            setCoCompradorModalVisible(false);
+            resetFormulario();
         } catch (error) {
             toast.current.show({ severity: 'error', summary: 'Error', detail: 'No se pudo guardar la cotización.' });
         }
@@ -789,7 +825,21 @@ const Cotizacion = ({ embedded = false }) => {
                 ? <Tag severity="warning" value="FALTA INICIAL" />
                 : <Tag severity="success" value="PAGADO" />;
         }
-        return <span className="status-badge proyectado">Proyectado</span>;
+        return <Tag severity="info" value="PENDIENTE" />;
+    };
+
+    const formatFechaLarga = (value) => {
+        if (!value) return '';
+        const date = value instanceof Date ? value : new Date(value);
+        if (Number.isNaN(date.getTime())) return '';
+        const meses = [
+            'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
+            'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'
+        ];
+        const dia = date.getDate();
+        const mes = meses[date.getMonth()];
+        const anio = date.getFullYear();
+        return `${dia} DE ${mes} DEL ${anio}`;
     };
 
     const montoTemplate = (rowData) => {
@@ -852,6 +902,9 @@ const Cotizacion = ({ embedded = false }) => {
                                                 setDni(e.target.value);
                                                 setCliente((prev) => ({ ...(prev || {}), numeroDocumento: e.target.value }));
                                             }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') buscarCliente();
+                                            }}
                                             placeholder="Ej: 72384732"
                                         />
                                         <Button icon="pi pi-search" onClick={buscarCliente} className="btn-primary-custom" />
@@ -888,15 +941,15 @@ const Cotizacion = ({ embedded = false }) => {
                                 </div>
                                 <div className="field col-12 md:col-4">
                                     <label className="font-medium text-sm">Departamento</label>
-                                    <Dropdown value={cliente?.departamento || ''} options={departamentos} onChange={(e) => onDepartamentoChange(e.value)} placeholder="Seleccione dep." />
+                                    <Dropdown value={cliente?.departamento || ''} options={departamentos} onChange={(e) => onDepartamentoChange(e.value)} placeholder="Seleccione dep." showClear />
                                 </div>
                                 <div className="field col-12 md:col-4">
                                     <label className="font-medium text-sm">Provincia</label>
-                                    <Dropdown value={cliente?.provincia || ''} options={provincias} onChange={(e) => onProvinciaChange(e.value)} placeholder="Seleccione prov." disabled={!cliente?.departamento} />
+                                    <Dropdown value={cliente?.provincia || ''} options={provincias} onChange={(e) => onProvinciaChange(e.value)} placeholder="Seleccione prov." disabled={!cliente?.departamento} showClear/>
                                 </div>
                                 <div className="field col-12 md:col-4">
                                     <label className="font-medium text-sm">Distrito</label>
-                                    <Dropdown value={cliente?.distrito || ''} options={distritos} onChange={(e) => onDistritoChange(e.value)} placeholder="Seleccione dist." disabled={!cliente?.provincia} />
+                                    <Dropdown value={cliente?.distrito || ''} options={distritos} onChange={(e) => onDistritoChange(e.value)} placeholder="Seleccione dist." disabled={!cliente?.provincia} showClear/>
                                 </div>
                                 <div className="field col-12">
                                     <label className="font-medium text-sm">Dirección</label>
@@ -1143,7 +1196,7 @@ const Cotizacion = ({ embedded = false }) => {
                                 <div className="grid fade-in">
                                     <div className="col-12 md:col-6">
                                         <label className="font-bold text-xs uppercase text-orange-900">Abono Hoy (S/)</label>
-                                        <InputNumber value={abonoReal} onValueChange={(e) => setAbonoReal(e.value)} mode="currency" currency="PEN" className="input-highlight-orange" />
+                                         <InputNumber value={abonoReal} onValueChange={(e) => setAbonoReal(e.value)} mode="currency" currency="PEN" className="input-highlight-orange w-full" />
                                     </div>
                                     {esSeparacion && (
                                         <div className="col-12 md:col-6">
@@ -1201,8 +1254,20 @@ const Cotizacion = ({ embedded = false }) => {
                         </div>
                     )}
 
-                    <div className="mt-4">
-                        <Button label="Simular Cronograma Oficial" icon="pi pi-cog" className="w-full btn-primary-custom p-button-lg shadow-3 border-round-xl" onClick={simular} />
+                    <div className="mt-4 flex flex-column md:flex-row gap-3">
+                        <Button
+                            label="Limpiar"
+                            icon="pi pi-times"
+                            className="p-button-outlined p-button-secondary w-full md:w-6"
+                            onClick={resetFormulario}
+                            type="button"
+                        />
+                        <Button
+                            label="Simular Cronograma"
+                            icon="pi pi-cog"
+                            className="w-full md:w-6 btn-primary-custom p-button-lg shadow-3 border-round-xl"
+                            onClick={simular}
+                        />
                     </div>
                 </div>
             </div>
@@ -1274,7 +1339,7 @@ const Cotizacion = ({ embedded = false }) => {
                                     {/* MEJORA 2: Template para destacar visualmente el Tipo "ESPECIAL" */}
                                     <Column field="tipoCuota" header="Tipo" style={{ width: '20%' }} body={tipoTemplate}></Column>
                                     
-                                    <Column field="fecha" header="Vencimiento" style={{ width: '25%' }} body={(row) => <><i className="pi pi-calendar mr-2 text-400"></i>{row.fecha}</>}></Column>
+                                    <Column field="fecha" header="Vencimiento" style={{ width: '25%' }} body={(row) => <><i className="pi pi-calendar mr-2 text-400"></i>{formatFechaLarga(row.fecha)}</>}></Column>
                                     <Column header="Monto (S/)" body={montoTemplate} style={{ width: '25%', textAlign: 'right' }}></Column>
                                     <Column header="Estado" body={estadoTemplate} style={{ width: '22%', textAlign: 'center' }}></Column>
                                 </DataTable>

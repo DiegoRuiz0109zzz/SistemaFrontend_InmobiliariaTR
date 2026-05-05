@@ -65,6 +65,9 @@ const Contrato = ({ embedded = false }) => {
     // Selectores
     const [lotes, setLotes] = useState([]);
     const [loteSeleccionado, setLoteSeleccionado] = useState(null);
+    const [urbanizacionSeleccionada, setUrbanizacionSeleccionada] = useState(null);
+    const [etapaSeleccionada, setEtapaSeleccionada] = useState(null);
+    const [manzanaSeleccionada, setManzanaSeleccionada] = useState(null);
     const [vendedores, setVendedores] = useState([]);
     const [vendedorSeleccionado, setVendedorSeleccionado] = useState(null);
     const [pendingLoteId, setPendingLoteId] = useState(null);
@@ -137,6 +140,49 @@ const Contrato = ({ embedded = false }) => {
         })),
         [lotes]
     );
+
+    const urbanizacionesOptions = useMemo(() => {
+        const map = new Map();
+        lotesOptions.forEach((item) => {
+            const urbanizacion = item?.manzana?.etapa?.urbanizacion;
+            if (urbanizacion?.id && !map.has(urbanizacion.id)) {
+                map.set(urbanizacion.id, { label: urbanizacion.nombre || 'Sin nombre', value: urbanizacion });
+            }
+        });
+        return Array.from(map.values());
+    }, [lotesOptions]);
+
+    const etapasOptions = useMemo(() => {
+        if (!urbanizacionSeleccionada?.id) return [];
+        const map = new Map();
+        lotesOptions.forEach((item) => {
+            const etapa = item?.manzana?.etapa;
+            const urbanizacion = etapa?.urbanizacion;
+            if (urbanizacion?.id === urbanizacionSeleccionada.id && etapa?.id && !map.has(etapa.id)) {
+                map.set(etapa.id, { label: etapa.nombre || 'Sin nombre', value: etapa });
+            }
+        });
+        return Array.from(map.values());
+    }, [lotesOptions, urbanizacionSeleccionada]);
+
+    const manzanasOptions = useMemo(() => {
+        if (!etapaSeleccionada?.id) return [];
+        const map = new Map();
+        lotesOptions.forEach((item) => {
+            const manzana = item?.manzana;
+            const etapa = manzana?.etapa;
+            if (etapa?.id === etapaSeleccionada.id && manzana?.id && !map.has(manzana.id)) {
+                map.set(manzana.id, { label: manzana.nombre || 'Sin nombre', value: manzana });
+            }
+        });
+        return Array.from(map.values());
+    }, [lotesOptions, etapaSeleccionada]);
+
+    const lotesFiltradosOptions = useMemo(() => {
+        if (!manzanaSeleccionada?.id) return [];
+        return lotesOptions.filter((item) => item?.manzana?.id === manzanaSeleccionada.id);
+    }, [lotesOptions, manzanaSeleccionada]);
+
 
     const vendedoresOptions = useMemo(() =>
         vendedores.map((item) => ({
@@ -249,6 +295,11 @@ const Contrato = ({ embedded = false }) => {
 
     const onLoteChange = (e) => {
         setLoteSeleccionado(e.value);
+        if (e.value) {
+            setUrbanizacionSeleccionada(e.value.manzana?.etapa?.urbanizacion || null);
+            setEtapaSeleccionada(e.value.manzana?.etapa || null);
+            setManzanaSeleccionada(e.value.manzana || null);
+        }
         if (e.value && e.value.precioVenta != null) {
             setLotePrecio(e.value.precioVenta);
         }
@@ -314,6 +365,9 @@ const Contrato = ({ embedded = false }) => {
             const loteEncontrado = lotesOptions.find((item) => item?.id === seleccionada.lote.id);
             if (loteEncontrado) {
                 setLoteSeleccionado(loteEncontrado);
+                setUrbanizacionSeleccionada(loteEncontrado.manzana?.etapa?.urbanizacion || null);
+                setEtapaSeleccionada(loteEncontrado.manzana?.etapa || null);
+                setManzanaSeleccionada(loteEncontrado.manzana || null);
                 if (loteEncontrado.precioVenta != null) {
                     setLotePrecio(loteEncontrado.precioVenta);
                     precioLoteCargado = loteEncontrado.precioVenta;
@@ -330,12 +384,13 @@ const Contrato = ({ embedded = false }) => {
         const inicialCargada = seleccionada.montoInicialAcordado ?? 500;
         const cuotasCargadas = seleccionada.cantidadCuotas || 36;
         const tipoCargado = seleccionada.tipoInicial || 'PARCIAL';
+        const abonoCargado = seleccionada.montoAbonadoIncial ?? (tipoCargado === 'TOTAL' ? inicialCargada : (inicialCargada * 0.2));
         const flexCargado = !!(seleccionada.cuotasFlexibles || seleccionada.cuotasEspeciales || seleccionada.montoCuotaEspecial);
         const espCargadas = seleccionada.cuotasEspeciales || 0;
         const mtoEspCargado = seleccionada.montoCuotaEspecial || 0;
 
         setInicialAcordada(inicialCargada);
-        setAbonoReal(tipoCargado === 'TOTAL' ? inicialCargada : (inicialCargada * 0.2));
+        setAbonoReal(abonoCargado);
         setCuotas(cuotasCargadas);
         setTipoInicial(tipoCargado);
         setIsFlexible(flexCargado);
@@ -792,7 +847,7 @@ const Contrato = ({ embedded = false }) => {
                             {/* Buscador */}
                             <label className="font-medium text-sm mb-2 block">Documento del interesado o N° cotización</label>
                             <div className="p-inputgroup mb-4">
-                                <InputText value={criterioBusqueda} onChange={(e) => setCriterioBusqueda(e.target.value)} placeholder="Ej: 72384732 o COT-102" />
+                                <InputText value={criterioBusqueda} onChange={(e) => setCriterioBusqueda(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && buscarCotizaciones()} placeholder="Ej: 72384732 o COT-102" />
                                 <Button icon="pi pi-search" onClick={buscarCotizaciones} className="btn-primary-custom" />
                                 <Button icon="pi pi-times" className="p-button-outlined" onClick={limpiarResultados} />
                             </div>
@@ -818,6 +873,7 @@ const Contrato = ({ embedded = false }) => {
                                         emptyMessage="No hay cotizaciones para mostrar."
                                         className="p-datatable-sm custom-table"
                                     >
+                                        <Column header="N°" body={(row, options) => options.rowIndex + 1} style={{ width: '3rem' }}></Column>
                                         <Column header="Documento" body={(row) => `${row?.interesado?.tipoDocumento || 'DNI'} ${row?.interesado?.numeroDocumento || ''}`}></Column>
                                         <Column header="Interesado" body={(row) => `${row?.interesado?.nombres || ''} ${row?.interesado?.apellidos || ''}`.trim()}></Column>
                                         <Column header="Fecha" body={(row) => formatDate(row?.fechaCotizacion)}></Column>
@@ -840,13 +896,7 @@ const Contrato = ({ embedded = false }) => {
                                 <i className={`pi ${!isEditFinanciamiento ? 'pi-file-check' : 'pi-wallet'} text-primary`}></i>
                                 <span className="font-bold text-lg ml-2">{!isEditFinanciamiento ? 'Resumen de Contrato' : 'Configuración de Financiamiento'}</span>
                             </div>
-                            {isEditFinanciamiento && (
-                                <Button 
-                                    label="Edición Habilitada" 
-                                    icon="pi pi-unlock" 
-                                    className="p-button-sm p-button-warning" 
-                                />
-                            )}
+                            
                         </div>
 
                         <div className="p-fluid grid mt-3">
@@ -883,16 +933,19 @@ const Contrato = ({ embedded = false }) => {
                                     </h4>
                                     <div className="grid mb-4">
                                         <div className="col-12 md:col-6">
-                                            <div className="p-3 border-round border-1 surface-border bg-white shadow-1 h-full flex flex-column">
-                                                <span className="text-xs text-500 uppercase font-bold block mb-1">Inmueble Seleccionado</span>
+                                            <div className="bg-green-50 border-1 border-green-200 border-round p-3 mb-4 h-full flex flex-column justify-content-center shadow-1">
+                                                <span className="text-xs text-green-600 uppercase font-bold block mb-1">Inmueble Seleccionado</span>
                                                 {loteSeleccionado ? (
                                                     <>
-                                                        <span className="text-lg font-bold text-800 block">{`${loteSeleccionado.manzana?.etapa?.urbanizacion?.nombre || ''}`}</span>
-                                                        <span className="text-sm text-600 font-medium block mb-2">{`${loteSeleccionado.manzana?.etapa?.nombre || ''} - Mz ${loteSeleccionado.manzana?.nombre || ''} Lt ${loteSeleccionado.numero || ''}`}</span>
-                                                        <div className="mt-auto pt-2"><Tag value={`Área: ${loteSeleccionado.area} m²`} severity="info" /></div>
+                                                        <span className="text-lg font-bold text-green-900 block">{`${loteSeleccionado.manzana?.etapa?.urbanizacion?.nombre || ''}`}</span>
+                                                        <span className="text-sm text-green-700 font-medium block mb-2">{`${loteSeleccionado.manzana?.etapa?.nombre || ''} - Mz ${loteSeleccionado.manzana?.nombre || ''} Lt ${loteSeleccionado.numero || ''}`}</span>
+                                                        <div className="mt-auto pt-2 flex justify-content-between align-items-center">
+                                                            <span className="text-green-800 font-bold bg-green-200 px-2 py-1 border-round text-sm"><i className="pi pi-expand mr-1"></i>Área: {loteSeleccionado.area} m²</span>
+                                                            <span className="text-xl font-black text-green-700">S/ {parseFloat(loteSeleccionado.precioVenta || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                                        </div>
                                                     </>
                                                 ) : (
-                                                    <span className="text-500 font-italic">Ningún lote seleccionado</span>
+                                                    <span className="text-green-600 font-italic">Ningún lote seleccionado</span>
                                                 )}
                                             </div>
                                         </div>
@@ -900,7 +953,9 @@ const Contrato = ({ embedded = false }) => {
                                             <div className="p-3 border-round border-1 surface-border bg-white shadow-1 h-full">
                                                 <span className="text-xs text-500 uppercase font-bold block mb-1">Vendedor Asignado</span>
                                                 <span className="text-lg font-bold text-800 block">{vendedorSeleccionado ? `${vendedorSeleccionado.nombres} ${vendedorSeleccionado.apellidos}` : 'No asignado'}</span>
-                                                {vendedorSeleccionado?.telefono && <span className="text-sm text-600"><i className="pi pi-phone mr-1"></i>{vendedorSeleccionado.telefono}</span>}
+                                                {vendedorSeleccionado?.numeroDocumento && <span className="text-sm text-600 block mt-1"><i className="pi pi-id-card mr-1"></i>{vendedorSeleccionado.numeroDocumento}</span>}
+                                                {vendedorSeleccionado?.telefono && <span className="text-sm text-600 block mt-1"><i className="pi pi-phone mr-1"></i>{vendedorSeleccionado.telefono}</span>}
+                                                {vendedorSeleccionado?.email && <span className="text-sm text-600 block mt-1"><i className="pi pi-envelope mr-1"></i>{vendedorSeleccionado.email}</span>}
                                             </div>
                                         </div>
                                     </div>
@@ -924,27 +979,27 @@ const Contrato = ({ embedded = false }) => {
                                             {/* Details row */}
                                             <div className="col-12 md:col-3 mb-2">
                                                 <div className="p-3 border-round border-1 surface-border bg-white shadow-1 h-full text-center">
-                                                    <span className="text-xs text-500 uppercase font-bold block mb-1">Precio Inmueble</span>
-                                                    <span className="text-lg font-black text-800">S/ {parseFloat(lotePrecio || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                                    <span className="text-xs text-700 uppercase font-bold block mb-1">Precio Inmueble</span>
+                                                    <span className="text-xl font-black text-800">S/ {parseFloat(lotePrecio || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                                                 </div>
                                             </div>
                                             <div className="col-12 md:col-3 mb-2">
                                                 <div className="p-3 border-round border-1 surface-border bg-white shadow-1 h-full text-center">
-                                                    <span className="text-xs text-500 uppercase font-bold block mb-1">Inicial Acordada</span>
-                                                    <span className="text-lg font-black text-green-700">S/ {parseFloat(inicialAcordada || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                                    <span className="text-xs text-700 uppercase font-bold block mb-1">Inicial Acordada</span>
+                                                    <span className="text-xl font-black text-green-700">S/ {parseFloat(inicialAcordada || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                                                 </div>
                                             </div>
                                             <div className="col-12 md:col-3 mb-2">
                                                 <div className="p-3 border-round border-1 surface-border bg-white shadow-1 h-full text-center">
-                                                    <span className="text-xs text-500 uppercase font-bold block mb-1">Plan de Cuotas</span>
-                                                    <span className="text-lg font-black text-800">{cuotas} meses</span>
+                                                    <span className="text-xs text-700 uppercase font-bold block mb-1">Plan de Cuotas</span>
+                                                    <span className="text-xl font-black text-800">{cuotas} meses</span>
                                                     {isFlexible && <div className="text-xs text-orange-600 mt-1 font-bold"><i className="pi pi-star-fill text-xs mr-1"></i>Mixtas</div>}
                                                 </div>
                                             </div>
                                             <div className="col-12 md:col-3 mb-2">
                                                 <div className="p-3 border-round border-1 surface-border bg-white shadow-1 h-full text-center">
-                                                    <span className="text-xs text-500 uppercase font-bold block mb-1">Día de Pago</span>
-                                                    <span className="text-lg font-black text-800">{fechaInicio instanceof Date ? fechaInicio.toLocaleDateString('es-PE', { day: '2-digit' }) : '-'}</span>
+                                                    <span className="text-xs text-700 uppercase font-bold block mb-1">Día de Pago</span>
+                                                    <span className="text-xl font-black text-800">{fechaInicio instanceof Date ? fechaInicio.toLocaleDateString('es-PE', { day: '2-digit' }) : '-'}</span>
                                                 </div>
                                             </div>
                                             <div className="col-12 mt-2">
@@ -1018,7 +1073,10 @@ const Contrato = ({ embedded = false }) => {
                                                         </div>
                                                     ) : (
                                                         <div className="p-3 border-round border-1 border-dashed surface-border bg-white shadow-none h-full flex flex-column justify-content-center">
-                                                            <label className="text-xs text-500 uppercase font-bold block mb-2">Añadir Co-comprador (Opcional)</label>
+                                                            <div className="flex justify-content-between align-items-center mb-2">
+                                                                <label className="text-xs text-500 uppercase font-bold m-0">Añadir Co-comprador (Opcional)</label>
+                                                                <Button label="Nuevo" icon="pi pi-plus" className="p-button-text p-button-sm p-0 m-0 text-blue-600" onClick={() => abrirModal('COCOMPRADOR')} />
+                                                            </div>
                                                             <Dropdown
                                                                 value={coCompradorSeleccionado}
                                                                 options={coCompradoresOptions}
@@ -1041,16 +1099,54 @@ const Contrato = ({ embedded = false }) => {
                                         <div className="grid">
                                             <div className="col-12 md:col-6">
                                                 <label className="text-xs text-500 uppercase font-bold block mb-2">Inmueble Seleccionado</label>
-                                                <Dropdown
-                                                    value={loteSeleccionado}
-                                                    options={lotesOptions}
-                                                    onChange={onLoteChange}
-                                                    itemTemplate={loteOptionTemplate}
-                                                    valueTemplate={loteSelectedTemplate}
-                                                    placeholder="Despliegue para cambiar lote"
-                                                    className="w-full bg-white"
-                                                    panelStyle={{ minWidth: '320px' }}
-                                                />
+                                                <div className="p-fluid grid mb-2">
+                                                    <div className="col-4">
+                                                        <Dropdown value={urbanizacionSeleccionada} options={urbanizacionesOptions} onChange={(e) => { setUrbanizacionSeleccionada(e.value); setEtapaSeleccionada(null); setManzanaSeleccionada(null); setLoteSeleccionado(null); }} placeholder="Proyecto" className="p-inputtext-sm w-full" />
+                                                    </div>
+                                                    <div className="col-4">
+                                                        <Dropdown value={etapaSeleccionada} options={etapasOptions} onChange={(e) => { setEtapaSeleccionada(e.value); setManzanaSeleccionada(null); setLoteSeleccionado(null); }} placeholder="Etapa" disabled={!urbanizacionSeleccionada} className="p-inputtext-sm w-full" />
+                                                    </div>
+                                                    <div className="col-4">
+                                                        <Dropdown value={manzanaSeleccionada} options={manzanasOptions} onChange={(e) => { setManzanaSeleccionada(e.value); setLoteSeleccionado(null); }} placeholder="Manzana" disabled={!etapaSeleccionada} className="p-inputtext-sm w-full" />
+                                                    </div>
+                                                </div>
+                                                {!manzanaSeleccionada ? (
+                                                    <Dropdown
+                                                        value={loteSeleccionado}
+                                                        options={lotesOptions}
+                                                        onChange={onLoteChange}
+                                                        itemTemplate={loteOptionTemplate}
+                                                        valueTemplate={loteSelectedTemplate}
+                                                        placeholder="Despliegue para seleccionar lote"
+                                                        className="w-full bg-white"
+                                                        panelStyle={{ minWidth: '320px' }}
+                                                        filter
+                                                        filterBy="descripcion,numero"
+                                                    />
+                                                ) : (
+                                                    <div className="lotes-list-container custom-scrollbar mt-2">
+                                                        {lotesFiltradosOptions.length === 0 ? (
+                                                            <div className="p-3 text-center text-500 font-italic">No hay lotes disponibles en esta manzana.</div>
+                                                        ) : (
+                                                            lotesFiltradosOptions.map((loteOpt) => (
+                                                                <div 
+                                                                    key={loteOpt.id} 
+                                                                    className={`lote-item-card ${loteSeleccionado?.id === loteOpt.id ? 'selected' : ''}`}
+                                                                    onClick={() => onLoteChange({ value: loteOpt })}
+                                                                >
+                                                                    <div className="lote-item-info">
+                                                                        <span className="lote-item-title">Lote {loteOpt.numero}</span>
+                                                                        <span className="lote-item-area"><i className="pi pi-expand mr-1"></i>{loteOpt.area || 0} m²</span>
+                                                                    </div>
+                                                                    <div className="lote-item-price">
+                                                                        <span className="price-tag">S/ {(loteOpt.precioVenta || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                                                        <i className={`pi ${loteSeleccionado?.id === loteOpt.id ? 'pi-check-circle text-blue-600' : 'pi-circle text-400'} ml-3 text-xl`}></i>
+                                                                    </div>
+                                                                </div>
+                                                            ))
+                                                        )}
+                                                    </div>
+                                                )}
                                                 {loteSeleccionado && (
                                                     <div className="mt-2 text-right">
                                                         <span className="text-xs text-500 uppercase font-bold mr-2">Área: {loteSeleccionado.area} m²</span>
