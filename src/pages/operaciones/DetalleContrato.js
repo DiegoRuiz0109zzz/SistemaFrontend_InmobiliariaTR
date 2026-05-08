@@ -756,7 +756,7 @@ const DetalleContrato = () => {
                                     label={expandirCambioLote ? 'Cancelar Cambio' : 'Cambiar Lote'} 
                                     icon={expandirCambioLote ? 'pi pi-times' : 'pi pi-pencil'} 
                                     onClick={() => setExpandirCambioLote(!expandirCambioLote)}
-                                    className={`w-full ${expandirCambioLote ? 'p-button-secondary' : 'p-button-info'} border-round-lg font-bold mt-2`}
+                                    className={`w-full ${expandirCambioLote ? 'p-button-secondary' : 'p-button-info'} text-white border-round-lg font-bold mt-2`}
                                     size="small"
                                 />
                             </div>
@@ -881,7 +881,7 @@ const DetalleContrato = () => {
 
                 <div className="flex justify-content-end gap-2 mt-4">
                     <Button label="Cancelar" icon="pi pi-times" className="p-button-outlined p-button-danger border-round-xl font-bold" onClick={cerrarEditorContrato} disabled={guardandoEdicion} />
-                    <Button label="Guardar Cambios" icon="pi pi-save" className="p-button-success border-round-xl font-bold shadow-2" onClick={guardarEdiciones} loading={guardandoEdicion} />
+                    <Button label="Guardar Cambios" icon="pi pi-save" className="text-white p-button-success border-round-xl font-bold shadow-2" onClick={guardarEdiciones} loading={guardandoEdicion} />
                 </div>
             </Dialog>
 
@@ -899,11 +899,11 @@ const DetalleContrato = () => {
                 </div>
                 <div className="flex align-items-center gap-2">
                     {historiales.some(h => h.tipoRegistro === 'CONTRATO_SUBIDO_PDF') ? (
-                        <Button label="Ver Contrato Firmado" icon="pi pi-file-pdf" className="p-button-outlined p-button-danger border-round-xl font-bold" onClick={() => { const subido = historiales.find(h => h.tipoRegistro === 'CONTRATO_SUBIDO_PDF'); if (subido) verHistorialPdf(subido.id); }} />
+                        <Button label="Ver Contrato Firmado" icon="pi pi-file-pdf" className="p-button-primary border-round-xl font-bold shadow-2 text-white" onClick={() => { const subido = historiales.find(h => h.tipoRegistro === 'CONTRATO_SUBIDO_PDF'); if (subido) verHistorialPdf(subido.id); }} />
                     ) : (
-                        <Button label="Subir Contrato" icon="pi pi-upload" className="p-button-outlined p-button-primary border-round-xl font-bold" onClick={() => setDialogoSubirPdf(true)} />
+                        <Button label="Subir Contrato" icon="pi pi-upload" className="p-button-primary border-round-xl font-bold shadow-2 text-white" onClick={() => setDialogoSubirPdf(true)} />
                     )}
-                    <Button label="Editar Contrato" icon="pi pi-pencil" className="p-button-warning border-round-xl font-bold shadow-2" onClick={abrirEditorContrato} />
+                    <Button label="Editar Contrato" icon="pi pi-pencil" className="text-white p-button-warning border-round-xl font-bold shadow-2" onClick={abrirEditorContrato} />
                     <Button label="Ir a Cobranza" icon="pi pi-wallet" className="p-button-primary border-round-xl font-bold shadow-2" onClick={() => navigate('/cuotas-pagos', { state: { buscarContrato: contrato.cliente.numeroDocumento } })} />
                 </div>
             </div>
@@ -1240,13 +1240,13 @@ const DetalleContrato = () => {
                                                         <i className="pi pi-exclamation-circle text-yellow-600 text-lg"></i>
                                                         <div className="flex flex-column">
                                                             <span className="text-sm font-bold text-yellow-700">Pago Pendiente de Validación</span>
-                                                            <span className="text-xs text-yellow-600">ID: {cuotaSeleccionada.pagoPendiente.id}</span>
+                                                            <span className="text-xs text-yellow-600 ">ID: {cuotaSeleccionada.pagoPendiente.id}</span>
                                                         </div>
                                                     </div>
                                                     <Button 
                                                         label="Procesar" 
                                                         icon="pi pi-cog" 
-                                                        className="p-button-sm p-button-warning" 
+                                                        className="p-button-sm p-button-warning text-white" 
                                                         onClick={() => abrirDialogoProcesar(cuotaSeleccionada.pagoPendiente)}
                                                     />
                                                 </div>
