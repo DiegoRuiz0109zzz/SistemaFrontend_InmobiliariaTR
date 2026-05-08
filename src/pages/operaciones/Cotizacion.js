@@ -25,6 +25,7 @@ import { CotizacionService } from '../../service/CotizacionService';
 import { ContratoService } from '../../service/ContratoService';
 import { UbigeoService } from '../../service/UbigeoService';
 import { InteresadoService } from '../../service/InteresadoService';
+import { EstadoLote } from '../../entity/EstadoLote';
 
 import './Contrato.css';
 import './Cotizacion.css';
@@ -69,7 +70,7 @@ const Cotizacion = ({ embedded = false }) => {
         { label: 'Viudo(a)', value: 'Viudo(a)' },
         { label: 'Conviviente', value: 'Conviviente' }
     ];
-    
+
     // Selectores
     const [lotes, setLotes] = useState([]);
     const [loteSeleccionado, setLoteSeleccionado] = useState(null);
@@ -82,19 +83,19 @@ const Cotizacion = ({ embedded = false }) => {
     const [manzanaSeleccionada, setManzanaSeleccionada] = useState(null);
 
     // Parámetros de la Cuota 0 (Inicial / Separación)
-    const [lotePrecio, setLotePrecio] = useState(0); 
-    const [inicialAcordada, setInicialAcordada] = useState(0); 
+    const [lotePrecio, setLotePrecio] = useState(0);
+    const [inicialAcordada, setInicialAcordada] = useState(0);
     const [abonoReal, setAbonoReal] = useState(0);
     const [fechaLimiteInicial, setFechaLimiteInicial] = useState(new Date(new Date().setDate(new Date().getDate() + 15)));
-    
+
     // Parámetros del Cronograma (1 a N)
     const [cuotas, setCuotas] = useState(36);
     const [fechaInicio, setFechaInicio] = useState(new Date(new Date().setMonth(new Date().getMonth() + 1)));
-    
+
     // Parámetros Flexibles (Cuotas Especiales)
     const [isFlexible, setIsFlexible] = useState(false);
-    const [cuotasEspeciales, setCuotasEspeciales] = useState(3);
-    const [montoEspecial, setMontoEspecial] = useState(1000);
+    const [cuotasEspeciales, setCuotasEspeciales] = useState(0);
+    const [montoEspecial, setMontoEspecial] = useState(0);
 
     // Tipo de Inicial
     const [tipoInicial, setTipoInicial] = useState(null);
@@ -106,17 +107,35 @@ const Cotizacion = ({ embedded = false }) => {
     const [cronograma, setCronograma] = useState([]);
     const [descripcionGenerada, setDescripcionGenerada] = useState('');
 
+    // Utilidades de Fechas
+    const parseLocalYMD = (dateString) => {
+        if (!dateString) return null;
+        if (dateString.includes('T')) return new Date(dateString);
+        const [y, m, d] = dateString.split('-');
+        return new Date(y, m - 1, d);
+    };
+
+    const getLocalYMD = (dateObj) => {
+        if (!dateObj) return null;
+        const d = dateObj instanceof Date ? dateObj : new Date(dateObj);
+        if (Number.isNaN(d.getTime())) return null;
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    };
+
     // Cálculos reactivos
     const abonoEfectivo = tipoInicial === 'TOTAL' ? inicialAcordada : abonoReal;
-    const esSeparacion = tipoInicial === 'PARCIAL' && abonoReal < inicialAcordada;
-    const faltaPagarInicial = inicialAcordada - abonoEfectivo;
+    const esSeparacion = tipoInicial === 'PARCIAL' && (inicialAcordada === 100 || abonoReal < inicialAcordada);
+    const faltaPagarInicial = Math.max(inicialAcordada - abonoEfectivo, 0);
     const saldoAFinanciar = lotePrecio - inicialAcordada;
 
-    const bgCuotaCero = tipoInicial === 'PARCIAL' 
-        ? 'bg-orange-50 border-orange-300' 
-        : tipoInicial === 'TOTAL' 
-        ? 'bg-green-50 border-green-300' 
-        : 'bg-white border-300';
+    const bgCuotaCero = tipoInicial === 'PARCIAL'
+        ? 'bg-orange-50 border-orange-300'
+        : tipoInicial === 'TOTAL'
+            ? 'bg-green-50 border-green-300'
+            : 'bg-white border-300';
 
     // ==========================================
     // EFECTOS INICIALES Y CARGA DE DATOS
@@ -125,11 +144,48 @@ const Cotizacion = ({ embedded = false }) => {
         cargarDatosBase();
     }, []);
 
+    useEffect(() => {
+        if (inicialAcordada === 100) {
+            setTipoInicial('PARCIAL');
+            setAbonoReal(100);
+        }
+    }, [inicialAcordada]);
+
+    const resetFormulario = () => {
+        setDni('');
+        setCliente(null);
+        setCoCompradorSeleccionado(null);
+        setMostrarCoComprador(false);
+        setCoCompradorModalVisible(false);
+        setCoCompradorDraft(crearCoCompradorVacio());
+        setLoteSeleccionado(null);
+        setVendedorSeleccionado(null);
+        setUrbanizacionSeleccionada(null);
+        setEtapaSeleccionada(null);
+        setManzanaSeleccionada(null);
+        setLotePrecio(0);
+        setInicialAcordada(0);
+        setAbonoReal(0);
+        setFechaLimiteInicial(new Date(new Date().setDate(new Date().getDate() + 15)));
+        setCuotas(36);
+        setFechaInicio(new Date(new Date().setMonth(new Date().getMonth() + 1)));
+        setIsFlexible(false);
+        setCuotasEspeciales(3);
+        setMontoEspecial(1000);
+        setTipoInicial(null);
+        setObservacion('');
+        setCronograma([]);
+        setDescripcionGenerada('');
+    };
+
     const lotesOptions = useMemo(() =>
-        lotes.map((item) => ({
-            ...item,
-            descripcion: `${item?.manzana?.etapa?.urbanizacion?.nombre || ''} / ${item?.manzana?.etapa?.nombre || ''} / Mz ${item?.manzana?.nombre || ''} - Lote ${item?.numero || ''}`.trim()
-        })),
+        (lotes || [])
+            .filter((item) => item?.enabled !== false)
+            .filter((item) => (item?.estadoVenta || '').toUpperCase() === EstadoLote.DISPONIBLE)
+            .map((item) => ({
+                ...item,
+                descripcion: `${item?.manzana?.etapa?.urbanizacion?.nombre || ''} / ${item?.manzana?.etapa?.nombre || ''} / Mz ${item?.manzana?.nombre || ''} - Lote ${item?.numero || ''}`.trim()
+            })),
         [lotes]
     );
 
@@ -418,7 +474,7 @@ const Cotizacion = ({ embedded = false }) => {
                 });
                 const seleccionada = sorted[0];
                 const interesado = seleccionada.interesado || {};
-                
+
                 const dep = interesado.departamento || clienteExistente?.departamento || '';
                 const prov = interesado.provincia || clienteExistente?.provincia || '';
                 const dist = interesado.distrito || clienteExistente?.distrito || '';
@@ -426,7 +482,7 @@ const Cotizacion = ({ embedded = false }) => {
 
                 setCliente((prev) => ({
                     ...(prev || {}),
-                    id: clienteExistente?.id || undefined, 
+                    id: clienteExistente?.id || undefined,
                     interesadoId: interesado.id || undefined,
                     numeroDocumento: interesado.numeroDocumento || documento,
                     tipoDocumento: interesado.tipoDocumento || clienteExistente?.tipoDocumento || 'DNI',
@@ -488,6 +544,7 @@ const Cotizacion = ({ embedded = false }) => {
                 const inicialCargada = seleccionada.montoInicialAcordado ?? 500;
                 const cuotasCargadas = seleccionada.cantidadCuotas || 36;
                 const tipoCargado = seleccionada.tipoInicial || 'PARCIAL';
+                const abonoCargado = seleccionada.montoAbonadoIncial ?? (tipoCargado === 'TOTAL' ? inicialCargada : 0);
                 const flexCargado = !!(seleccionada.cuotasFlexibles || seleccionada.cuotasEspeciales || seleccionada.montoCuotaEspecial);
                 const espCargadas = seleccionada.cuotasEspeciales || 0;
                 const mtoEspCargado = seleccionada.montoCuotaEspecial || 0;
@@ -495,11 +552,12 @@ const Cotizacion = ({ embedded = false }) => {
                 setInicialAcordada(inicialCargada);
                 setCuotas(cuotasCargadas);
                 setTipoInicial(tipoCargado);
+                setAbonoReal(abonoCargado);
                 setIsFlexible(flexCargado);
                 setCuotasEspeciales(espCargadas);
                 setMontoEspecial(mtoEspCargado);
 
-                if (seleccionada.fechaInicioPago) setFechaInicio(new Date(seleccionada.fechaInicioPago));
+                if (seleccionada.fechaInicioPago) setFechaInicio(parseLocalYMD(seleccionada.fechaInicioPago));
 
                 setTimeout(() => {
                     simular();
@@ -568,9 +626,9 @@ const Cotizacion = ({ embedded = false }) => {
             const abonoEf = tipoInicial === 'TOTAL' ? inicialAcordada : abonoReal;
             const simulacionRequest = {
                 precioTotal: lotePrecio,
-                montoInicial: abonoEf,
+                montoInicial: inicialAcordada,
                 cantidadCuotas: cuotas,
-                fechaInicioPago: fechaInicio.toISOString().split('T')[0],
+                fechaInicioPago: getLocalYMD(fechaInicio),
                 cuotasEspeciales: isFlexible ? cuotasEspeciales : 0,
                 montoCuotaEspecial: isFlexible ? montoEspecial : 0
             };
@@ -583,7 +641,7 @@ const Cotizacion = ({ embedded = false }) => {
                     montoTotal: inicialAcordada,
                     montoPagado: abonoEf,
                     saldoPendiente: Math.max(inicialAcordada - abonoEf, 0),
-                    fecha: fechaLimiteInicial.toISOString().split('T')[0],
+                    fecha: getLocalYMD(fechaLimiteInicial),
                     estado: esSeparacion ? 'PAGADO_PARCIAL' : 'PAGADO_TOTAL'
                 };
 
@@ -719,8 +777,9 @@ const Cotizacion = ({ embedded = false }) => {
                 tipoInicial: tipoInicial,
                 precioTotal: lotePrecio,
                 montoInicialAcordado: inicialAcordada,
+                montoAbonadoIncial: abonoEfectivo,
                 cantidadCuotas: cuotas,
-                fechaInicioPago: fechaInicio.toISOString().split('T')[0],
+                fechaInicioPago: getLocalYMD(fechaInicio),
                 cuotasEspeciales: isFlexible ? cuotasEspeciales : 0,
                 montoCuotaEspecial: isFlexible ? montoEspecial : 0,
                 cuotasFlexibles: isFlexible,
@@ -738,12 +797,7 @@ const Cotizacion = ({ embedded = false }) => {
                 throw cotizacionError;
             }
             toast.current.show({ severity: 'success', summary: '¡Éxito!', detail: 'Cotización guardada correctamente.' });
-            setCronograma([]);
-            setObservacion('');
-            setCoCompradorSeleccionado(null);
-            setCoCompradorDraft(crearCoCompradorVacio());
-            setMostrarCoComprador(false);
-            setCoCompradorModalVisible(false);
+            resetFormulario();
         } catch (error) {
             toast.current.show({ severity: 'error', summary: 'Error', detail: 'No se pudo guardar la cotización.' });
         }
@@ -789,21 +843,35 @@ const Cotizacion = ({ embedded = false }) => {
                 ? <Tag severity="warning" value="FALTA INICIAL" />
                 : <Tag severity="success" value="PAGADO" />;
         }
-        return <span className="status-badge proyectado">Proyectado</span>;
+        return <Tag severity="info" value="PENDIENTE" />;
+    };
+
+    const formatFechaLarga = (value) => {
+        if (!value) return '';
+        const date = value instanceof Date ? value : parseLocalYMD(value);
+        if (!date || Number.isNaN(date.getTime())) return '';
+        const meses = [
+            'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
+            'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'
+        ];
+        const dia = date.getDate();
+        const mes = meses[date.getMonth()];
+        const anio = date.getFullYear();
+        return `${dia} DE ${mes} DEL ${anio}`;
     };
 
     const montoTemplate = (rowData) => {
         if (rowData.numero === 0) {
             return (
                 <div className="flex flex-column text-right">
-                    <span className="font-bold text-blue-700">S/ {rowData.montoTotal.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
+                    <span className="font-bold text-blue-700">S/ {rowData.montoTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                     {rowData.saldoPendiente > 0 && (
                         <span className="text-xs text-orange-600">Debe: S/ {rowData.saldoPendiente.toLocaleString()}</span>
                     )}
                 </div>
             );
         }
-        return <span className="font-bold">S/ {rowData.montoTotal.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>;
+        return <span className="font-bold">S/ {rowData.montoTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>;
     };
 
     // MEJORA 2: Template visual para la columna "Tipo" para resaltar la cuota Especial
@@ -820,7 +888,7 @@ const Cotizacion = ({ embedded = false }) => {
 
     const renderContenido = () => (
         <div className="grid mt-3 align-items-stretch">
-            
+
             {/* PANEL IZQUIERDO: PROSPECTO E INMUEBLE */}
             <div className="col-12 xl:col-6 flex">
                 <div className="custom-card mb-4 w-full flex flex-column">
@@ -828,7 +896,7 @@ const Cotizacion = ({ embedded = false }) => {
                         <i className="pi pi-user text-primary"></i>
                         <span className="font-bold text-lg ml-2">Datos del Prospecto e Inmueble</span>
                     </div>
-                    
+
                     <div className="p-fluid mt-3 flex-grow-1 flex flex-column justify-content-between">
                         <div>
                             {/* --- DATOS DEL CLIENTE CON PLACEHOLDERS --- */}
@@ -837,7 +905,7 @@ const Cotizacion = ({ embedded = false }) => {
                                     <label className="font-medium text-sm">Tipo Documento</label>
                                     <Dropdown
                                         value={cliente?.tipoDocumento || 'DNI'}
-                                        options={[ { label: 'DNI', value: 'DNI' }, { label: 'CE', value: 'CE' }, { label: 'RUC', value: 'RUC' } ]}
+                                        options={[{ label: 'DNI', value: 'DNI' }, { label: 'CE', value: 'CE' }, { label: 'RUC', value: 'RUC' }]}
                                         onChange={(e) => setCliente((prev) => ({ ...(prev || {}), tipoDocumento: e.value, numeroDocumento: '' }))}
                                         placeholder="Seleccione tipo"
                                     />
@@ -851,6 +919,9 @@ const Cotizacion = ({ embedded = false }) => {
                                             onChange={(e) => {
                                                 setDni(e.target.value);
                                                 setCliente((prev) => ({ ...(prev || {}), numeroDocumento: e.target.value }));
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') buscarCliente();
                                             }}
                                             placeholder="Ej: 72384732"
                                         />
@@ -888,19 +959,19 @@ const Cotizacion = ({ embedded = false }) => {
                                 </div>
                                 <div className="field col-12 md:col-4">
                                     <label className="font-medium text-sm">Departamento</label>
-                                    <Dropdown value={cliente?.departamento || ''} options={departamentos} onChange={(e) => onDepartamentoChange(e.value)} placeholder="Seleccione dep." />
+                                    <Dropdown value={cliente?.departamento || ''} options={departamentos} onChange={(e) => onDepartamentoChange(e.value)} placeholder="Seleccione dep." showClear />
                                 </div>
                                 <div className="field col-12 md:col-4">
                                     <label className="font-medium text-sm">Provincia</label>
-                                    <Dropdown value={cliente?.provincia || ''} options={provincias} onChange={(e) => onProvinciaChange(e.value)} placeholder="Seleccione prov." disabled={!cliente?.departamento} />
+                                    <Dropdown value={cliente?.provincia || ''} options={provincias} onChange={(e) => onProvinciaChange(e.value)} placeholder="Seleccione prov." disabled={!cliente?.departamento} showClear />
                                 </div>
                                 <div className="field col-12 md:col-4">
                                     <label className="font-medium text-sm">Distrito</label>
-                                    <Dropdown value={cliente?.distrito || ''} options={distritos} onChange={(e) => onDistritoChange(e.value)} placeholder="Seleccione dist." disabled={!cliente?.provincia} />
+                                    <Dropdown value={cliente?.distrito || ''} options={distritos} onChange={(e) => onDistritoChange(e.value)} placeholder="Seleccione dist." disabled={!cliente?.provincia} showClear />
                                 </div>
                                 <div className="field col-12">
                                     <label className="font-medium text-sm">Dirección</label>
-                                    <InputText value={cliente?.direccion || ''} onChange={(e) => setCliente((prev) => ({...(prev || {}), direccion: e.target.value}))} placeholder="Ej. Av. Los Libertadores 123" />
+                                    <InputText value={cliente?.direccion || ''} onChange={(e) => setCliente((prev) => ({ ...(prev || {}), direccion: e.target.value }))} placeholder="Ej. Av. Los Libertadores 123" />
                                 </div>
                                 <div className="field col-12">
                                     <div className="flex justify-content-between align-items-center mb-2">
@@ -1025,8 +1096,8 @@ const Cotizacion = ({ embedded = false }) => {
                                     ) : (
                                         <div className="lotes-list-container custom-scrollbar">
                                             {lotesFiltradosOptions.map((loteOpt) => (
-                                                <div 
-                                                    key={loteOpt.id} 
+                                                <div
+                                                    key={loteOpt.id}
                                                     className={`lote-item-card ${loteSeleccionado?.id === loteOpt.id ? 'selected' : ''}`}
                                                     onClick={() => onLoteChange(loteOpt)}
                                                 >
@@ -1068,11 +1139,11 @@ const Cotizacion = ({ embedded = false }) => {
                         <div className="bg-green-50 border-1 border-green-200 border-round p-3 mb-4 fade-in flex justify-content-between align-items-center">
                             <div>
                                 <span className="text-green-800 font-bold block mb-1">Área: {loteSeleccionado.area || '-'} m²</span>
-                                <span className="text-green-600 text-sm"><i className="pi pi-map-marker mr-1"></i>{loteSeleccionado.descripcion}</span>
+                                <span className="text-green-600 text-sm font-bold" ><i className="pi pi-map-marker mr-1"></i>{loteSeleccionado.descripcion}</span>
                             </div>
                             <div className="text-right">
                                 <span className="text-xs font-bold text-500 uppercase block">Precio Oficial</span>
-                                <span className="text-xl font-black text-green-700">S/ {(loteSeleccionado.precioVenta || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                <span className="text-xl font-bold text-green-700">S/ {(loteSeleccionado.precioVenta || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                             </div>
                         </div>
                     ) : (
@@ -1126,8 +1197,8 @@ const Cotizacion = ({ embedded = false }) => {
 
                         <div className="p-4">
 
-                                <label className="font-medium text-sm block mb-2 text-800"><i className="pi pi-tag mr-2"></i>Seleccione Intención de Compra:</label>
-                            
+                            <label className="font-medium text-sm block mb-2 text-800"><i className="pi pi-tag mr-2"></i>Seleccione Intención de Compra:</label>
+
 
                             <SelectButton
                                 value={tipoInicial}
@@ -1143,7 +1214,7 @@ const Cotizacion = ({ embedded = false }) => {
                                 <div className="grid fade-in">
                                     <div className="col-12 md:col-6">
                                         <label className="font-bold text-xs uppercase text-orange-900">Abono Hoy (S/)</label>
-                                        <InputNumber value={abonoReal} onValueChange={(e) => setAbonoReal(e.value)} mode="currency" currency="PEN" className="input-highlight-orange" />
+                                        <InputNumber value={abonoReal} onValueChange={(e) => setAbonoReal(e.value)} mode="currency" currency="PEN" className="input-highlight-orange w-full" />
                                     </div>
                                     {esSeparacion && (
                                         <div className="col-12 md:col-6">
@@ -1151,10 +1222,21 @@ const Cotizacion = ({ embedded = false }) => {
                                             <Calendar value={fechaLimiteInicial} onChange={(e) => setFechaLimiteInicial(e.value)} dateFormat="dd/mm/yy" showIcon className="w-full" />
                                         </div>
                                     )}
-                                    <div className="col-12 mt-2">
-                                        <div className="bg-white p-2 border-round border-1 border-orange-200 flex align-items-center text-sm shadow-1">
-                                            <i className="pi pi-exclamation-triangle text-orange-500 mr-2"></i>
-                                            <span className="font-bold text-orange-800 font-size-5">Faltan S/ {faltaPagarInicial.toLocaleString()}</span>
+                                    <div className="col-12 mt-3">
+                                        <div className="bg-orange-50 p-3 border-round-xl border-1 border-orange-200 flex align-items-center justify-content-between shadow-sm fade-in">
+                                            <div className="flex align-items-center">
+                                                <div className="bg-orange-500 border-circle flex align-items-center justify-content-center mr-3" style={{ width: '32px', height: '32px' }}>
+                                                    <i className="pi pi-info-circle text-white text-lg"></i>
+                                                </div>
+                                                <div>
+                                                    <span className="block text-orange-700 text-xs font-bold uppercase line-height-1">Saldo pendiente</span>
+                                                    <span className="text-orange-900 text-xl font-bold">
+                                                        Faltan S/ {faltaPagarInicial.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            {/* Opcional: Un pequeño badge decorativo */}
+                                            <span className="text-orange-300 font-bold text-2xl opacity-50">!</span>
                                         </div>
                                     </div>
                                 </div>
@@ -1201,8 +1283,20 @@ const Cotizacion = ({ embedded = false }) => {
                         </div>
                     )}
 
-                    <div className="mt-4">
-                        <Button label="Simular Cronograma Oficial" icon="pi pi-cog" className="w-full btn-primary-custom p-button-lg shadow-3 border-round-xl" onClick={simular} />
+                    <div className="mt-4 flex flex-column md:flex-row gap-3">
+                        <Button
+                            label="Limpiar"
+                            icon="pi pi-times"
+                            className="p-button-outlined p-button-secondary w-full md:w-6"
+                            onClick={resetFormulario}
+                            type="button"
+                        />
+                        <Button
+                            label="Simular Cronograma"
+                            icon="pi pi-cog"
+                            className="w-full md:w-6 btn-primary-custom p-button-lg shadow-3 border-round-xl"
+                            onClick={simular}
+                        />
                     </div>
                 </div>
             </div>
@@ -1264,17 +1358,17 @@ const Cotizacion = ({ embedded = false }) => {
                             </div>
 
                             <div className="bg-white border-round shadow-1 overflow-hidden">
-                                <DataTable value={cronograma} scrollable scrollHeight="500px" className="p-datatable-sm custom-table" 
-                                    rowClassName={(data) => ({ 
+                                <DataTable value={cronograma} scrollable scrollHeight="500px" className="p-datatable-sm custom-table"
+                                    rowClassName={(data) => ({
                                         'bg-blue-50 font-bold': data.numero === 0,
                                         'bg-orange-50 font-bold': data.tipoCuota === 'ESPECIAL' // Resalta toda la fila de la cuota especial
                                     })}>
                                     <Column field="numero" header="N°" style={{ width: '8%' }} body={(r) => r.numero === 0 ? '0' : r.numero}></Column>
-                                    
+
                                     {/* MEJORA 2: Template para destacar visualmente el Tipo "ESPECIAL" */}
                                     <Column field="tipoCuota" header="Tipo" style={{ width: '20%' }} body={tipoTemplate}></Column>
-                                    
-                                    <Column field="fecha" header="Vencimiento" style={{ width: '25%' }} body={(row) => <><i className="pi pi-calendar mr-2 text-400"></i>{row.fecha}</>}></Column>
+
+                                    <Column field="fecha" header="Vencimiento" style={{ width: '25%' }} body={(row) => <><i className="pi pi-calendar mr-2 text-400"></i>{formatFechaLarga(row.fecha)}</>}></Column>
                                     <Column header="Monto (S/)" body={montoTemplate} style={{ width: '25%', textAlign: 'right' }}></Column>
                                     <Column header="Estado" body={estadoTemplate} style={{ width: '22%', textAlign: 'center' }}></Column>
                                 </DataTable>
@@ -1283,7 +1377,7 @@ const Cotizacion = ({ embedded = false }) => {
                     )}
                 </div>
 
-                   
+
             </div>
         </div>
     );

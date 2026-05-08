@@ -112,7 +112,8 @@ const GestionCuotasPagos = () => {
         vencimiento: cuota.fechaVencimiento,
         monto: cuota.montoTotal || 0,
         pagado: cuota.montoPagado || 0,
-        estado: cuota.estado
+        estado: cuota.estado,
+        diasVencidos: cuota.diasVencidos || 0
     }));
 
     const cargarPagosHistorial = async (contratoResumen, cuotas) => {
@@ -138,7 +139,9 @@ const GestionCuotasPagos = () => {
                 numeroOperacion: pago.numeroOperacion || '',
                 fotoVoucherUrl: pago.fotoVoucherUrl || '',
                 fecha: pago.fechaPago || pago.fecha || '',
-                estado: pago.estado || 'PROCESADO'
+                estado: pago.estado || 'PROCESADO',
+                diasRetraso: pago.diasRetraso || 0,
+                pagoADestiempo: pago.pagoADestiempo || false
             }));
             setHistorialPagos(flattened);
         } catch (error) {
@@ -293,28 +296,53 @@ const GestionCuotasPagos = () => {
     };
 
     const estadoLoteTemplate = (estado, rowData) => {
+        const diasVencidos = (rowData && rowData.diasVencidos > 0) ? rowData.diasVencidos : (rowData ? calcularDiasVencidos(rowData.vencimiento) : 0);
+        const estaVencida = estado === 'VENCIDA' || estado === 'VENCIDO' || ((estado === 'PENDIENTE' || estado === 'PAGADO_PARCIAL') && diasVencidos > 0);
+
         if (estado === 'PAGADO_TOTAL') return <Tag severity="success" value="PAGADO" icon="pi pi-check-circle" />;
+        if (estado === 'PAGADO_DESTIEMPO') return <Tag severity="warning" value="PAG. DESTIEMPO" icon="pi pi-exclamation-triangle" />;
+        if (estaVencida) return <Tag severity="danger" value="VENCIDA" icon="pi pi-exclamation-triangle" />;
         if (estado === 'PAGADO_PARCIAL') return <Tag severity="warning" value="PARCIAL" icon="pi pi-clock" />;
         if (estado === 'PENDIENTE') return <Tag severity="info" value="PENDIENTE" icon="pi pi-clock" />;
-        if (estado === 'VENCIDA' || estado === 'VENCIDO') {
-            const dias = rowData ? calcularDiasVencidos(rowData.vencimiento) : 0;
-            return (
-                <div className="flex flex-column align-items-center">
-                    <Tag severity="danger" value="VENCIDA" icon="pi pi-exclamation-triangle" />
-                    {dias > 0 && <span className="text-xs text-red-600 font-bold mt-1">{dias} días de retraso</span>}
-                </div>
-            );
-        }
+        
         return <Tag value={estado || '-'} />;
     };
 
-    const estadoReciboTemplate = (estado) => {
-        return (estado === 'Procesado' || estado === 'PROCESADO') ? <Tag severity="success" value="PROCESADO" /> : <Tag severity="warning" value={estado} />;
+    const retrasoTemplate = (rowData) => {
+        const estado = rowData.estado;
+        if (estado === 'PAGADO_DESTIEMPO') {
+            const pagoAtrasado = historialPagos.find(p => p.cuotaId === rowData?.id && p.pagoADestiempo);
+            const dias = pagoAtrasado ? pagoAtrasado.diasRetraso : 0;
+            return dias > 0 ? <span className="text-red-600 font-bold">{dias} días</span> : <span className="text-400">-</span>;
+        }
+
+        const diasVencidos = (rowData && rowData.diasVencidos > 0) ? rowData.diasVencidos : (rowData ? calcularDiasVencidos(rowData.vencimiento) : 0);
+        const estaVencida = estado === 'VENCIDA' || estado === 'VENCIDO' || ((estado === 'PENDIENTE' || estado === 'PAGADO_PARCIAL') && diasVencidos > 0);
+
+        if (estaVencida && diasVencidos > 0) {
+            return <span className="text-red-600 font-bold">{diasVencidos} días</span>;
+        }
+
+        return <span className="text-400">-</span>;
+    };
+
+    const estadoReciboTemplate = (rowData) => {
+        const estado = rowData.estado;
+        const tag = (estado === 'Procesado' || estado === 'PROCESADO') ? <Tag severity="success" value="PROCESADO" /> : <Tag severity="warning" value={estado} />;
+        if (rowData.pagoADestiempo) {
+            return (
+                <div className="flex flex-column align-items-center">
+                    {tag}
+                    <span className="text-xs text-red-600 font-bold mt-1">Destiempo ({rowData.diasRetraso}d)</span>
+                </div>
+            );
+        }
+        return tag;
     };
 
     const accionesCuotaTemplate = (rowData) => {
         const deudaPendiente = (rowData.monto || 0) - (rowData.pagado || 0);
-        const estaCompleta = rowData.estado === 'PAGADO_TOTAL' || deudaPendiente <= 0;
+        const estaCompleta = rowData.estado === 'PAGADO_TOTAL' || rowData.estado === 'PAGADO_DESTIEMPO' || deudaPendiente <= 0;
 
         return (
             <div className="flex justify-content-center align-items-center gap-2">
@@ -429,7 +457,7 @@ const GestionCuotasPagos = () => {
                                 <Column field="numeroOperacion" header="N° Operación" body={(r) => r.numeroOperacion || '-'}></Column>
                                 <Column header="Voucher" body={(r) => r.fotoVoucherUrl ? <Button icon="pi pi-image" className="p-button-rounded p-button-text p-button-info" tooltip="Ver Voucher" onClick={() => setVoucherViewer(buildVoucherUrl(r.fotoVoucherUrl))} /> : <span className="text-400">-</span>} style={{ textAlign: 'center' }}></Column>
                                 <Column header="Monto" body={(r) => <span className="text-green-700 font-bold">S/ {r.monto.toLocaleString('en-US',{minimumFractionDigits:2})}</span>}></Column>
-                                <Column header="Estado" body={(r) => estadoReciboTemplate(r.estado)}></Column>
+                                <Column header="Estado" body={(r) => estadoReciboTemplate(r)}></Column>
                                 <Column header="Acción" body={(r) => isPendiente(r.estado) ? <Button label="Procesar" icon="pi pi-cog" className="btn-warning-custom p-button-sm border-round-xl shadow-2 font-bold" onClick={() => { setDetalleCuotaVisible(false); abrirDialogoProcesar(r); }} /> : <Button icon="pi pi-check" className="p-button-rounded p-button-text p-button-success" disabled />} style={{ width: '8rem', textAlign: 'center' }}></Column>
                             </DataTable>
                         ) : (
@@ -500,7 +528,7 @@ const GestionCuotasPagos = () => {
                                         </div>
                                         <div className="flex justify-content-between align-items-center bg-orange-50 p-2 border-round">
                                             <span className="text-sm font-bold text-orange-600">Saldo Deudor</span>
-                                            <span className="font-black text-orange-700 text-xl">S/ {contratoActivo.saldoDeudor.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
+                                            <span className="font-bold text-orange-700 text-xl">S/ {contratoActivo.saldoDeudor.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
                                         </div>
 
                                         <div className="mt-4">
@@ -611,10 +639,11 @@ const GestionCuotasPagos = () => {
 
                                         <DataTable dataKey="id" value={contratoActivo.cuotas} scrollable scrollHeight="500px" className="p-datatable-sm custom-table" rowClassName={(data) => ({ 'bg-red-50': data.estado === 'VENCIDA' })}>
                                             <Column field="numero" header="N°" style={{ width: '8%' }} body={(r) => r.numero === 0 ? '0 (Inicial)' : r.numero}></Column>
-                                            <Column field="vencimiento" header="Vencimiento" style={{ width: '15%' }} body={(r) => <><i className="pi pi-calendar mr-2 text-400"></i>{r.vencimiento}</>}></Column>
-                                            <Column header="Monto" body={(r) => `S/ ${r.monto.toLocaleString('en-US',{minimumFractionDigits:2})}`} style={{ width: '17%', textAlign: 'right', fontWeight: '500' }}></Column>
-                                            <Column header="Deuda" body={(r) => r.monto - r.pagado > 0 ? <span className="font-bold text-orange-600">S/ {(r.monto - r.pagado).toLocaleString('en-US',{minimumFractionDigits:2})}</span> : '-'} style={{ width: '17%', textAlign: 'right' }}></Column>
-                                            <Column header="Estado" body={(r) => estadoLoteTemplate(r.estado, r)} style={{ width: '20%', textAlign: 'center' }}></Column>
+                                            <Column field="vencimiento" header="Vencimiento" style={{ width: '13%' }} body={(r) => <><i className="pi pi-calendar mr-2 text-400"></i>{r.vencimiento}</>}></Column>
+                                            <Column header="Monto" body={(r) => `S/ ${r.monto.toLocaleString('en-US',{minimumFractionDigits:2})}`} style={{ width: '14%', textAlign: 'right', fontWeight: '500' }}></Column>
+                                            <Column header="Deuda" body={(r) => r.monto - r.pagado > 0 ? <span className="font-bold text-orange-600">S/ {(r.monto - r.pagado).toLocaleString('en-US',{minimumFractionDigits:2})}</span> : '-'} style={{ width: '14%', textAlign: 'right' }}></Column>
+                                            <Column header="Estado" body={(r) => estadoLoteTemplate(r.estado, r)} style={{ width: '16%', textAlign: 'center' }}></Column>
+                                            <Column header="Retraso" body={retrasoTemplate} style={{ width: '12%', textAlign: 'center' }}></Column>
                                             <Column header="Acción" body={accionesCuotaTemplate} style={{ width: '23%', textAlign: 'center' }}></Column>
                                         </DataTable>
                                     </div>
@@ -641,7 +670,7 @@ const GestionCuotasPagos = () => {
                                 <Column header="Voucher" body={(r) => r.fotoVoucherUrl ? <Button icon="pi pi-image" className="p-button-rounded p-button-text p-button-info" tooltip="Ver Voucher" onClick={() => setVoucherViewer(buildVoucherUrl(r.fotoVoucherUrl))} /> : <span className="text-400">-</span>} style={{ textAlign: 'center' }}></Column>
                                 <Column header="Monto" body={(r) => <span className="font-bold text-green-700">S/ {r.monto.toLocaleString('en-US',{minimumFractionDigits:2})}</span>} style={{ minWidth: '120px', textAlign: 'right' }}></Column>
                                 <Column field="fecha" header="Fecha/Hora" style={{ minWidth: '150px' }}></Column>
-                                <Column header="Estado" body={(r) => estadoReciboTemplate(r.estado)} style={{ minWidth: '120px', textAlign: 'center' }}></Column>
+                                <Column header="Estado" body={(r) => estadoReciboTemplate(r)} style={{ minWidth: '120px', textAlign: 'center' }}></Column>
                                 <Column header="Acción" body={(r) => isPendiente(r.estado) ? <Button label="Procesar" icon="pi pi-cog" className="btn-warning-custom p-button-sm border-round-xl shadow-2 font-bold" onClick={() => abrirDialogoProcesar(r)} /> : <Button icon="pi pi-file-pdf" className="p-button-rounded p-button-text p-button-secondary" tooltip="Descargar PDF" />} style={{ width: '8rem', textAlign: 'center' }}></Column>
                             </DataTable>
                         </div>

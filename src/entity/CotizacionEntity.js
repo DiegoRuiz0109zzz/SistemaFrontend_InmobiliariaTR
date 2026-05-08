@@ -15,6 +15,7 @@ export const CotizacionEntity = {
     // Financiamiento
     precioTotal: null,
     montoInicialAcordado: null,
+    montoAbonadoIncial: null,
     cantidadCuotas: null,
 
     // Cuotas especiales (flexibles)
