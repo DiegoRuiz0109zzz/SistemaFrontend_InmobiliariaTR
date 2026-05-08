@@ -22,6 +22,7 @@ import Usuario from './pages/configuracion/Usuario';
 import Permisos from './pages/configuracion/Permisos';
 import Perfil from './pages/Perfil';
 import Dashboard from './pages/dashboard/Dashboard';
+import ReportesDashboard from './pages/dashboard/ReportesDashboard';
 import Temas from './pages/Temas';
 import Empresas from './pages/Empresas';
 import Clientes from './pages/mantenimiento/Clientes';
@@ -47,6 +48,7 @@ function App() {
               <Route exact path="/permisos" element={<Permisos />} />
               <Route exact path="/perfil" element={<Perfil />} />
               <Route exact path="/dashboard" element={<Dashboard />} />
+              <Route exact path="/reportes" element={<ReportesDashboard />} />
               <Route exact path="/temas" element={<Temas />} />
               <Route exact path="/empresas" element={<Empresas />} />
               <Route exact path="/clientes" element={<Clientes />} />

@@ -528,7 +528,7 @@ const GestionCuotasPagos = () => {
                                         </div>
                                         <div className="flex justify-content-between align-items-center bg-orange-50 p-2 border-round">
                                             <span className="text-sm font-bold text-orange-600">Saldo Deudor</span>
-                                            <span className="font-black text-orange-700 text-xl">S/ {contratoActivo.saldoDeudor.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
+                                            <span className="font-bold text-orange-700 text-xl">S/ {contratoActivo.saldoDeudor.toLocaleString('en-US',{minimumFractionDigits:2})}</span>
                                         </div>
 
                                         <div className="mt-4">

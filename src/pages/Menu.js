@@ -21,6 +21,7 @@ const Menu = () => {
             label: 'Inicio',
             items: [
                 { label: 'Dashboard', icon: 'pi pi-fw pi-home', to: 'dashboard' },
+                { label: 'Reportes y Finanzas', icon: 'pi pi-fw pi-chart-bar', to: 'reportes' },
                 { label: 'Mi Perfil', icon: 'pi pi-fw pi-user', to: 'perfil' }
             ]
         },

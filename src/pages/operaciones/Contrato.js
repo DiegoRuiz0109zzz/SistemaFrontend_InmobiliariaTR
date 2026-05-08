@@ -782,10 +782,21 @@ const Contrato = ({ embedded = false }) => {
             const response = await ContratoService.crear(contratoPayload, axiosInstance);
             toast.current.show({ severity: 'success', summary: '¡Éxito!', detail: 'Contrato emitido correctamente.' });
             
+            const idGenerado = response?.id || response?.data?.id;
+
+            if (idGenerado) {
+                try {
+                    const blob = await ContratoService.generarVistaPreviaPdf(idGenerado, axiosInstance);
+                    const url = URL.createObjectURL(blob);
+                    window.open(url, '_blank');
+                } catch (previewError) {
+                    toast.current.show({ severity: 'warn', summary: 'Aviso', detail: 'El contrato se guardó, pero hubo un error abriendo la vista previa.' });
+                }
+            }
+            
             setTimeout(() => {
-                const idGenerado = response?.id || response?.data?.id;
                 if(idGenerado) navigate(`/detalle_contrato/${idGenerado}`);
-            }, 1000);
+            }, 1500);
             
             setCronograma([]);
             setObservacion('');

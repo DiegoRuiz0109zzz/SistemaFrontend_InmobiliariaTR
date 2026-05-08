@@ -29,9 +29,15 @@ export const ContratoService = {
         return response.data;
     },
 
-    generarDocumento: async (id, httpClient) => {
+    actualizar: async (id, payload, httpClient) => {
         const client = resolveClient(httpClient);
-        const response = await client.post(`${RESOURCE}/${id}/generar-documento`);
+        const response = await client.put(`${RESOURCE}/${id}`, payload);
+        return response.data;
+    },
+
+    registrarHitoOficial: async (id, httpClient) => {
+        const client = resolveClient(httpClient);
+        const response = await client.post(`${RESOURCE}/${id}/registrar-hito-oficial`);
         return response.data;
     },
 

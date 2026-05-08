@@ -10,24 +10,37 @@
     flex: 1;
 }
 
-/* Tarjetas de Resumen (Top) */
+/* =====================================
+   Tarjetas de Resumen (Refactorizado)
+   ===================================== */
 .resumen-card {
     background: #ffffff;
     border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 1.25rem;
+    border-radius: 16px;
+    /* Aumentado para un look más moderno */
+    padding: 1.5rem;
+    /* Más aire interno */
     display: flex;
     align-items: center;
     gap: 1rem;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    /* Sombra más definida */
     height: 100%;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.resumen-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
 
 .icon-wrapper {
-    width: 50px;
-    height: 50px;
-    min-width: 50px;
-    border-radius: 50%;
+    /* Eliminamos el width/height fijo aquí para que lo controlen las clases de PrimeFlex en el JS o ajustamos */
+    width: 64px;
+    height: 64px;
+    min-width: 64px;
+    border-radius: 14px;
+    /* Menos circular, más "squircle" moderno */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -36,24 +49,17 @@
 .resumen-info {
     display: flex;
     flex-direction: column;
+    width: 100%;
+    /* Asegura que ocupe todo el espacio */
 }
 
-.resumen-label {
-    font-size: 0.7rem;
-    font-weight: 700;
-    color: #94a3b8;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 0.25rem;
-}
-
-.resumen-value {
-    font-weight: 800;
-    color: #1e293b;
+/* Estilizamos específicamente la tarjeta azul de finanzas */
+.bg-blue-900 {
+    background: linear-gradient(135deg, #1e3a8a 0%, #172554 100%) !important;
 }
 
 /* =====================================
-   Área Split (Cronograma vs Recibos)
+   Área Split (Se mantiene igual)
    ===================================== */
 .split-panel {
     background: #ffffff;
@@ -65,13 +71,69 @@
     overflow: hidden;
 }
 
+.detallecontrato-page .detalle-titular-card {
+    background: #ffffff;
+}
+
+.detallecontrato-page .detalle-titular-card > div {
+    background: #ffffff;
+    border-radius: 1rem;
+}
+
+.detallecontrato-page .detalle-inicial-card {
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    border-color: rgba(191, 219, 254, 0.9) !important;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+}
+
+.detallecontrato-page .detalle-inicial-line {
+    padding: 0.15rem 0;
+}
+
+.detallecontrato-page .detalle-inicial-footer {
+    border-top-color: #dbeafe !important;
+}
+
+.detallecontrato-page .detalle-inicial-label {
+    color: #475569;
+    font-weight: 700;
+}
+
+.detallecontrato-page .detalle-inicial-label-footer {
+    color: #1e3a8a;
+}
+
+.detallecontrato-page .detalle-inicial-value {
+    font-weight: 900;
+}
+
+.detallecontrato-page .detalle-inicial-value-total {
+    color: #1d4ed8;
+}
+
+.detallecontrato-page .detalle-inicial-value-paid {
+    color: #059669;
+}
+
+.detallecontrato-page .detalle-inicial-value-balance {
+    color: #ea580c;
+    font-size: 0.98rem;
+}
+
+.detallecontrato-page .detalle-inicial-card .text-blue-900 {
+    color: #1e3a8a !important;
+}
+
+.detallecontrato-page .detalle-inicial-card .border-blue-100 {
+    border-color: #dbeafe !important;
+}
+
 .interactive-table .p-datatable-tbody>tr {
     cursor: pointer;
     border-left: 4px solid transparent;
     transition: all 0.2s ease-in-out;
 }
 
-/* Fila Seleccionada */
 .interactive-table .p-datatable-tbody>tr.p-highlight {
     background-color: #eff6ff !important;
     border-left-color: #3b82f6 !important;
@@ -86,10 +148,28 @@
 }
 
 /* =====================================
-   Utilidades y Animaciones
+   Utilidades y Animaciones Nuevas
    ===================================== */
 .fade-in {
     animation: fadeIn 0.4s ease-in-out;
+}
+
+.pulse-animation {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.02);
+    }
+
+    100% {
+        transform: scale(1);
+    }
 }
 
 @keyframes fadeIn {
@@ -102,4 +182,91 @@
         opacity: 1;
         transform: translateY(0);
     }
+}
+
+/* =====================================
+   Diseño de Tarjetas de Lotes (Lote Selection)
+   ===================================== */
+.lotes-list-container {
+    max-height: 20rem;
+    overflow-y: auto;
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.lote-item-card {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 0.8rem 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.lote-item-card:hover {
+    border-color: #94a3b8;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    transform: translateY(-1px);
+}
+
+.lote-item-card.selected {
+    background: #eff6ff;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 1px #3b82f6;
+}
+
+.lote-item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.lote-item-title {
+    font-weight: 800;
+    color: #334155;
+    font-size: 1rem;
+}
+
+.lote-item-area {
+    font-size: 0.8rem;
+    color: #64748b;
+    font-weight: 600;
+}
+
+.lote-item-price {
+    display: flex;
+    align-items: center;
+}
+
+.price-tag {
+    font-weight: 800;
+    color: #059669;
+    font-size: 1.1rem;
+}
+
+.lote-item-card.selected .price-tag {
+    color: #1d4ed8;
+}
+
+/* Opcional: Estilo de Scrollbar más fino para la lista */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
 }
