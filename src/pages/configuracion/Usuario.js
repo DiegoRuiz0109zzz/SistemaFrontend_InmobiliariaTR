@@ -19,6 +19,7 @@ import PageHeader from '../../components/ui/PageHeader';
 import DialogHeader from '../../components/ui/DialogHeader';
 import ActionToolbar from '../../components/ui/ActionToolbar';
 import '../Usuario.css';
+import { ReniecService } from '../../service/ReniecService';
 
 export const Usuario = () => {
 
@@ -53,6 +54,7 @@ export const Usuario = () => {
 
     const [roles, setRoles] = useState([]);
     const [rolesLoaded, setRolesLoaded] = useState(false);
+    const [reniecLoading, setReniecLoading] = useState(false);
 
     const fetchRoles = useCallback(async () => {
         if (rolesLoaded) return;
@@ -178,18 +180,52 @@ export const Usuario = () => {
     }
 
     const peticionRENIEC = async () => {
+        if (!product.docIdentidad) return;
+        setReniecLoading(true);
         try {
-            const response = await axios.get("https://dniruc.apisperu.com/api/v1/dni/" + product.docIdentidad + "?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJlbWFpbCI6ImpnYWl0YW5yQHBqLmdvYi5wZSJ9.-nX87AiyjDvfW2SeGAhWFnx0MDCiB8meK06aAAlVfJQ");
-            const nombres = response.data.nombres;
-            const apellidos = response.data.apellidoPaterno + " " + response.data.apellidoMaterno;
+            const res = await ReniecService.consultarDNI(product.docIdentidad, axiosInstance);
+            const payload = (res && res.data) ? res.data : res || {};
+
+            // Compatibilidad con distintas propiedades que pueda devolver el backend
+            let nombres = payload.nombres || payload.nombre || payload.nombre_completo || payload.nombreCompleto || payload.nombres_completos || payload.nombresCompleto || '';
+            let apellidoP = payload.apellidoPaterno || payload.apellido_paterno || payload.apellido1 || '';
+            let apellidoM = payload.apellidoMaterno || payload.apellido_materno || payload.apellido2 || '';
+
+            let apellidos = [apellidoP, apellidoM].filter(Boolean).join(' ');
+
+            // Si no vienen apellidos separados, intentar extraer desde un nombre completo
+            if (!apellidos) {
+                const full = payload.nombreCompleto || payload.nombre_completo || payload.nombres || payload.nombre || '';
+                const parts = (full || '').trim().split(/\s+/).filter(Boolean);
+                if (parts.length >= 3) {
+                    // asumir: [nombres..., apellidoP, apellidoM]
+                    nombres = parts.slice(0, -2).join(' ');
+                    apellidos = parts.slice(-2).join(' ');
+                } else if (parts.length === 2) {
+                    nombres = parts[0];
+                    apellidos = parts[1];
+                }
+            }
+
+            // Último recurso: si aún no hay nombres, usar razon_social o similar
+            if (!nombres) nombres = payload.razon_social || payload.razonSocial || '';
+
+            if (!nombres && !apellidos) {
+                toast.current.show({ severity: 'warn', summary: 'RENIEC', detail: 'Respuesta recibida pero sin nombre/apellidos.', life: 4000 });
+            }
+
             setProduct((prevProduct) => ({
                 ...prevProduct,
-                nombres: nombres,
-                apellidos: apellidos,
+                nombres: nombres || prevProduct.nombres,
+                apellidos: apellidos || prevProduct.apellidos,
             }));
+
+            toast.current.show({ severity: 'success', summary: 'RENIEC', detail: 'Información cargada correctamente.', life: 2000 });
         } catch (error) {
+            console.error('RENIEC error', error);
             toast.current.show({ severity: 'error', summary: 'Error de RENIEC', detail: 'No se pudo obtener la información del DNI.', life: 5000 });
-            console.log(error);
+        } finally {
+            setReniecLoading(false);
         }
     }
 
@@ -257,7 +293,7 @@ export const Usuario = () => {
             return;
         }
 
-        if (product.docIdentidad && product.username && product.nombres && product.apellidos && product.email && product.telefono) {
+        if (product.docIdentidad && product.username && product.nombres && product.apellidos) {
 
             if (product.id) {
                 // Actualizar Datos Básicos
@@ -524,7 +560,7 @@ export const Usuario = () => {
                                     className={classNames({ 'p-invalid': submitted && !product.docIdentidad })}
                                 />
                                 {product.tipoDocumento !== 'CE' && (
-                                    <Button icon="pi pi-search" onClick={BuscarDNI} tooltip="Consultar RENIEC" className="btn-search-dni-specific" />
+                                    <Button icon="pi pi-search" onClick={BuscarDNI} tooltip="Consultar RENIEC" className="btn-search-dni-specific" loading={reniecLoading} disabled={reniecLoading} />
                                 )}
                             </div>
                             {submitted && !product.docIdentidad && <small className="p-error">El documento es requerido.</small>}
@@ -575,11 +611,8 @@ export const Usuario = () => {
                                 id="email"
                                 value={product.email}
                                 onChange={(e) => onInputChange(e, 'email')}
-                                required
                                 placeholder="ejemplo@correo.com"
-                                className={classNames({ 'p-invalid': submitted && !product.email })}
                             />
-                            {submitted && !product.email && <small className="p-error">Correo requerido.</small>}
                         </div>
 
                         <div className="field col-12 md:col-6">
@@ -588,12 +621,9 @@ export const Usuario = () => {
                                 id="telefono"
                                 value={product.telefono}
                                 onChange={(e) => onNumericInputChange(e, 'telefono')}
-                                required
                                 maxLength={9}
                                 placeholder="Ingrese teléfono"
-                                className={classNames({ 'p-invalid': submitted && !product.telefono })}
                             />
-                            {submitted && !product.telefono && <small className="p-error">Teléfono requerido.</small>}
                         </div>
 
                         <div className="field col-12">
