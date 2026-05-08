@@ -82,6 +82,26 @@ const DetalleContrato = () => {
 
     const buildVoucherUrl = (url) => url ? `http://localhost:8080/${url.replace(/^\//, '')}` : null;
     const isPdf = (url) => url && url.toLowerCase().endsWith('.pdf');
+    
+    // Parsear fecha sin que se vea afectada por zona horaria
+    const formatearFecha = (fechaStr) => {
+        if (!fechaStr) return 'N/A';
+        try {
+            // Si es formato ISO (YYYY-MM-DD o YYYY-MM-DDTHH:mm:ss)
+            if (fechaStr.includes('-')) {
+                const partes = fechaStr.split('T')[0].split('-');
+                if (partes.length === 3) {
+                    const [anio, mes, dia] = partes;
+                    return `${dia}/${mes}/${anio}`;
+                }
+            }
+            // Si es otro formato, intenta parsearlo normalmente
+            const fecha = new Date(fechaStr);
+            return fecha.toLocaleDateString('es-PE');
+        } catch (e) {
+            return fechaStr;
+        }
+    };
 
     useEffect(() => {
         if (id) {
@@ -199,7 +219,7 @@ const DetalleContrato = () => {
                 return {
                     ...cuota,
                     numero: cuota.numeroCuota !== undefined ? cuota.numeroCuota : cuota.numero,
-                    vencimiento: cuota.fechaVencimiento ? new Date(cuota.fechaVencimiento).toLocaleDateString() : 'N/A',
+                    vencimiento: formatearFecha(cuota.fechaVencimiento),
                     montoTotal: cuota.montoTotal || cuota.monto || 0,
                     montoPagado: pagadoEnCuota,
                     estado: cuota.estado || 'PENDIENTE',
@@ -221,7 +241,7 @@ const DetalleContrato = () => {
             setContrato({
                 id: Number(contratoId),
                 codigo: `C-${contratoId.toString().padStart(4, '0')}`,
-                fechaEmision: data.fechaRegistro ? new Date(data.fechaRegistro).toLocaleDateString() : 'N/A',
+                fechaEmision: formatearFecha(data.fechaRegistro),
                 vendedor: data.vendedor ? `${data.vendedor.nombres} ${data.vendedor.apellidos}` : 'No asignado',
                 vendedorDetalle: data.vendedor ? {
                     id: data.vendedor.id,
@@ -302,7 +322,10 @@ const DetalleContrato = () => {
             const pagosFormateados = (pagosRaw || []).map(p => ({
                 ...p,
                 id: `REC-${p.id}`,
-                fechaPago: p.fechaPago ? new Date(p.fechaPago).toLocaleString() : 'N/A',
+                fechaPago: p.fechaPago ? (() => {
+                    const fecha = new Date(p.fechaPago);
+                    return fecha.toLocaleDateString('es-PE') + ' ' + fecha.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
+                })() : 'N/A',
                 montoAbonado: p.montoAbonado || p.monto || 0,
                 metodoPago: p.metodoPago || p.metodo || 'No especificado',
                 fotoVoucherUrl: p.fotoVoucherUrl || null
@@ -463,11 +486,18 @@ const DetalleContrato = () => {
     const calcularDiasVencidos = (fechaVencimientoStr) => {
         if (!fechaVencimientoStr) return 0;
         let fecha;
+        
+        // Parsear fecha sin afectar por zona horaria
         if (fechaVencimientoStr.includes('/')) {
+            // Formato DD/MM/YYYY
             const [dia, mes, anio] = fechaVencimientoStr.split('/');
             fecha = new Date(anio, mes - 1, dia);
+        } else if (fechaVencimientoStr.includes('-')) {
+            // Formato ISO YYYY-MM-DD (sin parsear como UTC)
+            const [anio, mes, dia] = fechaVencimientoStr.split('T')[0].split('-');
+            fecha = new Date(anio, mes - 1, dia);
         } else {
-            fecha = new Date(fechaVencimientoStr + 'T00:00:00');
+            fecha = new Date(fechaVencimientoStr);
         }
 
         const hoy = new Date();
