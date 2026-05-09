@@ -495,73 +495,26 @@ const Cotizacion = ({ embedded = false }) => {
                     direccion: interesado.direccion || clienteExistente?.direccion || ''
                 }));
                 setDni(documento);
+                setCoCompradorSeleccionado(null);
+                setMostrarCoComprador(false);
+                setLoteSeleccionado(null);
+                setVendedorSeleccionado(null);
+                setPendingLoteId(null);
+                setPendingVendedorId(null);
+                setLotePrecio(0);
+                setInicialAcordada(0);
+                setAbonoReal(0);
+                setIsFlexible(false);
+                setCuotasEspeciales(0);
+                setMontoEspecial(0);
+                setTipoInicial(null);
+                setCronograma([]);
+                setDescripcionGenerada('');
 
                 if (dep) {
                     await cargarProvincias(dep);
                     if (prov) await cargarDistritos(dep, prov);
                 }
-
-                if (seleccionada.vendedor?.id) {
-                    const vendedorEncontrado = vendedoresOptions.find((item) => item?.id === seleccionada.vendedor.id);
-                    if (vendedorEncontrado) setVendedorSeleccionado(vendedorEncontrado);
-                    else setPendingVendedorId(seleccionada.vendedor.id);
-                }
-
-                if (seleccionada.lote?.id) {
-                    const loteEncontrado = lotesOptions.find((item) => item?.id === seleccionada.lote.id);
-                    if (loteEncontrado) {
-                        setLoteSeleccionado(loteEncontrado);
-                        syncLoteUbicacion(loteEncontrado);
-                        if (loteEncontrado.precioVenta != null) {
-                            setLotePrecio(loteEncontrado.precioVenta);
-                        }
-                    } else {
-                        setPendingLoteId(seleccionada.lote.id);
-                        if (seleccionada.precioTotal != null) {
-                            setLotePrecio(seleccionada.precioTotal);
-                        }
-                    }
-                }
-
-                const coCompradorId = seleccionada.coComprador?.id || seleccionada.coCompradorId || null;
-                if (coCompradorId) {
-                    const coCompradorEncontrado = (clientes || []).find((item) => item?.id === coCompradorId);
-                    if (coCompradorEncontrado) {
-                        setCoCompradorSeleccionado(coCompradorEncontrado);
-                    } else if (seleccionada.coComprador) {
-                        setCoCompradorSeleccionado({
-                            ...seleccionada.coComprador,
-                            nombreCompleto: `${seleccionada.coComprador.nombres || ''} ${seleccionada.coComprador.apellidos || ''}`.trim(),
-                            detalleDocumento: `${seleccionada.coComprador.tipoDocumento || 'DNI'}: ${seleccionada.coComprador.numeroDocumento || 'N/A'}`
-                        });
-                    }
-                    setMostrarCoComprador(true);
-                } else {
-                    setCoCompradorSeleccionado(null);
-                    setMostrarCoComprador(false);
-                }
-
-                const inicialCargada = seleccionada.montoInicialAcordado ?? 500;
-                const cuotasCargadas = seleccionada.cantidadCuotas || 36;
-                const tipoCargado = seleccionada.tipoInicial || 'PARCIAL';
-                const abonoCargado = seleccionada.montoAbonadoIncial ?? (tipoCargado === 'TOTAL' ? inicialCargada : 0);
-                const flexCargado = !!(seleccionada.cuotasFlexibles || seleccionada.cuotasEspeciales || seleccionada.montoCuotaEspecial);
-                const espCargadas = seleccionada.cuotasEspeciales || 0;
-                const mtoEspCargado = seleccionada.montoCuotaEspecial || 0;
-
-                setInicialAcordada(inicialCargada);
-                setCuotas(cuotasCargadas);
-                setTipoInicial(tipoCargado);
-                setAbonoReal(abonoCargado);
-                setIsFlexible(flexCargado);
-                setCuotasEspeciales(espCargadas);
-                setMontoEspecial(mtoEspCargado);
-
-                if (seleccionada.fechaInicioPago) setFechaInicio(parseLocalYMD(seleccionada.fechaInicioPago));
-
-                setTimeout(() => {
-                    simular();
-                }, 300);
 
                 toast.current?.show({ severity: 'success', summary: 'Cotización encontrada', detail: 'Datos cargados.' });
                 return;
