@@ -103,6 +103,35 @@ const DetalleContrato = () => {
         }
     };
 
+    const formatearFechaLarga = (fechaStr) => {
+        if (!fechaStr) return 'N/A';
+        try {
+            const fechaBase = fechaStr.includes('T') ? fechaStr.split('T')[0] : fechaStr;
+            const partes = fechaBase.split('-');
+            if (partes.length === 3) {
+                const [anio, mes, dia] = partes;
+                const meses = [
+                    'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
+                    'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'
+                ];
+                const mesIndex = Number(mes) - 1;
+                if (mesIndex >= 0 && mesIndex < meses.length) {
+                    return `${Number(dia)} DE ${meses[mesIndex]} DEL ${anio}`;
+                }
+            }
+
+            const fecha = new Date(fechaStr);
+            if (Number.isNaN(fecha.getTime())) return fechaStr;
+            const meses = [
+                'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
+                'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'
+            ];
+            return `${fecha.getDate()} DE ${meses[fecha.getMonth()]} DEL ${fecha.getFullYear()}`;
+        } catch (e) {
+            return fechaStr;
+        }
+    };
+
     useEffect(() => {
         if (id) {
             cargarDetalleContrato(id);
@@ -219,7 +248,8 @@ const DetalleContrato = () => {
                 return {
                     ...cuota,
                     numero: cuota.numeroCuota !== undefined ? cuota.numeroCuota : cuota.numero,
-                    vencimiento: formatearFecha(cuota.fechaVencimiento),
+                    vencimiento: formatearFechaLarga(cuota.fechaVencimiento),
+                    vencimientoRaw: cuota.fechaVencimiento,
                     montoTotal: cuota.montoTotal || cuota.monto || 0,
                     montoPagado: pagadoEnCuota,
                     estado: cuota.estado || 'PENDIENTE',
@@ -577,7 +607,7 @@ const DetalleContrato = () => {
         const estado = (rowData?.estado || '').toUpperCase();
         const diasVencidos = (rowData?.diasVencidos > 0)
             ? rowData.diasVencidos
-            : calcularDiasVencidos(rowData?.vencimiento);
+            : calcularDiasVencidos(rowData?.vencimientoRaw || rowData?.vencimiento);
         const estaVencida = estado === 'VENCIDA' || estado === 'VENCIDO' || ((estado === 'PENDIENTE' || estado === 'PAGADO_PARCIAL') && diasVencidos > 0);
 
         if (estado === 'PAGADO_TOTAL' || estado === 'PAGADO') {
@@ -1142,7 +1172,7 @@ const DetalleContrato = () => {
                                     <Column header="Deuda" body={(r) => r.montoTotal - r.montoPagado > 0 ? <span className="font-bold text-orange-600">S/ {(r.montoTotal - r.montoPagado).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span> : '-'} headerStyle={{ textAlign: 'center', fontSize: '1rem', fontWeight: 'bold' }} style={{ textAlign: 'center' }}></Column>
                                     <Column header="Estado" body={(r) => getEstadoCuotaTag(r)} headerStyle={{ textAlign: 'center', fontSize: '1rem', fontWeight: 'bold' }} style={{ textAlign: 'center' }}></Column>
                                     <Column header="Atraso" body={(r) => {
-                                        const diasVencidos = calcularDiasVencidos(r.vencimiento);
+                                        const diasVencidos = calcularDiasVencidos(r.vencimientoRaw || r.vencimiento);
                                         if (diasVencidos > 0) {
                                             return <span className="text-red-600 font-bold text-sm">{diasVencidos}d</span>;
                                         }

@@ -649,7 +649,14 @@ const Contrato = ({ embedded = false }) => {
         if (pFlex) { nSaldo = saldo - (eCant * eMto); nCant = pCuotas - eCant; }
         
         let base = nCant > 0 ? nSaldo / nCant : 0;
-        let bd = new Date(fechaInicio);
+        // Normalizar fechaInicio a una Date local (evita shifts por parseo ISO/UTC)
+        let bd;
+        if (fechaInicio instanceof Date) {
+            bd = new Date(fechaInicio.getFullYear(), fechaInicio.getMonth(), fechaInicio.getDate());
+        } else {
+            bd = parseLocalYMD(fechaInicio) || new Date();
+            bd = new Date(bd.getFullYear(), bd.getMonth(), bd.getDate());
+        }
         let dia = bd.getDate();
 
         for (let i = 0; i < pCuotas; i++) {
@@ -708,11 +715,12 @@ const Contrato = ({ embedded = false }) => {
         }
 
         const abonoEf = tipoInicial === 'TOTAL' ? inicialAcordada : abonoReal;
+        const fechaInicioParaEnvio = fechaInicio instanceof Date ? fechaInicio : parseLocalYMD(fechaInicio);
         const simulacionRequest = {
             precioTotal: lotePrecio,
             montoInicial: inicialAcordada,
             cantidadCuotas: cuotas,
-            fechaInicioPago: getLocalYMD(fechaInicio),
+            fechaInicioPago: getLocalYMD(fechaInicioParaEnvio),
             cuotasEspeciales: isFlexible ? cuotasEspeciales : 0,
             montoCuotaEspecial: isFlexible ? montoEspecial : 0
         };
@@ -766,6 +774,15 @@ const Contrato = ({ embedded = false }) => {
             toast.current.show({ severity: 'error', summary: 'Error en simulación', detail: error.response?.data?.message || 'No se pudo simular el cronograma.' });
             simularConDatos(lotePrecio, inicialAcordada, cuotas, tipoInicial, isFlexible, cuotasEspeciales, montoEspecial);
         }
+    };
+
+    // Habilita edición y fuerza una simulación inmediata para refrescar cronograma con la fecha correcta
+    const handleEnableEdit = () => {
+        setIsEditFinanciamiento(true);
+        // Dar tiempo a React para aplicar cambios de estado/fecha antes de simular
+        setTimeout(() => {
+            try { simular(); } catch (e) { /* silent */ }
+        }, 150);
     };
 
     const formatDate = (value) => {
@@ -1145,7 +1162,7 @@ const Contrato = ({ embedded = false }) => {
                                             </div>
                                         </div>
                                         <div className="mt-4 flex flex-column md:flex-row justify-content-end gap-3 pt-4 border-top-1 border-blue-200">
-                                            <Button label="Modificar Parámetros" icon="pi pi-sliders-v" className="p-button-outlined p-button-secondary bg-white w-full md:w-auto p-button-lg" onClick={() => setIsEditFinanciamiento(true)} />
+                                            <Button label="Modificar Parámetros" icon="pi pi-sliders-v" className="p-button-outlined p-button-secondary bg-white w-full md:w-auto p-button-lg" onClick={handleEnableEdit} />
                                             <Button label="Generar Contrato Oficial" icon="pi pi-check-circle" className="btn-success-custom p-button-lg shadow-2 font-bold px-5 w-full md:w-auto" disabled={cronograma.length === 0} onClick={guardarContrato} />
                                         </div>
                                     </div>
@@ -1298,7 +1315,11 @@ const Contrato = ({ embedded = false }) => {
                                             </div>
                                             <div className="field col-12 md:col-3">
                                                 <label className="font-medium text-xs uppercase text-500">Día Fijo de Pago</label>
-                                                <Calendar value={fechaInicio} onChange={(e) => setFechaInicio(e.value)} dateFormat="dd/mm/yy" showIcon />
+                                                <Calendar value={fechaInicio} onChange={(e) => {
+                                                    const d = e.value;
+                                                    if (d instanceof Date) setFechaInicio(new Date(d.getFullYear(), d.getMonth(), d.getDate()));
+                                                    else setFechaInicio(parseLocalYMD(d));
+                                                }} dateFormat="dd/mm/yy" showIcon />
                                             </div>
                                         </div>
                                     </div>
