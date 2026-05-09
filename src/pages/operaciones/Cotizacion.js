@@ -60,6 +60,7 @@ const Cotizacion = ({ embedded = false }) => {
     const [coCompradorModalVisible, setCoCompradorModalVisible] = useState(false);
     const [coCompradorDraft, setCoCompradorDraft] = useState(crearCoCompradorVacio());
     const [clientes, setClientes] = useState([]);
+    const [interesados, setInteresados] = useState([]);
     const [departamentos, setDepartamentos] = useState([]);
     const [provincias, setProvincias] = useState([]);
     const [distritos, setDistritos] = useState([]);
@@ -243,7 +244,7 @@ const Cotizacion = ({ embedded = false }) => {
         const titularId = cliente?.id;
         const titularDocumento = (cliente?.numeroDocumento || '').trim();
 
-        return (clientes || [])
+        return (interesados || [])
             .filter((item) => item?.id && item.id !== titularId)
             .filter((item) => (item?.numeroDocumento || '').trim() !== titularDocumento)
             .map((item) => ({
@@ -251,7 +252,7 @@ const Cotizacion = ({ embedded = false }) => {
                 nombreCompleto: `${item.nombres || ''} ${item.apellidos || ''}`.trim(),
                 detalleDocumento: `${item.tipoDocumento || 'DNI'}: ${item.numeroDocumento || 'N/A'}`
             }));
-    }, [clientes, cliente]);
+    }, [interesados, cliente]);
 
     const abrirModalCoComprador = () => {
         setCoCompradorDraft((prev) => ({
@@ -433,12 +434,16 @@ const Cotizacion = ({ embedded = false }) => {
 
     const cargarDatosBase = async () => {
         try {
-            const [resClientes, resLotes, resVendedores] = await Promise.all([
+            const [resClientes, resInteresados, resLotes, resVendedores] = await Promise.all([
                 ClienteService.listar(axiosInstance),
+                InteresadoService.listar(axiosInstance),
                 LoteService.listar(axiosInstance),
                 VendedorService.listar(axiosInstance)
             ]);
-            setClientes(resClientes || []); setLotes(resLotes || []); setVendedores(resVendedores || []);
+            setClientes(resClientes || []);
+            setInteresados(resInteresados || []);
+            setLotes(resLotes || []);
+            setVendedores(resVendedores || []);
             await cargarDepartamentos();
         } catch (error) {
             toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudieron cargar datos base.' });
