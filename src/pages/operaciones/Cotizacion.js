@@ -1308,6 +1308,7 @@ const Cotizacion = ({ embedded = false }) => {
                         <div>
                             <i className="pi pi-check-square text-green-500 text-xl"></i>
                             <span className="font-bold text-xl ml-2 text-800">Proyección Financiera</span>
+                            
                         </div>
                         {cronograma.length > 0 && (
                             <Button label="Guardar Cotización" icon="pi pi-save" className="p-button-outlined p-button-lg border-round-xl font-bold" onClick={guardarCotizacion} />
