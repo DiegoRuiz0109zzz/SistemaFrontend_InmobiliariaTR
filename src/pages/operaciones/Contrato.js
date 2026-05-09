@@ -378,23 +378,24 @@ const Contrato = ({ embedded = false }) => {
             else setPendingVendedorId(seleccionada.vendedor.id);
         }
 
-        let precioLoteCargado = 0;
+        let precioVentaCargado = 0;
         if (seleccionada.lote?.id) {
             const loteEncontrado = lotesOptions.find((item) => item?.id === seleccionada.lote.id);
+            const precioVentaCotizacion = seleccionada.precioTotal ?? null;
             if (loteEncontrado) {
                 setLoteSeleccionado(loteEncontrado);
                 setUrbanizacionSeleccionada(loteEncontrado.manzana?.etapa?.urbanizacion || null);
                 setEtapaSeleccionada(loteEncontrado.manzana?.etapa || null);
                 setManzanaSeleccionada(loteEncontrado.manzana || null);
-                if (loteEncontrado.precioVenta != null) {
-                    setLotePrecio(loteEncontrado.precioVenta);
-                    precioLoteCargado = loteEncontrado.precioVenta;
+                precioVentaCargado = precioVentaCotizacion ?? loteEncontrado.precioVenta ?? 0;
+                if (precioVentaCargado != null) {
+                    setLotePrecio(precioVentaCargado);
                 }
             } else {
                 setPendingLoteId(seleccionada.lote.id);
-                if (seleccionada.precioTotal != null) {
-                    setLotePrecio(seleccionada.precioTotal);
-                    precioLoteCargado = seleccionada.precioTotal;
+                precioVentaCargado = precioVentaCotizacion ?? 0;
+                if (precioVentaCargado != null) {
+                    setLotePrecio(precioVentaCargado);
                 }
             }
         }
@@ -418,7 +419,7 @@ const Contrato = ({ embedded = false }) => {
         if (seleccionada.fechaInicioPago) setFechaInicio(parseLocalYMD(seleccionada.fechaInicioPago));
 
         setTimeout(() => {
-            simularConDatos(precioLoteCargado, inicialCargada, cuotasCargadas, tipoCargado, flexCargado, espCargadas, mtoEspCargado);
+            simularConDatos(precioVentaCargado, inicialCargada, cuotasCargadas, tipoCargado, flexCargado, espCargadas, mtoEspCargado);
         }, 300);
     };
 
@@ -1108,7 +1109,7 @@ const Contrato = ({ embedded = false }) => {
                                             {/* Details row */}
                                             <div className="col-12 md:col-3 mb-2">
                                                 <div className="p-3 border-round border-1 surface-border bg-white shadow-1 h-full text-center">
-                                                    <span className="text-xs text-700 uppercase font-bold block mb-1">Precio Inmueble</span>
+                                                    <span className="text-xs text-700 uppercase font-bold block mb-1">Precio de Venta</span>
                                                     <span className="text-xl font-bold text-800">S/ {parseFloat(lotePrecio || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                                                 </div>
                                             </div>
