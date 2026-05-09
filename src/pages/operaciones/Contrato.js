@@ -677,12 +677,95 @@ const Contrato = ({ embedded = false }) => {
         setDescripcionGenerada(desc);
     };
 
-    const simular = () => {
+    const formatFechaLarga = (value) => {
+        if (!value) return '';
+        const date = value instanceof Date ? value : parseLocalYMD(value);
+        if (!date || Number.isNaN(date.getTime())) return '';
+        const meses = [
+            'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
+            'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'
+        ];
+        return `${date.getDate()} DE ${meses[date.getMonth()]} DEL ${date.getFullYear()}`;
+    };
+
+    const normalizarCuotaSimulada = (item, index = 0) => {
+        const fecha = item?.fechaVencimiento || item?.fecha || item?.vencimiento || null;
+        return {
+            numero: item?.numeroCuota ?? item?.numero ?? index + 1,
+            tipoCuota: item?.tipoCuota || 'MENSUAL',
+            montoTotal: Number(item?.montoTotal ?? item?.monto ?? 0),
+            montoPagado: Number(item?.montoPagado ?? 0),
+            saldoPendiente: Number(item?.saldoPendiente ?? item?.monto ?? 0),
+            fecha,
+            estado: item?.estado || 'PENDIENTE'
+        };
+    };
+
+    const simular = async () => {
         if (saldoAFinanciar <= 0 || cuotas <= 0) {
             toast.current.show({ severity: 'warn', summary: 'Atención', detail: 'Revise el saldo y cuotas.' });
             return;
         }
-        simularConDatos(lotePrecio, inicialAcordada, cuotas, tipoInicial, isFlexible, cuotasEspeciales, montoEspecial);
+
+        const abonoEf = tipoInicial === 'TOTAL' ? inicialAcordada : abonoReal;
+        const simulacionRequest = {
+            precioTotal: lotePrecio,
+            montoInicial: inicialAcordada,
+            cantidadCuotas: cuotas,
+            fechaInicioPago: getLocalYMD(fechaInicio),
+            cuotasEspeciales: isFlexible ? cuotasEspeciales : 0,
+            montoCuotaEspecial: isFlexible ? montoEspecial : 0
+        };
+
+        try {
+            const respuesta = await ContratoService.simular(simulacionRequest, axiosInstance);
+
+            if (Array.isArray(respuesta)) {
+                const cuotaInicial = {
+                    numero: 0,
+                    tipoCuota: 'INICIAL',
+                    montoTotal: inicialAcordada,
+                    montoPagado: abonoEf,
+                    saldoPendiente: Math.max(inicialAcordada - abonoEf, 0),
+                    fecha: getLocalYMD(fechaLimiteInicial),
+                    estado: esSeparacion ? 'PAGADO_PARCIAL' : 'PAGADO_TOTAL'
+                };
+
+                const cuotasBackend = respuesta.map((item) => {
+                    const cuotaNormalizada = normalizarCuotaSimulada(item, item?.numeroCuota ? Number(item.numeroCuota) - 1 : 0);
+                    const esEspecial = isFlexible && Number(item.numeroCuota) <= Number(cuotasEspeciales || 0);
+                    return {
+                        ...cuotaNormalizada,
+                        numero: item.numeroCuota,
+                        tipoCuota: esEspecial ? 'ESPECIAL' : 'MENSUAL',
+                        fecha: item.fechaVencimiento || item.fecha || cuotaNormalizada.fecha
+                    };
+                });
+
+                setCronograma([cuotaInicial, ...cuotasBackend]);
+                setDescripcionGenerada('Simulación completada');
+                return;
+            }
+
+            if (respuesta && respuesta.cuotas) {
+                const cuotasNormalizadas = respuesta.cuotas.map((item, index) => {
+                    const cuota = normalizarCuotaSimulada(item, index);
+                    return {
+                        ...cuota,
+                        fecha: item?.fechaVencimiento || item?.fecha || cuota.fecha
+                    };
+                });
+
+                setCronograma(cuotasNormalizadas);
+                setDescripcionGenerada(respuesta.descripcion || 'Simulación completada');
+                return;
+            }
+
+            toast.current.show({ severity: 'warn', summary: 'Respuesta inesperada', detail: 'El servidor no devolvió los datos esperados.' });
+        } catch (error) {
+            toast.current.show({ severity: 'error', summary: 'Error en simulación', detail: error.response?.data?.message || 'No se pudo simular el cronograma.' });
+            simularConDatos(lotePrecio, inicialAcordada, cuotas, tipoInicial, isFlexible, cuotasEspeciales, montoEspecial);
+        }
     };
 
     const formatDate = (value) => {
@@ -1321,6 +1404,7 @@ const Contrato = ({ embedded = false }) => {
                             <div>
                                 <i className="pi pi-check-square text-green-500 text-xl"></i>
                                 <span className="font-bold text-xl ml-2 text-800">Proyección Oficial</span>
+                                
                             </div>
                             {cronograma.length > 0 && (
                                 <Button label="Emitir Contrato Oficial" icon="pi pi-file-edit" className="btn-success-custom p-button-lg shadow-3 border-round-xl font-bold" onClick={guardarContrato} />
@@ -1379,7 +1463,7 @@ const Contrato = ({ embedded = false }) => {
                                     })}>
                                     <Column field="numero" header="N°" style={{ width: '8%' }} body={(r) => r.numero === 0 ? '0' : r.numero}></Column>
                                     <Column field="tipoCuota" header="Tipo" style={{ width: '20%' }} body={tipoTemplate}></Column>
-                                    <Column field="fecha" header="Vencimiento" style={{ width: '25%' }} body={(row) => <><i className="pi pi-calendar mr-2 text-400"></i>{row.fecha}</>}></Column>
+                                    <Column field="fecha" header="Vencimiento" style={{ width: '25%' }} body={(row) => <><i className="pi pi-calendar mr-2 text-400"></i>{formatFechaLarga(row.fecha)}</>}></Column>
                                     <Column header="Monto (S/)" body={montoTemplate} style={{ width: '25%', textAlign: 'right' }}></Column>
                                     <Column header="Estado" body={estadoTemplate} style={{ width: '22%', textAlign: 'center' }}></Column>
                                 </DataTable>

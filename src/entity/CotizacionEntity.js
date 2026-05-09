@@ -29,6 +29,7 @@ export const CotizacionEntity = {
     // Fechas
     fechaCotizacion: null,
     fechaValidez: null,
+    fechaInicioPago: null,
 
     // Estado: VIGENTE | CONVERTIDA | VENCIDA
     estado: EstadoCotizacion.VIGENTE,
