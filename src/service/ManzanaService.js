@@ -17,7 +17,7 @@ export const ManzanaService = {
         return response.data;
     },
 
-    listarPaginado: async (page = 0, size = 10, search = null, etapaId = null, httpClient) => {
+    listarPaginado: async (page = 0, size = 10, search = null, etapaId = null, urbanizacionId = null, httpClient) => {
         const client = resolveClient(httpClient);
         const params = {
             page,
@@ -28,6 +28,9 @@ export const ManzanaService = {
         }
         if (etapaId) {
             params.etapaId = etapaId;
+        }
+        if (urbanizacionId) {
+            params.urbanizacionId = urbanizacionId;
         }
         const response = await client.get(`${RESOURCE}/page`, { params });
         return response.data;

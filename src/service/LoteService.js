@@ -17,7 +17,7 @@ export const LoteService = {
 		return response.data;
 	},
 
-	listarPaginado: async (page = 0, size = 10, search = null, manzanaId = null, httpClient) => {
+	listarPaginado: async (page = 0, size = 10, search = null, manzanaId = null, etapaId = null, urbanizacionId = null, httpClient) => {
 		const client = resolveClient(httpClient);
 		const params = {
 			page,
@@ -28,6 +28,12 @@ export const LoteService = {
 		}
 		if (manzanaId) {
 			params.manzanaId = manzanaId;
+		}
+		if (etapaId) {
+			params.etapaId = etapaId;
+		}
+		if (urbanizacionId) {
+			params.urbanizacionId = urbanizacionId;
 		}
 		const response = await client.get(`${RESOURCE}/page`, { params });
 		return response.data;
