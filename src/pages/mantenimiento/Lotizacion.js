@@ -220,6 +220,7 @@ const Lotizacion = () => {
                 manzanaRows,
                 manzanaFilter,
                 manzanaEtapaFilter?.id ?? null,
+                manzanaUrbanizacionFilter?.id ?? null,
                 axiosInstance
             );
             setManzanaRecords(response?.content || []);
@@ -230,7 +231,7 @@ const Lotizacion = () => {
         } finally {
             setManzanaLoading(false);
         }
-    }, [axiosInstance, manzanaEtapaFilter, manzanaFilter, manzanaPage, manzanaRows]);
+    }, [axiosInstance, manzanaEtapaFilter, manzanaFilter, manzanaPage, manzanaRows, manzanaUrbanizacionFilter]);
 
     const cargarLotes = useCallback(async () => {
         try {
@@ -250,6 +251,8 @@ const Lotizacion = () => {
                 loteRows,
                 loteFilter,
                 loteManzanaFilter?.id ?? null,
+                loteEtapaFilter?.id ?? null,
+                loteUrbanizacionFilter?.id ?? null,
                 axiosInstance
             );
             setLoteRecords(response?.content || []);
@@ -260,7 +263,7 @@ const Lotizacion = () => {
         } finally {
             setLoteLoading(false);
         }
-    }, [axiosInstance, loteFilter, loteManzanaFilter, lotePage, loteRows]);
+    }, [axiosInstance, loteFilter, loteManzanaFilter, loteEtapaFilter, loteUrbanizacionFilter, lotePage, loteRows]);
 
     const cargarEtapasPorUrbanizacion = useCallback(
         async (urbanizacionId) => {
