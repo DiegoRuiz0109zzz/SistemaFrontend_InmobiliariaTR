@@ -34,6 +34,11 @@ const Lotizacion = () => {
     const emptyLote = { ...LoteEntity, manzana: null };
 
     const [urbanizaciones, setUrbanizaciones] = useState([]);
+    const [urbanizacionRecords, setUrbanizacionRecords] = useState([]);
+    const [urbanizacionTotalRecords, setUrbanizacionTotalRecords] = useState(0);
+    const [urbanizacionPage, setUrbanizacionPage] = useState(0);
+    const [urbanizacionRows, setUrbanizacionRows] = useState(6);
+    const [urbanizacionLoading, setUrbanizacionLoading] = useState(false);
     const [urbanizacion, setUrbanizacion] = useState(emptyUrbanizacion);
     const [urbanizacionDialog, setUrbanizacionDialog] = useState(false);
     const [urbanizacionSubmitted, setUrbanizacionSubmitted] = useState(false);
@@ -41,29 +46,53 @@ const Lotizacion = () => {
     const [urbanizacionFilter, setUrbanizacionFilter] = useState('');
 
     const [etapas, setEtapas] = useState([]);
+    const [etapaRecords, setEtapaRecords] = useState([]);
+    const [etapaTotalRecords, setEtapaTotalRecords] = useState(0);
+    const [etapaPage, setEtapaPage] = useState(0);
+    const [etapaRows, setEtapaRows] = useState(6);
+    const [etapaLoading, setEtapaLoading] = useState(false);
     const [etapa, setEtapa] = useState(emptyEtapa);
     const [etapaDialog, setEtapaDialog] = useState(false);
     const [etapaSubmitted, setEtapaSubmitted] = useState(false);
     const [etapaEdit, setEtapaEdit] = useState(emptyEtapa);
     const [etapaFilter, setEtapaFilter] = useState('');
+    const [etapaUrbanizacionFilter, setEtapaUrbanizacionFilter] = useState(null);
 
     const [manzanas, setManzanas] = useState([]);
+    const [manzanaRecords, setManzanaRecords] = useState([]);
+    const [manzanaTotalRecords, setManzanaTotalRecords] = useState(0);
+    const [manzanaPage, setManzanaPage] = useState(0);
+    const [manzanaRows, setManzanaRows] = useState(6);
+    const [manzanaLoading, setManzanaLoading] = useState(false);
     const [manzana, setManzana] = useState(emptyManzana);
     const [manzanaDialog, setManzanaDialog] = useState(false);
     const [manzanaSubmitted, setManzanaSubmitted] = useState(false);
     const [manzanaEdit, setManzanaEdit] = useState(emptyManzana);
     const [manzanaFilter, setManzanaFilter] = useState('');
+    const [manzanaUrbanizacionFilter, setManzanaUrbanizacionFilter] = useState(null);
+    const [manzanaEtapaFilter, setManzanaEtapaFilter] = useState(null);
+    const [manzanaFilterEtapas, setManzanaFilterEtapas] = useState([]);
     const [manzanaUrbanizacion, setManzanaUrbanizacion] = useState(null);
     const [manzanaEtapas, setManzanaEtapas] = useState([]);
     const [manzanaDialogUrbanizacion, setManzanaDialogUrbanizacion] = useState(null);
     const [manzanaDialogEtapas, setManzanaDialogEtapas] = useState([]);
 
     const [lotes, setLotes] = useState([]);
+    const [loteRecords, setLoteRecords] = useState([]);
+    const [loteTotalRecords, setLoteTotalRecords] = useState(0);
+    const [lotePage, setLotePage] = useState(0);
+    const [loteRows, setLoteRows] = useState(6);
+    const [loteLoading, setLoteLoading] = useState(false);
     const [lote, setLote] = useState(emptyLote);
     const [loteDialog, setLoteDialog] = useState(false);
     const [loteSubmitted, setLoteSubmitted] = useState(false);
     const [loteEdit, setLoteEdit] = useState(emptyLote);
     const [loteFilter, setLoteFilter] = useState('');
+    const [loteUrbanizacionFilter, setLoteUrbanizacionFilter] = useState(null);
+    const [loteEtapaFilter, setLoteEtapaFilter] = useState(null);
+    const [loteManzanaFilter, setLoteManzanaFilter] = useState(null);
+    const [loteFilterEtapas, setLoteFilterEtapas] = useState([]);
+    const [loteFilterManzanas, setLoteFilterManzanas] = useState([]);
     const [loteUrbanizacion, setLoteUrbanizacion] = useState(null);
     const [loteEtapa, setLoteEtapa] = useState(null);
     const [loteEtapas, setLoteEtapas] = useState([]);
@@ -74,8 +103,11 @@ const Lotizacion = () => {
     const [loteDialogManzanas, setLoteDialogManzanas] = useState([]);
 
     const urbanizacionOptions = urbanizaciones.map((item) => ({ label: item.nombre, value: item }));
+    const manzanaFilterEtapaOptions = manzanaFilterEtapas.map((item) => ({ label: item.nombre, value: item }));
     const manzanaEtapaOptions = manzanaEtapas.map((item) => ({ label: item.nombre, value: item }));
     const manzanaDialogEtapaOptions = manzanaDialogEtapas.map((item) => ({ label: item.nombre, value: item }));
+    const loteFilterEtapaOptions = loteFilterEtapas.map((item) => ({ label: item.nombre, value: item }));
+    const loteFilterManzanaOptions = loteFilterManzanas.map((item) => ({ label: item.nombre, value: item }));
     const loteEtapaOptions = loteEtapas.map((item) => ({ label: item.nombre, value: item }));
     const loteManzanaOptions = loteManzanas.map((item) => ({ label: item.nombre, value: item }));
     const loteDialogEtapaOptions = loteDialogEtapas.map((item) => ({ label: item.nombre, value: item }));
@@ -121,6 +153,25 @@ const Lotizacion = () => {
         }
     }, [axiosInstance]);
 
+    const cargarUrbanizacionesPaginado = useCallback(async () => {
+        setUrbanizacionLoading(true);
+        try {
+            const response = await UrbanizacionService.listarPaginado(
+                urbanizacionPage,
+                urbanizacionRows,
+                urbanizacionFilter,
+                axiosInstance
+            );
+            setUrbanizacionRecords(response?.content || []);
+            setUrbanizacionTotalRecords(response?.totalElements || 0);
+        } catch (error) {
+            console.error(error);
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar urbanizaciones.', life: 3500 });
+        } finally {
+            setUrbanizacionLoading(false);
+        }
+    }, [axiosInstance, urbanizacionFilter, urbanizacionPage, urbanizacionRows]);
+
     const cargarEtapas = useCallback(async () => {
         try {
             const response = await EtapaService.listar(axiosInstance);
@@ -130,6 +181,26 @@ const Lotizacion = () => {
             toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar etapas.', life: 3500 });
         }
     }, [axiosInstance]);
+
+    const cargarEtapasPaginado = useCallback(async () => {
+        setEtapaLoading(true);
+        try {
+            const response = await EtapaService.listarPaginado(
+                etapaPage,
+                etapaRows,
+                etapaFilter,
+                etapaUrbanizacionFilter?.id ?? null,
+                axiosInstance
+            );
+            setEtapaRecords(response?.content || []);
+            setEtapaTotalRecords(response?.totalElements || 0);
+        } catch (error) {
+            console.error(error);
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar etapas.', life: 3500 });
+        } finally {
+            setEtapaLoading(false);
+        }
+    }, [axiosInstance, etapaFilter, etapaPage, etapaRows, etapaUrbanizacionFilter]);
 
     const cargarManzanas = useCallback(async () => {
         try {
@@ -141,6 +212,26 @@ const Lotizacion = () => {
         }
     }, [axiosInstance]);
 
+    const cargarManzanasPaginado = useCallback(async () => {
+        setManzanaLoading(true);
+        try {
+            const response = await ManzanaService.listarPaginado(
+                manzanaPage,
+                manzanaRows,
+                manzanaFilter,
+                manzanaEtapaFilter?.id ?? null,
+                axiosInstance
+            );
+            setManzanaRecords(response?.content || []);
+            setManzanaTotalRecords(response?.totalElements || 0);
+        } catch (error) {
+            console.error(error);
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar manzanas.', life: 3500 });
+        } finally {
+            setManzanaLoading(false);
+        }
+    }, [axiosInstance, manzanaEtapaFilter, manzanaFilter, manzanaPage, manzanaRows]);
+
     const cargarLotes = useCallback(async () => {
         try {
             const response = await LoteService.listar(axiosInstance);
@@ -150,6 +241,26 @@ const Lotizacion = () => {
             toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar lotes.', life: 3500 });
         }
     }, [axiosInstance]);
+
+    const cargarLotesPaginado = useCallback(async () => {
+        setLoteLoading(true);
+        try {
+            const response = await LoteService.listarPaginado(
+                lotePage,
+                loteRows,
+                loteFilter,
+                loteManzanaFilter?.id ?? null,
+                axiosInstance
+            );
+            setLoteRecords(response?.content || []);
+            setLoteTotalRecords(response?.totalElements || 0);
+        } catch (error) {
+            console.error(error);
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar lotes.', life: 3500 });
+        } finally {
+            setLoteLoading(false);
+        }
+    }, [axiosInstance, loteFilter, loteManzanaFilter, lotePage, loteRows]);
 
     const cargarEtapasPorUrbanizacion = useCallback(
         async (urbanizacionId) => {
@@ -185,6 +296,22 @@ const Lotizacion = () => {
         cargarManzanas();
         cargarLotes();
     }, [cargarUrbanizaciones, cargarEtapas, cargarManzanas, cargarLotes]);
+
+    useEffect(() => {
+        cargarUrbanizacionesPaginado();
+    }, [cargarUrbanizacionesPaginado]);
+
+    useEffect(() => {
+        cargarEtapasPaginado();
+    }, [cargarEtapasPaginado]);
+
+    useEffect(() => {
+        cargarManzanasPaginado();
+    }, [cargarManzanasPaginado]);
+
+    useEffect(() => {
+        cargarLotesPaginado();
+    }, [cargarLotesPaginado]);
 
     useEffect(() => {
         let active = true;
@@ -229,6 +356,74 @@ const Lotizacion = () => {
             active = false;
         };
     }, [manzanaDialogUrbanizacion, cargarEtapasPorUrbanizacion]);
+
+    useEffect(() => {
+        let active = true;
+
+        const loadEtapas = async () => {
+            if (!loteUrbanizacionFilter?.id) {
+                setLoteFilterEtapas([]);
+                setLoteEtapaFilter(null);
+                setLoteFilterManzanas([]);
+                setLoteManzanaFilter(null);
+                return;
+            }
+            const response = await cargarEtapasPorUrbanizacion(loteUrbanizacionFilter.id);
+            if (active) {
+                setLoteFilterEtapas(response);
+            }
+        };
+
+        loadEtapas();
+
+        return () => {
+            active = false;
+        };
+    }, [loteUrbanizacionFilter, cargarEtapasPorUrbanizacion]);
+
+    useEffect(() => {
+        let active = true;
+
+        const loadManzanas = async () => {
+            if (!loteEtapaFilter?.id) {
+                setLoteFilterManzanas([]);
+                setLoteManzanaFilter(null);
+                return;
+            }
+            const response = await cargarManzanasPorEtapa(loteEtapaFilter.id);
+            if (active) {
+                setLoteFilterManzanas(response);
+            }
+        };
+
+        loadManzanas();
+
+        return () => {
+            active = false;
+        };
+    }, [loteEtapaFilter, cargarManzanasPorEtapa]);
+
+    useEffect(() => {
+        let active = true;
+
+        const loadEtapas = async () => {
+            if (!manzanaUrbanizacionFilter?.id) {
+                setManzanaFilterEtapas([]);
+                setManzanaEtapaFilter(null);
+                return;
+            }
+            const response = await cargarEtapasPorUrbanizacion(manzanaUrbanizacionFilter.id);
+            if (active) {
+                setManzanaFilterEtapas(response);
+            }
+        };
+
+        loadEtapas();
+
+        return () => {
+            active = false;
+        };
+    }, [manzanaUrbanizacionFilter, cargarEtapasPorUrbanizacion]);
 
     useEffect(() => {
         let active = true;
@@ -338,6 +533,7 @@ const Lotizacion = () => {
             }
 
             await cargarUrbanizaciones();
+            await cargarUrbanizacionesPaginado();
             setUrbanizacion(emptyUrbanizacion);
             setUrbanizacionSubmitted(false);
         } catch (error) {
@@ -363,6 +559,7 @@ const Lotizacion = () => {
             }
 
             await cargarUrbanizaciones();
+            await cargarUrbanizacionesPaginado();
             setUrbanizacionDialog(false);
             setUrbanizacionEdit(emptyUrbanizacion);
         } catch (error) {
@@ -387,6 +584,7 @@ const Lotizacion = () => {
                 toast.current?.show({ severity: 'success', summary: 'Creado', detail: 'Etapa creada.', life: 3000 });
             }
             await cargarEtapas();
+            await cargarEtapasPaginado();
             setEtapa(emptyEtapa);
             setEtapaSubmitted(false);
         } catch (error) {
@@ -411,6 +609,7 @@ const Lotizacion = () => {
                 toast.current?.show({ severity: 'success', summary: 'Creado', detail: 'Etapa creada.', life: 3000 });
             }
             await cargarEtapas();
+            await cargarEtapasPaginado();
             setEtapaDialog(false);
             setEtapaEdit(emptyEtapa);
         } catch (error) {
@@ -435,6 +634,7 @@ const Lotizacion = () => {
                 toast.current?.show({ severity: 'success', summary: 'Creado', detail: 'Manzana creada.', life: 3000 });
             }
             await cargarManzanas();
+            await cargarManzanasPaginado();
             setManzana(emptyManzana);
             setManzanaUrbanizacion(null);
             setManzanaEtapas([]);
@@ -461,6 +661,7 @@ const Lotizacion = () => {
                 toast.current?.show({ severity: 'success', summary: 'Creado', detail: 'Manzana creada.', life: 3000 });
             }
             await cargarManzanas();
+            await cargarManzanasPaginado();
             setManzanaDialog(false);
             setManzanaEdit(emptyManzana);
             setManzanaDialogUrbanizacion(null);
@@ -487,6 +688,7 @@ const Lotizacion = () => {
                 toast.current?.show({ severity: 'success', summary: 'Creado', detail: 'Lote creado.', life: 3000 });
             }
             await cargarLotes();
+            await cargarLotesPaginado();
             setLote(emptyLote);
             setLoteUrbanizacion(null);
             setLoteEtapa(null);
@@ -515,6 +717,7 @@ const Lotizacion = () => {
                 toast.current?.show({ severity: 'success', summary: 'Creado', detail: 'Lote creado.', life: 3000 });
             }
             await cargarLotes();
+            await cargarLotesPaginado();
             setLoteDialog(false);
             setLoteEdit(emptyLote);
             setLoteDialogUrbanizacion(null);
@@ -571,6 +774,7 @@ const Lotizacion = () => {
         try {
             await UrbanizacionService.eliminar(rowData.id, axiosInstance);
             await cargarUrbanizaciones();
+            await cargarUrbanizacionesPaginado();
             toast.current?.show({ severity: 'success', summary: 'Eliminado', detail: 'Urbanizacion eliminada.', life: 3000 });
         } catch (error) {
             console.error(error);
@@ -583,6 +787,7 @@ const Lotizacion = () => {
         try {
             await EtapaService.eliminar(rowData.id, axiosInstance);
             await cargarEtapas();
+            await cargarEtapasPaginado();
             toast.current?.show({ severity: 'success', summary: 'Eliminado', detail: 'Etapa eliminada.', life: 3000 });
         } catch (error) {
             console.error(error);
@@ -595,6 +800,7 @@ const Lotizacion = () => {
         try {
             await ManzanaService.eliminar(rowData.id, axiosInstance);
             await cargarManzanas();
+            await cargarManzanasPaginado();
             toast.current?.show({ severity: 'success', summary: 'Eliminado', detail: 'Manzana eliminada.', life: 3000 });
         } catch (error) {
             console.error(error);
@@ -607,6 +813,7 @@ const Lotizacion = () => {
         try {
             await LoteService.eliminar(rowData.id, axiosInstance);
             await cargarLotes();
+            await cargarLotesPaginado();
             toast.current?.show({ severity: 'success', summary: 'Eliminado', detail: 'Lote eliminado.', life: 3000 });
         } catch (error) {
             console.error(error);
@@ -623,6 +830,10 @@ const Lotizacion = () => {
     );
 
     const indexBodyTemplate = (_, options) => (options.rowIndex ?? 0) + 1;
+    const urbanizacionIndexBodyTemplate = (_, options) => urbanizacionPage * urbanizacionRows + (options.rowIndex ?? 0) + 1;
+    const etapaIndexBodyTemplate = (_, options) => etapaPage * etapaRows + (options.rowIndex ?? 0) + 1;
+    const manzanaIndexBodyTemplate = (_, options) => manzanaPage * manzanaRows + (options.rowIndex ?? 0) + 1;
+    const loteIndexBodyTemplate = (_, options) => lotePage * loteRows + (options.rowIndex ?? 0) + 1;
 
     const formatNumber = (value) => {
         if (value === null || value === undefined || value === '') {
@@ -720,20 +931,30 @@ const Lotizacion = () => {
                                 </div>
                                 <div className="content-card lotizacion-list-card">
                                     <ActionToolbar
-                                        onSearch={setUrbanizacionFilter}
+                                        onSearch={(value) => {
+                                            setUrbanizacionFilter(value);
+                                            setUrbanizacionPage(0);
+                                        }}
                                         searchValue={urbanizacionFilter}
                                         searchPlaceholder="Buscar urbanizaciones..."
                                     />
                                     <DataTable
-                                        value={urbanizaciones}
+                                        value={urbanizacionRecords}
                                         dataKey="id"
-                                        rows={6}
+                                        rows={urbanizacionRows}
+                                        first={urbanizacionPage * urbanizacionRows}
                                         paginator
-                                        globalFilter={urbanizacionFilter}
-                                        globalFilterFields={['nombre', 'ubicacion']}
+                                        rowsPerPageOptions={[6, 10, 20, 50]}
+                                        lazy
+                                        totalRecords={urbanizacionTotalRecords}
+                                        loading={urbanizacionLoading}
+                                        onPage={(event) => {
+                                            setUrbanizacionPage(event.page ?? 0);
+                                            setUrbanizacionRows(event.rows ?? urbanizacionRows);
+                                        }}
                                         emptyMessage="No se encontraron urbanizaciones."
                                     >
-                                        <Column header="N°" body={indexBodyTemplate} style={{ width: '80px', textAlign: 'center' }} />
+                                        <Column header="N°" body={urbanizacionIndexBodyTemplate} style={{ width: '80px', textAlign: 'center' }} />
                                         <Column field="nombre" header="Nombre" style={{ minWidth: '200px' }} />
                                         <Column field="ubicacion" header="Ubicacion" style={{ minWidth: '200px' }} />
                                         <Column header="Acciones" body={(rowData) => actionBodyTemplate(rowData, editUrbanizacion, (data) => confirmDelete('Eliminar urbanizacion?', () => deleteUrbanizacion(data)))} style={{ minWidth: '140px', textAlign: 'center' }} />
@@ -772,21 +993,54 @@ const Lotizacion = () => {
                                     {formActions(saveEtapaForm, () => setEtapa(emptyEtapa))}
                                 </div>
                                 <div className="content-card lotizacion-list-card">
-                                    <ActionToolbar
-                                        onSearch={setEtapaFilter}
-                                        searchValue={etapaFilter}
-                                        searchPlaceholder="Buscar etapas..."
-                                    />
+                                    <div className="action-toolbar">
+                                        <div className="toolbar-actions flex align-items-center gap-2">
+                                            <Dropdown
+                                                value={etapaUrbanizacionFilter}
+                                                options={urbanizacionOptions}
+                                                onChange={(e) => {
+                                                    setEtapaUrbanizacionFilter(e.value || null);
+                                                    setEtapaPage(0);
+                                                }}
+                                                placeholder="Filtrar por urbanizacion"
+                                                className="w-full"
+                                                showClear
+                                            />
+                                        </div>
+                                        <div className="toolbar-actions flex align-items-center gap-2">
+                                            <span className="p-input-icon-left">
+                                                <i className="pi pi-search" style={{ color: 'var(--text-secondary)' }} />
+                                                <InputText
+                                                    type="search"
+                                                    value={etapaFilter || ''}
+                                                    onChange={(e) => {
+                                                        setEtapaFilter(e.target.value);
+                                                        setEtapaPage(0);
+                                                    }}
+                                                    placeholder="Buscar etapas..."
+                                                    className="search-input"
+                                                    style={{ borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-page)', color: 'var(--text-primary)' }}
+                                                />
+                                            </span>
+                                        </div>
+                                    </div>
                                     <DataTable
-                                        value={etapas}
+                                        value={etapaRecords}
                                         dataKey="id"
-                                        rows={6}
+                                        rows={etapaRows}
+                                        first={etapaPage * etapaRows}
                                         paginator
-                                        globalFilter={etapaFilter}
-                                        globalFilterFields={['nombre', 'urbanizacion.nombre']}
+                                        rowsPerPageOptions={[6, 10, 20, 50]}
+                                        lazy
+                                        totalRecords={etapaTotalRecords}
+                                        loading={etapaLoading}
+                                        onPage={(event) => {
+                                            setEtapaPage(event.page ?? 0);
+                                            setEtapaRows(event.rows ?? etapaRows);
+                                        }}
                                         emptyMessage="No se encontraron etapas."
                                     >
-                                        <Column header="N°" body={indexBodyTemplate} style={{ width: '80px', textAlign: 'center' }} />
+                                        <Column header="N°" body={etapaIndexBodyTemplate} style={{ width: '80px', textAlign: 'center' }} />
                                         <Column field="nombre" header="Nombre" style={{ minWidth: '200px' }} />
                                         <Column field="urbanizacion.nombre" header="Urbanizacion" style={{ minWidth: '200px' }} />
                                         <Column header="Acciones" body={(rowData) => actionBodyTemplate(rowData, editEtapa, (data) => confirmDelete('Eliminar etapa?', () => deleteEtapa(data)))} style={{ minWidth: '140px', textAlign: 'center' }} />
@@ -845,21 +1099,67 @@ const Lotizacion = () => {
                                     })}
                                 </div>
                                 <div className="content-card lotizacion-list-card">
-                                    <ActionToolbar
-                                        onSearch={setManzanaFilter}
-                                        searchValue={manzanaFilter}
-                                        searchPlaceholder="Buscar manzanas..."
-                                    />
+                                    <div className="action-toolbar">
+                                        <div className="toolbar-actions flex align-items-center gap-2">
+                                            <Dropdown
+                                                value={manzanaUrbanizacionFilter}
+                                                options={urbanizacionOptions}
+                                                onChange={(e) => {
+                                                    setManzanaUrbanizacionFilter(e.value || null);
+                                                    setManzanaEtapaFilter(null);
+                                                    setManzanaPage(0);
+                                                }}
+                                                placeholder="Filtrar por urbanizacion"
+                                                className="w-full"
+                                                showClear
+                                            />
+                                            <Dropdown
+                                                value={manzanaEtapaFilter}
+                                                options={manzanaFilterEtapaOptions}
+                                                onChange={(e) => {
+                                                    setManzanaEtapaFilter(e.value || null);
+                                                    setManzanaPage(0);
+                                                }}
+                                                placeholder="Filtrar por etapa"
+                                                className="w-full"
+                                                showClear
+                                                disabled={!manzanaUrbanizacionFilter}
+                                            />
+                                        </div>
+                                        <div className="toolbar-actions flex align-items-center gap-2">
+                                            <span className="p-input-icon-left">
+                                                <i className="pi pi-search" style={{ color: 'var(--text-secondary)' }} />
+                                                <InputText
+                                                    type="search"
+                                                    value={manzanaFilter || ''}
+                                                    onChange={(e) => {
+                                                        setManzanaFilter(e.target.value);
+                                                        setManzanaPage(0);
+                                                    }}
+                                                    placeholder="Buscar manzanas..."
+                                                    className="search-input"
+                                                    style={{ borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-page)', color: 'var(--text-primary)' }}
+                                                />
+                                            </span>
+                                        </div>
+                                    </div>
                                     <DataTable
-                                        value={manzanas}
+                                        value={manzanaRecords}
                                         dataKey="id"
-                                        rows={6}
+                                        rows={manzanaRows}
+                                        first={manzanaPage * manzanaRows}
                                         paginator
-                                        globalFilter={manzanaFilter}
-                                        globalFilterFields={['nombre', 'etapa.nombre', 'etapa.urbanizacion.nombre']}
+                                        rowsPerPageOptions={[6, 10, 20, 50]}
+                                        lazy
+                                        totalRecords={manzanaTotalRecords}
+                                        loading={manzanaLoading}
+                                        onPage={(event) => {
+                                            setManzanaPage(event.page ?? 0);
+                                            setManzanaRows(event.rows ?? manzanaRows);
+                                        }}
                                         emptyMessage="No se encontraron manzanas."
                                     >
-                                        <Column header="N°" body={indexBodyTemplate} style={{ width: '80px', textAlign: 'center' }} />
+                                        <Column header="N°" body={manzanaIndexBodyTemplate} style={{ width: '80px', textAlign: 'center' }} />
                                         <Column field="nombre" header="Nombre" style={{ minWidth: '200px' }} />
                                         <Column field="etapa.urbanizacion.nombre" header="Urbanizacion" style={{ minWidth: '200px' }} />
                                         <Column field="etapa.nombre" header="Etapa" style={{ minWidth: '200px' }} />
@@ -1001,21 +1301,81 @@ const Lotizacion = () => {
                                     })}
                                 </div>
                                 <div className="content-card lotizacion-list-card">
-                                    <ActionToolbar
-                                        onSearch={setLoteFilter}
-                                        searchValue={loteFilter}
-                                        searchPlaceholder="Buscar lotes..."
-                                    />
+                                    <div className="action-toolbar">
+                                        <div className="toolbar-actions flex align-items-center gap-2">
+                                            <Dropdown
+                                                value={loteUrbanizacionFilter}
+                                                options={urbanizacionOptions}
+                                                onChange={(e) => {
+                                                    setLoteUrbanizacionFilter(e.value || null);
+                                                    setLoteEtapaFilter(null);
+                                                    setLoteManzanaFilter(null);
+                                                    setLotePage(0);
+                                                }}
+                                                placeholder="Filtrar por urbanizacion"
+                                                className="w-full"
+                                                showClear
+                                            />
+                                            <Dropdown
+                                                value={loteEtapaFilter}
+                                                options={loteFilterEtapaOptions}
+                                                onChange={(e) => {
+                                                    setLoteEtapaFilter(e.value || null);
+                                                    setLoteManzanaFilter(null);
+                                                    setLotePage(0);
+                                                }}
+                                                placeholder="Filtrar por etapa"
+                                                className="w-full"
+                                                showClear
+                                                disabled={!loteUrbanizacionFilter}
+                                            />
+                                            <Dropdown
+                                                value={loteManzanaFilter}
+                                                options={loteFilterManzanaOptions}
+                                                onChange={(e) => {
+                                                    setLoteManzanaFilter(e.value || null);
+                                                    setLotePage(0);
+                                                }}
+                                                placeholder="Filtrar por manzana"
+                                                className="w-full"
+                                                showClear
+                                                disabled={!loteEtapaFilter}
+                                            />
+                                        </div>
+                                        <div className="toolbar-actions flex align-items-center gap-2">
+                                            <span className="p-input-icon-left">
+                                                <i className="pi pi-search" style={{ color: 'var(--text-secondary)' }} />
+                                                <InputText
+                                                    type="search"
+                                                    value={loteFilter || ''}
+                                                    onChange={(e) => {
+                                                        setLoteFilter(e.target.value);
+                                                        setLotePage(0);
+                                                    }}
+                                                    placeholder="Buscar lotes..."
+                                                    className="search-input"
+                                                    style={{ borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-page)', color: 'var(--text-primary)' }}
+                                                />
+                                            </span>
+                                        </div>
+                                    </div>
                                     <DataTable
-                                        value={lotes}
+                                        value={loteRecords}
                                         dataKey="id"
-                                        rows={6}
+                                        rows={loteRows}
+                                        first={lotePage * loteRows}
                                         paginator
-                                        globalFilter={loteFilter}
-                                        globalFilterFields={['numero', 'manzana.nombre', 'manzana.etapa.nombre', 'manzana.etapa.urbanizacion.nombre', 'estadoVenta', 'area', 'precioMetroCuadrado', 'precioCosto', 'precioVenta']}
+                                        rowsPerPageOptions={[6, 10, 20, 50]}
+                                        lazy
+                                        totalRecords={loteTotalRecords}
+                                        loading={loteLoading}
+                                        onPage={(event) => {
+                                            setLotePage(event.page ?? 0);
+                                            setLoteRows(event.rows ?? loteRows);
+                                        }}
                                         emptyMessage="No se encontraron lotes."
                                     >
-                                        <Column header="N°" body={indexBodyTemplate} style={{ width: '80px', textAlign: 'center' }} />
+                                        <Column header="N°" body={loteIndexBodyTemplate} style={{ width: '80px', textAlign: 'center' }} />
                                         <Column field="numero" header="Numero" style={{ minWidth: '120px' }} />
                                         <Column field="manzana.etapa.urbanizacion.nombre" header="Urbanizacion" style={{ minWidth: '200px' }} />
                                         <Column field="manzana.etapa.nombre" header="Etapa" style={{ minWidth: '160px' }} />

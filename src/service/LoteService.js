@@ -17,6 +17,22 @@ export const LoteService = {
 		return response.data;
 	},
 
+	listarPaginado: async (page = 0, size = 10, search = null, manzanaId = null, httpClient) => {
+		const client = resolveClient(httpClient);
+		const params = {
+			page,
+			size
+		};
+		if (search && search.trim()) {
+			params.search = search.trim();
+		}
+		if (manzanaId) {
+			params.manzanaId = manzanaId;
+		}
+		const response = await client.get(`${RESOURCE}/page`, { params });
+		return response.data;
+	},
+
 	calcularCosto: async (area, precioMetroCuadrado, httpClient) => {
 		const client = resolveClient(httpClient);
 		const response = await client.get(`${RESOURCE}/calcular-costo`, {

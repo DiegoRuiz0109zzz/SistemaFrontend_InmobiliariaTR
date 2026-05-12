@@ -17,6 +17,22 @@ export const ManzanaService = {
         return response.data;
     },
 
+    listarPaginado: async (page = 0, size = 10, search = null, etapaId = null, httpClient) => {
+        const client = resolveClient(httpClient);
+        const params = {
+            page,
+            size
+        };
+        if (search && search.trim()) {
+            params.search = search.trim();
+        }
+        if (etapaId) {
+            params.etapaId = etapaId;
+        }
+        const response = await client.get(`${RESOURCE}/page`, { params });
+        return response.data;
+    },
+
     crear: async (manzana, httpClient) => {
         const client = resolveClient(httpClient);
         const response = await client.post(`${RESOURCE}/`, manzana);
