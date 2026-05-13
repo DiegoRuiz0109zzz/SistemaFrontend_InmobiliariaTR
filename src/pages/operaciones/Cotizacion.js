@@ -128,7 +128,8 @@ const Cotizacion = ({ embedded = false }) => {
 
     // Cálculos reactivos
     const abonoEfectivo = tipoInicial === 'TOTAL' ? inicialAcordada : abonoReal;
-    const esSeparacion = tipoInicial === 'PARCIAL' && (inicialAcordada === 100 || abonoReal < inicialAcordada);
+    const esSeparacion = tipoInicial === 'PARCIAL';
+    const inicialCompletaParcial = tipoInicial === 'PARCIAL' && abonoReal >= inicialAcordada && inicialAcordada > 0;
     const faltaPagarInicial = Math.max(inicialAcordada - abonoEfectivo, 0);
     const saldoAFinanciar = lotePrecio - inicialAcordada;
 
@@ -593,14 +594,18 @@ const Cotizacion = ({ embedded = false }) => {
 
             const respuesta = await ContratoService.simular(simulacionRequest, axiosInstance);
             if (Array.isArray(respuesta)) {
+                const fechaCuotaCero = inicialCompletaParcial ? getLocalYMD(new Date()) : getLocalYMD(fechaLimiteInicial);
+                const estadoCuotaCero = tipoInicial === 'PARCIAL'
+                    ? (inicialCompletaParcial ? 'SEPARADO' : 'PAGADO_PARCIAL')
+                    : 'PAGADO_TOTAL';
                 const cuotaInicial = {
                     numero: 0,
                     tipoCuota: 'INICIAL',
                     montoTotal: inicialAcordada,
                     montoPagado: abonoEf,
                     saldoPendiente: Math.max(inicialAcordada - abonoEf, 0),
-                    fecha: getLocalYMD(fechaLimiteInicial),
-                    estado: esSeparacion ? 'PAGADO_PARCIAL' : 'PAGADO_TOTAL'
+                    fecha: fechaCuotaCero,
+                    estado: estadoCuotaCero
                 };
 
                 const cuotasBackend = respuesta.map((item) => {
@@ -666,11 +671,6 @@ const Cotizacion = ({ embedded = false }) => {
                 }
 
                 if (!idInteresadoFinal) {
-                    if (!telefonoNormalizado) {
-                        toast.current.show({ severity: 'warn', summary: 'Telefono requerido', detail: 'Debe registrar un telefono para crear el interesado.' });
-                        return;
-                    }
-
                     const nuevoInteresado = {
                         tipoDocumento: cliente.tipoDocumento || 'DNI',
                         numeroDocumento: documentoNormalizado,
@@ -696,7 +696,7 @@ const Cotizacion = ({ embedded = false }) => {
                 const apellidosCo = (coCompradorNuevo.apellidos || '').trim();
                 const telefonoCo = (coCompradorNuevo.telefono || '').trim();
 
-                if (!nombresCo || !apellidosCo || !telefonoCo) {
+                if (!nombresCo || !apellidosCo) {
                     toast.current.show({ severity: 'warn', summary: 'Co-comprador incompleto', detail: 'Complete los datos del co-comprador antes de guardar.' });
                     return;
                 }
@@ -797,9 +797,13 @@ const Cotizacion = ({ embedded = false }) => {
 
     const estadoTemplate = (rowData) => {
         if (rowData.numero === 0) {
-            return rowData.estado === 'SEPARACIÓN' || rowData.estado === 'PAGADO_PARCIAL'
-                ? <Tag severity="warning" value="FALTA INICIAL" />
-                : <Tag severity="success" value="PAGADO" />;
+            if (rowData.estado === 'PAGADO_PARCIAL' || rowData.estado === 'SEPARACIÓN') {
+                return <Tag severity="warning" value="FALTA INICIAL" />;
+            }
+            if (rowData.estado === 'SEPARADO') {
+                return <Tag severity="warning" value="SEPARADO" />;
+            }
+            return <Tag severity="success" value="PAGADO" />;
         }
         return <Tag severity="info" value="PENDIENTE" />;
     };
@@ -1147,8 +1151,8 @@ const Cotizacion = ({ embedded = false }) => {
                                 <span className="font-bold text-lg ml-2 text-800">Cuota 0 — Inicial</span>
                             </div>
                             <div className="flex align-items-center gap-2">
-                                {tipoInicial === 'PARCIAL' && esSeparacion && <Tag severity="warning" value="SEPARACIÓN" />}
-                                {tipoInicial === 'PARCIAL' && !esSeparacion && <Tag severity="success" value="VENTA FINAL" />}
+                                {tipoInicial === 'PARCIAL' && !inicialCompletaParcial && <Tag severity="warning" value="SEPARACIÓN" />}
+                                {tipoInicial === 'PARCIAL' && inicialCompletaParcial && <Tag severity="warning" value="SEPARADO" />}
                                 {tipoInicial === 'TOTAL' && <Tag severity="success" value="INICIAL COMPLETA" />}
                             </div>
                         </div>
@@ -1174,12 +1178,10 @@ const Cotizacion = ({ embedded = false }) => {
                                         <label className="font-bold text-xs uppercase text-orange-900">Abono Hoy (S/)</label>
                                         <InputNumber value={abonoReal} onValueChange={(e) => setAbonoReal(e.value)} mode="currency" currency="PEN" className="input-highlight-orange w-full" />
                                     </div>
-                                    {esSeparacion && (
-                                        <div className="col-12 md:col-6">
-                                            <label className="font-bold text-xs uppercase text-orange-900">Fecha Límite (Resto)</label>
-                                            <Calendar value={fechaLimiteInicial} onChange={(e) => setFechaLimiteInicial(e.value)} dateFormat="dd/mm/yy" showIcon className="w-full" />
-                                        </div>
-                                    )}
+                                    <div className="col-12 md:col-6">
+                                        <label className="font-bold text-xs uppercase text-orange-900">Fecha limite separacion</label>
+                                        <Calendar value={fechaLimiteInicial} onChange={(e) => setFechaLimiteInicial(e.value)} dateFormat="dd/mm/yy" showIcon className="w-full" />
+                                    </div>
                                     <div className="col-12 mt-3">
                                         <div className="bg-orange-50 p-3 border-round-xl border-1 border-orange-200 flex align-items-center justify-content-between shadow-sm fade-in">
                                             <div className="flex align-items-center">
@@ -1190,6 +1192,11 @@ const Cotizacion = ({ embedded = false }) => {
                                                     <span className="block text-orange-700 text-xs font-bold uppercase line-height-1">Saldo pendiente</span>
                                                     <span className="text-orange-900 text-xl font-bold">
                                                         Faltan S/ {faltaPagarInicial.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                    </span>
+                                                    <span className="text-xs text-orange-700 font-bold uppercase mt-1 block">
+                                                        Fecha limite separacion: {fechaLimiteInicial
+                                                            ? new Date(fechaLimiteInicial).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                                                            : '-'}
                                                     </span>
                                                 </div>
                                             </div>

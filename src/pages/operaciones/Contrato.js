@@ -119,7 +119,8 @@ const Contrato = ({ embedded = false }) => {
     // Cálculos reactivos
     const montoInicialEfectivo = tipoInicial === 'CERO' ? 0 : inicialAcordada;
     const abonoEfectivo = tipoInicial === 'TOTAL' ? inicialAcordada : tipoInicial === 'CERO' ? 0 : abonoReal;
-    const esSeparacion = tipoInicial === 'PARCIAL' && abonoReal < inicialAcordada;
+    const esSeparacion = tipoInicial === 'PARCIAL';
+    const inicialCompletaParcial = tipoInicial === 'PARCIAL' && abonoReal >= inicialAcordada && inicialAcordada > 0;
     const faltaPagarInicial = Math.max(montoInicialEfectivo - abonoEfectivo, 0);
     const saldoAFinanciar = Math.max(lotePrecio - montoInicialEfectivo, 0);
     const hasCliente = Boolean(cliente?.numeroDocumento || cliente?.nombres);
@@ -631,15 +632,20 @@ const Contrato = ({ embedded = false }) => {
 
         let nc = [];
         const abonoEf = pTipo === 'TOTAL' ? pInicial : pTipo === 'CERO' ? 0 : abonoReal;
-        const esSep = pTipo === 'PARCIAL' && abonoReal < pInicial;
+        const esSep = pTipo === 'PARCIAL';
+        const inicialCompletaParcial = pTipo === 'PARCIAL' && abonoReal >= pInicial && pInicial > 0;
         const falta = iniEf - abonoEf;
 
         if (pTipo !== 'CERO') {
+            const fechaCuotaCero = inicialCompletaParcial ? getLocalYMD(new Date()) : getLocalYMD(fechaLimiteInicial);
+            const estadoCuotaCero = pTipo === 'PARCIAL'
+                ? (inicialCompletaParcial ? 'SEPARADO' : 'PAGADO_PARCIAL')
+                : 'PAGADO_TOTAL';
             nc.push({
                 numero: 0, tipoCuota: 'INICIAL', montoTotal: iniEf,
                 montoPagado: abonoEf, saldoPendiente: Math.max(falta, 0),
-                fecha: getLocalYMD(fechaLimiteInicial),
-                estado: esSep ? 'PAGADO_PARCIAL' : 'PAGADO_TOTAL'
+                fecha: fechaCuotaCero,
+                estado: estadoCuotaCero
             });
         }
 
@@ -730,14 +736,18 @@ const Contrato = ({ embedded = false }) => {
             const respuesta = await ContratoService.simular(simulacionRequest, axiosInstance);
 
             if (Array.isArray(respuesta)) {
+                const fechaCuotaCero = inicialCompletaParcial ? getLocalYMD(new Date()) : getLocalYMD(fechaLimiteInicial);
+                const estadoCuotaCero = tipoInicial === 'PARCIAL'
+                    ? (inicialCompletaParcial ? 'SEPARADO' : 'PAGADO_PARCIAL')
+                    : 'PAGADO_TOTAL';
                 const cuotaInicial = {
                     numero: 0,
                     tipoCuota: 'INICIAL',
                     montoTotal: inicialAcordada,
                     montoPagado: abonoEf,
                     saldoPendiente: Math.max(inicialAcordada - abonoEf, 0),
-                    fecha: getLocalYMD(fechaLimiteInicial),
-                    estado: esSeparacion ? 'PAGADO_PARCIAL' : 'PAGADO_TOTAL'
+                    fecha: fechaCuotaCero,
+                    estado: estadoCuotaCero
                 };
 
                 const cuotasBackend = respuesta.map((item) => {
@@ -929,9 +939,13 @@ const Contrato = ({ embedded = false }) => {
 
     const estadoTemplate = (rowData) => {
         if (rowData.numero === 0) {
-            return rowData.estado === 'SEPARACIÓN' || rowData.estado === 'PAGADO_PARCIAL'
-                ? <Tag severity="warning" value="FALTA INICIAL" />
-                : <Tag severity="success" value="PAGADO" />;
+            if (rowData.estado === 'PAGADO_PARCIAL' || rowData.estado === 'SEPARACIÓN') {
+                return <Tag severity="warning" value="FALTA INICIAL" />;
+            }
+            if (rowData.estado === 'SEPARADO') {
+                return <Tag severity="warning" value="SEPARADO" />;
+            }
+            return <Tag severity="success" value="PAGADO" />;
         }
         return <span className="status-badge proyectado">Proyectado</span>;
     };
@@ -1136,8 +1150,8 @@ const Contrato = ({ embedded = false }) => {
                                                 <div className={`p-3 border-round border-1 shadow-1 h-full flex flex-column justify-content-center ${bgCuotaCero}`}>
                                                     <div className="flex justify-content-between align-items-center mb-3 border-bottom-1 surface-border pb-2">
                                                         <span className="text-sm text-800 uppercase font-bold">Estado de Inicial (Cuota 0)</span>
-                                                        {tipoInicial === 'PARCIAL' && esSeparacion && <Tag severity="warning" value="SEPARACIÓN" />}
-                                                        {tipoInicial === 'PARCIAL' && !esSeparacion && <Tag severity="success" value="VENTA FINAL" />}
+                                                        {tipoInicial === 'PARCIAL' && !inicialCompletaParcial && <Tag severity="warning" value="SEPARACIÓN" />}
+                                                        {tipoInicial === 'PARCIAL' && inicialCompletaParcial && <Tag severity="warning" value="SEPARADO" />}
                                                         {tipoInicial === 'TOTAL' && <Tag severity="success" value="INICIAL COMPLETA" />}
                                                     </div>
                                                     {tipoInicial === 'PARCIAL' ? (
@@ -1146,7 +1160,15 @@ const Contrato = ({ embedded = false }) => {
                                                                 <span className="text-xs text-500 uppercase font-bold block mb-1">Abono Hoy</span>
                                                                 <span className="text-xl font-bold text-orange-800">S/ {parseFloat(abonoReal || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                                                             </div>
-                                                            {esSeparacion && (
+                                                            <div className="text-right">
+                                                                <span className="text-xs text-500 uppercase font-bold block mb-1">Fecha limite separacion</span>
+                                                                <span className="text-sm font-bold text-orange-700">
+                                                                    {fechaLimiteInicial
+                                                                        ? new Date(fechaLimiteInicial).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                                                                        : '-'}
+                                                                </span>
+                                                            </div>
+                                                            {faltaPagarInicial > 0 && (
                                                                 <div className="text-right">
                                                                     <span className="text-xs text-500 uppercase font-bold block mb-1">Saldo Pendiente</span>
                                                                     <span className="text-xl font-bold text-red-600">S/ {faltaPagarInicial.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
@@ -1353,8 +1375,8 @@ const Contrato = ({ embedded = false }) => {
                                         <div className={`p-4 border-round border-2 transition-colors transition-duration-300 ${bgCuotaCero}`}>
                                             <div className="flex justify-content-between align-items-center mb-3">
                                                 <label className="font-bold text-800 m-0">Cuota 0 — Inicial</label>
-                                                {tipoInicial === 'PARCIAL' && esSeparacion && <Tag severity="warning" value="SEPARACIÓN" />}
-                                                {tipoInicial === 'PARCIAL' && !esSeparacion && <Tag severity="success" value="VENTA FINAL" />}
+                                                {tipoInicial === 'PARCIAL' && !inicialCompletaParcial && <Tag severity="warning" value="SEPARACIÓN" />}
+                                                {tipoInicial === 'PARCIAL' && inicialCompletaParcial && <Tag severity="warning" value="SEPARADO" />}
                                                 {tipoInicial === 'TOTAL' && <Tag severity="success" value="INICIAL COMPLETA" />}
                                             </div>
                                             <label className="font-medium text-sm block mb-2 text-800"><i className="pi pi-tag mr-2"></i>Seleccione Intención de Compra:</label>
@@ -1374,13 +1396,11 @@ const Contrato = ({ embedded = false }) => {
                                                         <label className="font-bold text-xs uppercase text-orange-900">Abono Hoy (S/)</label>
                                                         <InputNumber value={abonoReal} onValueChange={(e) => setAbonoReal(e.value)} mode="currency" currency="PEN" className="input-highlight-orange" />
                                                     </div>
-                                                    {esSeparacion && (
-                                                        <div className="col-12 md:col-6">
-                                                            <label className="font-bold text-xs uppercase text-orange-900">Fecha Límite (Resto)</label>
-                                                            <Calendar value={fechaLimiteInicial} onChange={(e) => setFechaLimiteInicial(e.value)} dateFormat="dd/mm/yy" showIcon className="w-full" />
-                                                        </div>
-                                                    )}
-                                                    {esSeparacion && (
+                                                    <div className="col-12 md:col-6">
+                                                        <label className="font-bold text-xs uppercase text-orange-900">Fecha limite separacion</label>
+                                                        <Calendar value={fechaLimiteInicial} onChange={(e) => setFechaLimiteInicial(e.value)} dateFormat="dd/mm/yy" showIcon className="w-full" />
+                                                    </div>
+                                                    {faltaPagarInicial > 0 && (
                                                         <div className="col-12 mt-2">
                                                             <div className="bg-white p-2 border-round border-1 border-orange-200 flex align-items-center text-sm shadow-1">
                                                                 <i className="pi pi-exclamation-triangle text-orange-500 mr-2"></i>

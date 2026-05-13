@@ -76,9 +76,9 @@ function Register() {
     };
 
     const validateForm = () => {
-        const { username, password, confirmPassword, nombres, apellidos, email, telefono, docIdentidad } = formData;
+        const { username, password, confirmPassword, nombres, apellidos, email, docIdentidad } = formData;
 
-        if (!username || !password || !nombres || !apellidos || !email || !telefono || !docIdentidad) {
+        if (!username || !password || !nombres || !apellidos || !email || !docIdentidad) {
             toast.current.show({
                 severity: 'warn',
                 summary: 'Campos incompletos',

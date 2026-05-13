@@ -235,8 +235,8 @@ const Interesados = () => {
         const apellidos = normalizeText(interesado.apellidos);
         const telefono = normalizeText(interesado.telefono);
 
-        if (!nombres || !apellidos || !telefono) {
-            toast.current?.show({ severity: 'warn', summary: 'Validacion', detail: 'Nombres, apellidos y teléfono son obligatorios.', life: 3000 });
+        if (!nombres || !apellidos) {
+            toast.current?.show({ severity: 'warn', summary: 'Validacion', detail: 'Nombres y apellidos son obligatorios.', life: 3000 });
             return;
         }
 
@@ -495,11 +495,8 @@ const Interesados = () => {
                                 id="telefono"
                                 value={interesado.telefono}
                                 onChange={(e) => onInputChange(e, 'telefono')}
-                                required
                                 placeholder="Ingrese teléfono"
-                                className={submitted && !interesado.telefono ? 'p-invalid' : ''}
                             />
-                            {submitted && !interesado.telefono && <small className="p-error">El teléfono es requerido.</small>}
                         </div>
 
                         <div className="field col-12 md:col-6">

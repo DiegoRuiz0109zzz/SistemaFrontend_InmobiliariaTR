@@ -561,8 +561,7 @@ const Perfil = () => {
                         </div>
                         <div className="field col-12 md:col-6">
                             <label htmlFor="telefono">Teléfono</label>
-                            <InputText id="telefono" name="telefono" value={product.telefono} onChange={(e) => onInputChange(e, 'telefono')} required className={classNames({ 'p-invalid': submitted && !product.telefono })} />
-                            {submitted && !product.telefono && <small className="p-invalid">El teléfono es requerido.</small>}
+                            <InputText id="telefono" name="telefono" value={product.telefono} onChange={(e) => onInputChange(e, 'telefono')} />
                         </div>
                     </div>
                 </Dialog>
