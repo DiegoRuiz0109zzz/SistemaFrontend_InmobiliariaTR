@@ -81,7 +81,6 @@ const Contrato = ({ embedded = false }) => {
     const [inicialAcordada, setInicialAcordada] = useState(500);
     const [abonoReal, setAbonoReal] = useState(0);
     const [fechaLimiteInicial, setFechaLimiteInicial] = useState(new Date(new Date().setDate(new Date().getDate() + 15)));
-    const [fechaRegistro, setFechaRegistro] = useState(new Date()); 
     
     const [cuotas, setCuotas] = useState(36);
     const [fechaInicio, setFechaInicio] = useState(new Date(new Date().setMonth(new Date().getMonth() + 1)));
@@ -91,7 +90,6 @@ const Contrato = ({ embedded = false }) => {
     const [montoEspecial, setMontoEspecial] = useState(1000);
 
     const [tipoInicial, setTipoInicial] = useState('PARCIAL');
-    const [observacion, setObservacion] = useState('');
     const [cotizacionOrigenId, setCotizacionOrigenId] = useState(null);
 
     // Resultados y UI
@@ -870,6 +868,7 @@ const Contrato = ({ embedded = false }) => {
                 }
             }
 
+            const guardarCronograma = tipoInicial === 'TOTAL';
             const contratoPayload = {
                 loteId: loteSeleccionado.id,
                 clienteId: idClienteFinal,
@@ -879,15 +878,13 @@ const Contrato = ({ embedded = false }) => {
                 montoInicialAcordado: inicialAcordada,
                 abonoInicialReal: abonoEfectivo,
                 fechaLimiteInicial: tipoInicial !== 'CERO' ? getLocalYMD(fechaLimiteInicial) : null,
-                cantidadCuotas: cuotas,
-                fechaInicioPago: getLocalYMD(fechaInicio),
-                fechaContrato: getLocalYMD(fechaRegistro),
-                cuotasEspeciales: isFlexible ? cuotasEspeciales : 0,
-                montoCuotaEspecial: isFlexible ? montoEspecial : 0,
+                cantidadCuotas: guardarCronograma ? cuotas : null,
+                fechaInicioPago: guardarCronograma ? getLocalYMD(fechaInicio) : null,
+                cuotasEspeciales: guardarCronograma && isFlexible ? cuotasEspeciales : null,
+                montoCuotaEspecial: guardarCronograma && isFlexible ? montoEspecial : null,
                 cotizacionId: cotizacionOrigenId,
                 tipoInicial: tipoInicial,
-                cuotasFlexibles: isFlexible,
-                observacion: observacion || ''
+                cuotasFlexibles: guardarCronograma && isFlexible
             };
 
             const response = await ContratoService.crear(contratoPayload, axiosInstance);
@@ -910,7 +907,6 @@ const Contrato = ({ embedded = false }) => {
             }, 1500);
             
             setCronograma([]);
-            setObservacion('');
         } catch (error) {
             toast.current.show({ severity: 'error', summary: 'Error', detail: 'Fallo al guardar contrato.' });
         }
@@ -1400,14 +1396,27 @@ const Contrato = ({ embedded = false }) => {
                                                         <label className="font-bold text-xs uppercase text-orange-900">Fecha limite separacion</label>
                                                         <Calendar value={fechaLimiteInicial} onChange={(e) => setFechaLimiteInicial(e.value)} dateFormat="dd/mm/yy" showIcon className="w-full" />
                                                     </div>
-                                                    {faltaPagarInicial > 0 && (
-                                                        <div className="col-12 mt-2">
-                                                            <div className="bg-white p-2 border-round border-1 border-orange-200 flex align-items-center text-sm shadow-1">
-                                                                <i className="pi pi-exclamation-triangle text-orange-500 mr-2"></i>
-                                                                <span className="font-bold text-orange-800">Faltan S/ {faltaPagarInicial.toLocaleString()}</span>
+                                                    <div className="col-12 mt-3">
+                                                        <div className="bg-orange-50 p-3 border-round-xl border-1 border-orange-200 flex align-items-center justify-content-between shadow-sm fade-in">
+                                                            <div className="flex align-items-center">
+                                                                <div className="bg-orange-500 border-circle flex align-items-center justify-content-center mr-3" style={{ width: '32px', height: '32px' }}>
+                                                                    <i className="pi pi-info-circle text-white text-lg"></i>
+                                                                </div>
+                                                                <div>
+                                                                    <span className="block text-orange-700 text-xs font-bold uppercase line-height-1">Saldo pendiente</span>
+                                                                    <span className="text-orange-900 text-xl font-bold">
+                                                                        Faltan S/ {faltaPagarInicial.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                                    </span>
+                                                                    <span className="text-xs text-orange-700 font-bold uppercase mt-1 block">
+                                                                        Fecha limite separacion: {fechaLimiteInicial
+                                                                            ? new Date(fechaLimiteInicial).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                                                                            : '-'}
+                                                                    </span>
+                                                                </div>
                                                             </div>
+                                                            <span className="text-orange-300 font-bold text-2xl opacity-50">!</span>
                                                         </div>
-                                                    )}
+                                                    </div>
                                                 </div>
                                             )}
 
@@ -1421,12 +1430,6 @@ const Contrato = ({ embedded = false }) => {
                                         </div>
                                     </div>
 
-                                    {/* Detalles finales */}
-                                    <div className="col-12 mt-3 fade-in">
-                                        <label className="font-medium text-sm block mb-1">Fecha Oficial del Contrato</label>
-                                        <Calendar value={fechaRegistro} onChange={(e) => setFechaRegistro(e.value)} showIcon showTime hourFormat="24" dateFormat="dd/mm/yy" />
-                                    </div>
-                                    
                                     <div className="col-12 mt-4 flex justify-content-between fade-in">
                                         <Button label="Cerrar Edición" icon="pi pi-times" className="p-button-text p-button-secondary" onClick={() => setIsEditFinanciamiento(false)} />
                                         <Button label="Generar / Actualizar Cronograma" icon="pi pi-calculator" className="btn-primary-custom" onClick={simular} />
