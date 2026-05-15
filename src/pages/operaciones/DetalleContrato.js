@@ -87,8 +87,21 @@ const DetalleContrato = () => {
     const [manzanaEdit, setManzanaEdit] = useState(null);
     const [loteEditId, setLoteEditId] = useState(null);
     const [observacionNota, setObservacionNota] = useState('');
+    const [medidasEdit, setMedidasEdit] = useState({
+        mlFrente: '',
+        mlDerecha: '',
+        mlIzquierda: '',
+        mlFondo: '',
+        colindanciaFrente: '',
+        colindanciaDerecha: '',
+        colindanciaIzquierda: '',
+        colindanciaFondo: ''
+    });
     const [expandirCambioLote, setExpandirCambioLote] = useState(false);
     const [guardandoEdicion, setGuardandoEdicion] = useState(false);
+
+    // Estado para mostrar panel de medidas si falta completarlas
+    const [mostrarPanelMedidas, setMostrarPanelMedidas] = useState(false);
 
     const metodosPago = [
         { label: 'Transferencia BCP', value: 'Transferencia BCP' },
@@ -346,6 +359,7 @@ const DetalleContrato = () => {
                     numero: data.lote?.numero || null,
                     manzana: data.lote?.manzana || null
                 },
+                medidas: data.medidas || null,
                 finanzas: {
                     precioTotal: data.precioTotal || 0,
                     montoInicial: montoInicialAcordado,
@@ -454,6 +468,16 @@ const DetalleContrato = () => {
         setManzanaEdit(contrato.lote?.manzana?.id || null);
         setLoteEditId(contrato.lote?.id || null);
         setObservacionNota('');
+        setMedidasEdit({
+            mlFrente: contrato.medidas?.mlFrente ?? '',
+            mlDerecha: contrato.medidas?.mlDerecha ?? '',
+            mlIzquierda: contrato.medidas?.mlIzquierda ?? '',
+            mlFondo: contrato.medidas?.mlFondo ?? '',
+            colindanciaFrente: contrato.medidas?.colindanciaFrente ?? '',
+            colindanciaDerecha: contrato.medidas?.colindanciaDerecha ?? '',
+            colindanciaIzquierda: contrato.medidas?.colindanciaIzquierda ?? '',
+            colindanciaFondo: contrato.medidas?.colindanciaFondo ?? ''
+        });
         setDialogoEditarContrato(true);
     };
 
@@ -467,6 +491,16 @@ const DetalleContrato = () => {
         setLoteEditId(null);
         setExpandirCambioLote(false);
         setObservacionNota('');
+        setMedidasEdit({
+            mlFrente: '',
+            mlDerecha: '',
+            mlIzquierda: '',
+            mlFondo: '',
+            colindanciaFrente: '',
+            colindanciaDerecha: '',
+            colindanciaIzquierda: '',
+            colindanciaFondo: ''
+        });
     };
 
     const guardarEdiciones = async () => {
@@ -640,7 +674,41 @@ const DetalleContrato = () => {
         }
     };
 
-     const handleVistaPrevia = async () => {
+    const medidasCompletas = (() => {
+        const medidas = contrato?.medidas;
+        if (!medidas) return false;
+        const campos = [
+            medidas.mlFrente,
+            medidas.mlDerecha,
+            medidas.mlIzquierda,
+            medidas.mlFondo,
+            medidas.colindanciaFrente,
+            medidas.colindanciaDerecha,
+            medidas.colindanciaIzquierda,
+            medidas.colindanciaFondo,
+            medidas.perimetro
+        ];
+        return campos.every((valor) => valor !== null && valor !== undefined && `${valor}`.trim() !== '');
+    })();
+
+    const handleVistaPrevia = async () => {
+        if (!contrato?.id) return;
+
+        if (contrato?.estadoContrato === 'ACTIVO' && !medidasCompletas) {
+            setMedidasEdit({
+                mlFrente: contrato.medidas?.mlFrente ?? '',
+                mlDerecha: contrato.medidas?.mlDerecha ?? '',
+                mlIzquierda: contrato.medidas?.mlIzquierda ?? '',
+                mlFondo: contrato.medidas?.mlFondo ?? '',
+                colindanciaFrente: contrato.medidas?.colindanciaFrente ?? '',
+                colindanciaDerecha: contrato.medidas?.colindanciaDerecha ?? '',
+                colindanciaIzquierda: contrato.medidas?.colindanciaIzquierda ?? '',
+                colindanciaFondo: contrato.medidas?.colindanciaFondo ?? ''
+            });
+            setMostrarPanelMedidas(true);
+            return;
+        }
+
         try {
             toast.current?.show({ severity: 'info', summary: 'Generando...', detail: 'Cargando vista previa del contrato.' });
             const blob = await ContratoService.generarVistaPreviaPdf(contrato.id, axiosInstance);
@@ -648,6 +716,29 @@ const DetalleContrato = () => {
             setPdfViewer(url);
         } catch (error) {
             toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo generar la vista previa.' });
+        }
+    };
+
+    const guardarYGenerarPreviaMedidas = async () => {
+        if (!contrato?.id) return;
+        try {
+            await ContratoService.completarMedidas(contrato.id, {
+                mlFrente: medidasEdit.mlFrente === '' ? null : Number(medidasEdit.mlFrente),
+                mlDerecha: medidasEdit.mlDerecha === '' ? null : Number(medidasEdit.mlDerecha),
+                mlIzquierda: medidasEdit.mlIzquierda === '' ? null : Number(medidasEdit.mlIzquierda),
+                mlFondo: medidasEdit.mlFondo === '' ? null : Number(medidasEdit.mlFondo),
+                colindanciaFrente: medidasEdit.colindanciaFrente || null,
+                colindanciaDerecha: medidasEdit.colindanciaDerecha || null,
+                colindanciaIzquierda: medidasEdit.colindanciaIzquierda || null,
+                colindanciaFondo: medidasEdit.colindanciaFondo || null
+            }, axiosInstance);
+            await cargarDetalleContrato(contrato.id);
+            setMostrarPanelMedidas(false);
+            // Después de guardar, generar la vista previa
+            handleVistaPrevia();
+        } catch (error) {
+            console.error('Error al guardar medidas:', error);
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudieron guardar las medidas.' });
         }
     };
 
@@ -914,7 +1005,7 @@ const DetalleContrato = () => {
                 )}
             </Dialog>
 
-            <Dialog header={<><i className="pi pi-check-circle text-green-500 mr-2"></i>Proyeccion financiera</>} visible={mostrarConversionModal} style={{ width: 'min(1100px, 95vw)' }} modal onHide={() => { setMostrarConversionModal(false); setConversionDismissed(true); }}>
+            <Dialog header={<><i className="pi pi-check-circle text-green-500 mr-2"></i>Proyeccion financiera</>} visible={mostrarConversionModal} style={{ width: 'min(1400px, 95vw)' }} modal onHide={() => { setMostrarConversionModal(false); setConversionDismissed(true); }}>
                                 <div className="grid p-fluid">
                     <div className="col-12 lg:col-5">
                         <div className="surface-0 border-1 surface-border border-round-xl p-4 h-full">
@@ -954,7 +1045,7 @@ const DetalleContrato = () => {
                             )}
 
                             <div className="flex gap-2 mt-4">
-                                <Button label="Simular" icon="pi pi-calculator" className="p-button-outlined p-button-text text-white" style={{ color: '#fff' }} onClick={simularConversion} loading={simulandoConversion} />
+                                <Button label="Simular" icon="pi pi-calculator" className="btn-primary-custom shadow-2 border-round-xl font-bold" style={{ color: '#fff' }} onClick={simularConversion} loading={simulandoConversion} />
                                 <Button label="Guardar cronograma" icon="pi pi-check" className="p-button-success" style={{ background: '#10b981', borderColor: '#10b981', color: '#fff' }} onClick={confirmarConversion} loading={confirmandoConversion} disabled={conversionCronograma.length === 0} />
                             </div>
                         </div>
@@ -1308,6 +1399,157 @@ const DetalleContrato = () => {
                 <div className="flex justify-content-end gap-2 mt-4">
                     <Button label="Cancelar" icon="pi pi-times" className="p-button-outlined p-button-danger border-round-xl font-bold" onClick={cerrarEditorContrato} disabled={guardandoEdicion} />
                     <Button label="Guardar Cambios" icon="pi pi-save" className={`btn-primary-custom border-round-xl font-bold shadow-2 p-button-success text-white`} onClick={guardarEdiciones} loading={guardandoEdicion} />
+                </div>
+            </Dialog>
+
+            {/* PANEL: COMPLETAR MEDIDAS PARA VISTA PREVIA */}
+            <Dialog header="Completar Medidas y Colindancias" visible={mostrarPanelMedidas} style={{ width: 'min(800px, 95vw)' }} onHide={() => setMostrarPanelMedidas(false)}>
+                <div className="formgrid grid dialog-content-specific">
+
+
+                    {/* Por el frente */}
+                    <div className="field col-12 md:col-6">
+                        <label className="font-bold text-700 block mb-3">
+                            <i className="pi pi-arrow-up text-blue-600 mr-2"></i>Por el frente:
+                        </label>
+                                <InputText
+                                    value={medidasEdit.colindanciaFrente}
+                                    onChange={(e) => setMedidasEdit((prev) => ({ ...prev, colindanciaFrente: e.target.value }))}
+                                    rows={2}
+                                    autoResize
+                                    placeholder="Ej: Calle principal, cancha, propiedad de..."
+                                    className="w-full"
+                                />
+                    </div>
+                    {/* Metros lineales del frente */}
+                    <div className="field col-12 md:col-6">
+                        <label className="font-bold text-700 block mb-3">
+                            <i className="pi pi-ruler-horizontal text-blue-600 mr-2"></i>Con
+                        </label>
+                        <InputNumber
+                            value={medidasEdit.mlFrente === '' ? null : medidasEdit.mlFrente}
+                            onValueChange={(e) => setMedidasEdit((prev) => ({ ...prev, mlFrente: e.value ?? '' }))}
+                            minFractionDigits={2}
+                            maxFractionDigits={2}
+                            suffix=" ML"
+                            className="w-full"
+                        />
+                    </div>
+
+                    {/* Por el lado derecho */}
+                    <div className="field col-12 md:col-6">
+                        <label className="font-bold text-700 block mb-3">
+                            <i className="pi pi-arrow-right text-green-600 mr-2"></i>Por el lado derecho:
+                        </label>
+                        
+                                <InputText
+                                    value={medidasEdit.colindanciaDerecha}
+                                    onChange={(e) => setMedidasEdit((prev) => ({ ...prev, colindanciaDerecha: e.target.value }))}
+                                    rows={2}
+                                    autoResize
+                                    placeholder="Ej: Propiedad de..., lote..."
+                                    className="w-full"
+                                />                                                                     
+                    </div>
+
+                    {/* Medida lineal del derecho */}
+                    <div className="field col-12 md:col-6">
+                        <label className="font-bold text-700 block mb-3">
+                            <i className="pi pi-ruler-horizontal text-blue-600 mr-2"></i>Con
+                        </label>
+                        <InputNumber
+                                    value={medidasEdit.mlDerecha === '' ? null : medidasEdit.mlDerecha}
+                                    onValueChange={(e) => setMedidasEdit((prev) => ({ ...prev, mlDerecha: e.value ?? '' }))}
+                                    minFractionDigits={2}
+                                    maxFractionDigits={2}
+                                    suffix=" ML"
+                                    className="w-full"
+                                />
+                    </div>
+
+                    {/* Por el lado izquierdo */}
+                    <div className="field col-12 md:col-6">
+                        <label className="font-bold text-700 block mb-3">
+                            <i className="pi pi-arrow-left text-orange-600 mr-2"></i>Por el lado izquierdo:
+                        </label>
+                        
+                                <InputText
+                                    value={medidasEdit.colindanciaIzquierda}
+                                    onChange={(e) => setMedidasEdit((prev) => ({ ...prev, colindanciaIzquierda: e.target.value }))}
+                                    rows={2}
+                                    autoResize
+                                    placeholder="Ej: Propiedad de..., lote..."
+                                    className="w-full"
+                                />                                                                              
+                    </div>
+
+                    {/* Medida lineal lado izquierdo*/}
+                    <div className="field col-12 md:col-6">
+                        <label className="font-bold text-700 block mb-3">
+                            <i className="pi pi-ruler-horizontal text-blue-600 mr-2"></i>Con
+                        </label>
+                        <InputNumber
+                                    value={medidasEdit.mlIzquierda === '' ? null : medidasEdit.mlIzquierda}
+                                    onValueChange={(e) => setMedidasEdit((prev) => ({ ...prev, mlIzquierda: e.value ?? '' }))}
+                                    minFractionDigits={2}
+                                    maxFractionDigits={2}
+                                    suffix=" ML"
+                                    className="w-full"
+                                />
+                    </div>
+
+
+                    {/* Por el fondo */}
+                    <div className="field col-12 md:col-6">
+                        <label className="font-bold text-700 block mb-3">
+                            <i className="pi pi-arrow-down text-purple-600 mr-2"></i>Por el fondo:
+                        </label>
+                        
+                                <InputText
+                                    value={medidasEdit.colindanciaFondo}
+                                    onChange={(e) => setMedidasEdit((prev) => ({ ...prev, colindanciaFondo: e.target.value }))}
+                                    rows={2}
+                                    autoResize
+                                    placeholder="Ej: Propiedad de..., lote..."
+                                    className="w-full"
+                                />                           
+                    </div>
+
+                    {/* Medida Lineal por el fondo*/}
+                    <div className="field col-12 md:col-6">
+                        <label className="font-bold text-700 block mb-3">
+                            <i className="pi pi-ruler-horizontal text-blue-600 mr-2"></i>Con
+                        </label>
+                        <InputNumber
+                                    value={medidasEdit.mlFondo === '' ? null : medidasEdit.mlFondo}
+                                    onValueChange={(e) => setMedidasEdit((prev) => ({ ...prev, mlFondo: e.value ?? '' }))}
+                                    minFractionDigits={2}
+                                    maxFractionDigits={2}
+                                    suffix=" ML"
+                                    className="w-full"
+                                />
+                    </div>
+
+
+                    {/* Perímetro calculado */}
+                    <div className="col-12 mt-4">
+                        <div className="surface-0 border-1 surface-border border-round-xl p-4 bg-blue-50 border-blue-100">
+                            <div className="flex justify-content-between align-items-center">
+                                <div>
+                                    <span className="font-medium text-700 block">Perímetro calculado</span>
+                                    <small className="text-500">Suma de todos los lados</small>
+                                </div>
+                                <span className="font-bold text-blue-900 text-3xl">
+                                    {(Number(medidasEdit.mlFrente || 0) + Number(medidasEdit.mlDerecha || 0) + Number(medidasEdit.mlIzquierda || 0) + Number(medidasEdit.mlFondo || 0)).toFixed(2)} ML
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex justify-content-end gap-2 mt-4">
+                    <Button label="Cancelar" icon="pi pi-times" className="p-button-outlined p-button-danger border-round-xl font-bold" onClick={() => setMostrarPanelMedidas(false)} />
+                    <Button label="Guardar y Ver Vista Previa" icon="pi pi-check" className={`btn-primary-custom border-round-xl font-bold shadow-2 p-button-success text-white`} onClick={guardarYGenerarPreviaMedidas} />
                 </div>
             </Dialog>
 

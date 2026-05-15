@@ -35,6 +35,12 @@ export const ContratoService = {
         return response.data;
     },
 
+    completarMedidas: async (id, payload, httpClient) => {
+        const client = resolveClient(httpClient);
+        const response = await client.put(`${RESOURCE}/${id}/completar-medidas`, payload);
+        return response.data;
+    },
+
     subirDocumentoFirmado: async (id, archivo, motivo, httpClient) => {
         const client = resolveClient(httpClient);
         const formData = new FormData();
