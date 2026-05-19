@@ -39,13 +39,29 @@ export const AuthProvider = ({ children }) => {
         try {
             const response = await axiosInstance.post("auth/authenticate", { username, password });
             if (response.status === 200) {
+                const userId = response.data.id || 'Rumpelz';
+                
+                // Obtener datos completos del usuario incluyendo nombres y apellidos
+                let userDetails = { nombres: '', apellidos: '' };
+                try {
+                    const userResponse = await axiosInstance.get(`/usuario/${userId}`);
+                    userDetails = {
+                        nombres: userResponse.data.nombres || '',
+                        apellidos: userResponse.data.apellidos || ''
+                    };
+                } catch (err) {
+                    console.warn("No se pudieron obtener datos adicionales del usuario:", err);
+                }
+
                 // El token ya no viene en el cuerpo, está seguro en la cookie HttpOnly
                 const userData = {
                     username: username,
-                    id: response.data.id || 'Rumpelz',
+                    id: userId,
                     role: response.data.role || 'USER',
                     permissions: response.data.permissions || [],
                     profileImage: response.data.profileImage || null,
+                    nombres: userDetails.nombres,
+                    apellidos: userDetails.apellidos,
                 };
 
                 setUser(userData);

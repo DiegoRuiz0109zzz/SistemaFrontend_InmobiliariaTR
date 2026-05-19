@@ -55,11 +55,12 @@ function Login() {
         }
 
         try {
-            await login(username, password);
+            const userData = await login(username, password);
+            const displayName = userData.nombres ? `${userData.nombres} ${userData.apellidos}`.trim() : username;
             toast.current.show({
                 severity: 'success',
                 summary: 'Autenticado',
-                detail: `Bienvenido ${username}`,
+                detail: `Bienvenido ${displayName}`,
                 life: 1500
             });
         } catch (error) {
