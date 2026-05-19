@@ -295,32 +295,94 @@ const GestionCuotasPagos = () => {
         return diffDays > 0 ? diffDays : 0;
     };
 
-    const estadoLoteTemplate = (estado, rowData) => {
-        const diasVencidos = (rowData && rowData.diasVencidos > 0) ? rowData.diasVencidos : (rowData ? calcularDiasVencidos(rowData.vencimiento) : 0);
-        const estaVencida = estado === 'VENCIDA' || estado === 'VENCIDO' || ((estado === 'PENDIENTE' || estado === 'PAGADO_PARCIAL') && diasVencidos > 0);
+    const estadoCuotaTemplate = (rowData) => {
+        const estadoOriginal = (rowData?.estado || '').toUpperCase();
+        const estadoFormateado = estadoOriginal.replace(/_/g, ' ');
 
-        if (estado === 'PAGADO_TOTAL') return <Tag severity="success" value="PAGADO" icon="pi pi-check-circle" />;
-        if (estado === 'PAGADO_DESTIEMPO') return <Tag severity="warning" value="PAG. DESTIEMPO" icon="pi pi-exclamation-triangle" />;
-        if (estaVencida) return <Tag severity="danger" value="VENCIDA" icon="pi pi-exclamation-triangle" />;
-        if (estado === 'PAGADO_PARCIAL') return <Tag severity="warning" value="PARCIAL" icon="pi pi-clock" />;
-        if (estado === 'PENDIENTE') return <Tag severity="info" value="PENDIENTE" icon="pi pi-clock" />;
+        const fechaVencimientoString = rowData?.vencimientoRaw || rowData?.vencimiento;
+        if (!fechaVencimientoString) return <Tag value={estadoFormateado} />;
         
-        return <Tag value={estado || '-'} />;
+        let fecha;
+        if (fechaVencimientoString.includes('/')) {
+            const [dia, mes, anio] = fechaVencimientoString.split('/');
+            fecha = new Date(anio, mes - 1, dia);
+        } else {
+            fecha = new Date(fechaVencimientoString + 'T00:00:00');
+        }
+
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        fecha.setHours(0, 0, 0, 0);
+
+        const unDiaEnMilisegundos = 1000 * 60 * 60 * 24;
+        const diferenciaMilisegundos = fecha.getTime() - hoy.getTime();
+        const diasDiferencia = Math.floor(diferenciaMilisegundos / unDiaEnMilisegundos);
+
+        const estaVencidaPorEstado = estadoOriginal === 'VENCIDA' || estadoOriginal === 'VENCIDO' || estadoOriginal === 'ATRASADA' || estadoOriginal === 'ATRASADO';
+        const estaVencidaPorFecha = (estadoOriginal === 'PENDIENTE' || estadoOriginal === 'PAGADO_PARCIAL') && diasDiferencia < 0;
+
+        if (estaVencidaPorEstado || estaVencidaPorFecha) {
+            return <Tag severity="danger" value="VENCIDO" icon="pi pi-exclamation-triangle" />;
+        }
+
+        const esPendienteOParcial = estadoOriginal === 'PENDIENTE' || estadoOriginal === 'PAGADO_PARCIAL';
+        const estaPorVencer = esPendienteOParcial && diasDiferencia >= 0 && diasDiferencia <= 3;
+
+        if (estaPorVencer) {
+            return (
+                <div className="flex flex-column gap-1 align-items-center">
+                    <Tag severity="warning" value="POR VENCER" />
+                    <span className="text-xs text-orange-600 font-bold flex align-items-center">
+                        <i className="pi pi-exclamation-triangle mr-1"></i>
+                        {diasDiferencia === 0 ? 'Vence hoy' : `En ${diasDiferencia} días`}
+                    </span>
+                </div>
+            );
+        }
+
+        if (estadoOriginal === 'PAGADO_DESTIEMPO') {
+            return <Tag severity="warning" value="PAG. DESTIEMPO" icon="pi pi-exclamation-triangle" />;
+        }
+
+        let severity = 'info';
+        if (estadoOriginal === 'PAGADO_TOTAL' || estadoOriginal === 'PAGADO') severity = 'success';
+        else if (estadoOriginal === 'PAGADO_PARCIAL' || estadoOriginal === 'POR_VALIDAR') severity = 'warning';
+
+        return <Tag severity={severity} value={estadoFormateado} />;
     };
 
     const retrasoTemplate = (rowData) => {
-        const estado = rowData.estado;
-        if (estado === 'PAGADO_DESTIEMPO') {
+        const estadoOriginal = (rowData?.estado || '').toUpperCase();
+        
+        if (estadoOriginal === 'PAGADO_DESTIEMPO') {
             const pagoAtrasado = historialPagos.find(p => p.cuotaId === rowData?.id && p.pagoADestiempo);
-            const dias = pagoAtrasado ? pagoAtrasado.diasRetraso : 0;
-            return dias > 0 ? <span className="text-red-600 font-bold">{dias} días</span> : <span className="text-400">-</span>;
+            const diasRetraso = pagoAtrasado ? pagoAtrasado.diasRetraso : (rowData?.diasRetraso || 0);
+            return diasRetraso > 0 ? <span className="text-red-600 font-bold">{diasRetraso}d</span> : <span className="text-400">-</span>;
         }
 
-        const diasVencidos = (rowData && rowData.diasVencidos > 0) ? rowData.diasVencidos : (rowData ? calcularDiasVencidos(rowData.vencimiento) : 0);
-        const estaVencida = estado === 'VENCIDA' || estado === 'VENCIDO' || ((estado === 'PENDIENTE' || estado === 'PAGADO_PARCIAL') && diasVencidos > 0);
+        const fechaVencimientoString = rowData?.vencimientoRaw || rowData?.vencimiento;
+        if (!fechaVencimientoString) return <span className="text-400">-</span>;
+        
+        let fecha;
+        if (fechaVencimientoString.includes('/')) {
+            const [dia, mes, anio] = fechaVencimientoString.split('/');
+            fecha = new Date(anio, mes - 1, dia);
+        } else {
+            fecha = new Date(fechaVencimientoString + 'T00:00:00');
+        }
 
-        if (estaVencida && diasVencidos > 0) {
-            return <span className="text-red-600 font-bold">{diasVencidos} días</span>;
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        fecha.setHours(0, 0, 0, 0);
+
+        const unDiaEnMilisegundos = 1000 * 60 * 60 * 24;
+        const diasDiferencia = Math.floor((fecha.getTime() - hoy.getTime()) / unDiaEnMilisegundos);
+
+        const estaVencidaPorEstado = estadoOriginal === 'VENCIDA' || estadoOriginal === 'VENCIDO' || estadoOriginal === 'ATRASADA' || estadoOriginal === 'ATRASADO';
+        const estaVencidaPorFecha = (estadoOriginal === 'PENDIENTE' || estadoOriginal === 'PAGADO_PARCIAL') && diasDiferencia < 0;
+
+        if (estaVencidaPorEstado || estaVencidaPorFecha) {
+            return <span className="text-red-600 font-bold">{Math.abs(diasDiferencia)}d</span>;
         }
 
         return <span className="text-400">-</span>;
@@ -642,7 +704,7 @@ const GestionCuotasPagos = () => {
                                             <Column field="vencimiento" header="Vencimiento" style={{ width: '13%' }} body={(r) => <><i className="pi pi-calendar mr-2 text-400"></i>{r.vencimiento}</>}></Column>
                                             <Column header="Monto" body={(r) => `S/ ${r.monto.toLocaleString('en-US',{minimumFractionDigits:2})}`} style={{ width: '14%', textAlign: 'right', fontWeight: '500' }}></Column>
                                             <Column header="Deuda" body={(r) => r.monto - r.pagado > 0 ? <span className="font-bold text-orange-600">S/ {(r.monto - r.pagado).toLocaleString('en-US',{minimumFractionDigits:2})}</span> : '-'} style={{ width: '14%', textAlign: 'right' }}></Column>
-                                            <Column header="Estado" body={(r) => estadoLoteTemplate(r.estado, r)} style={{ width: '16%', textAlign: 'center' }}></Column>
+                                            <Column header="Estado" body={estadoCuotaTemplate} style={{ width: '16%', textAlign: 'center' }}></Column>
                                             <Column header="Retraso" body={retrasoTemplate} style={{ width: '12%', textAlign: 'center' }}></Column>
                                             <Column header="Acción" body={accionesCuotaTemplate} style={{ width: '23%', textAlign: 'center' }}></Column>
                                         </DataTable>

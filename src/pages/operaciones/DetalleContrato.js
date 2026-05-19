@@ -31,7 +31,7 @@ const DetalleContrato = () => {
     const toast = useRef(null);
     const { id } = useParams();
     const navigate = useNavigate();
-    
+
     const [loading, setLoading] = useState(true);
     const [contrato, setContrato] = useState(null);
     const [cuotaSeleccionada, setCuotaSeleccionada] = useState(null);
@@ -42,6 +42,7 @@ const DetalleContrato = () => {
     const [archivoContrato, setArchivoContrato] = useState(null);
     const [motivoDocumento, setMotivoDocumento] = useState('');
     const [subiendoPdf, setSubiendoPdf] = useState(false);
+    const [historialPagos, setHistorialPagos] = useState([]);
 
     // Estados para convertir contrato separado a activo
     const [mostrarConversionModal, setMostrarConversionModal] = useState(false);
@@ -112,7 +113,7 @@ const DetalleContrato = () => {
 
     const buildVoucherUrl = (url) => url ? `http://localhost:8080/${url.replace(/^\//, '')}` : null;
     const isPdf = (url) => url && url.toLowerCase().endsWith('.pdf');
-    
+
     // Parsear fecha sin que se vea afectada por zona horaria
     const formatearFecha = (fechaStr) => {
         if (!fechaStr) return 'N/A';
@@ -285,6 +286,23 @@ const DetalleContrato = () => {
             setHistoriales(Array.isArray(histRaw) ? histRaw : []);
             const cuotasList = Array.isArray(cuotasRaw) ? cuotasRaw : [];
 
+            // Cargar historial global de pagos para poder ver los días de retraso en la tabla principal
+            try {
+                const pagosPorCuota = await Promise.all(
+                    cuotasList.map(async (cuota) => {
+                        try {
+                            const pagos = await PagoService.listarPorCuota(cuota.id, axiosInstance);
+                            return (pagos || []).map(p => ({ ...p, cuotaId: cuota.id }));
+                        } catch (e) {
+                            return [];
+                        }
+                    })
+                );
+                setHistorialPagos(pagosPorCuota.flat());
+            } catch (e) {
+                setHistorialPagos([]);
+            }
+
             let totalPagadoReal = 0;
             let cuotasAtrasadas = 0;
             let cuotasPagadas = 0;
@@ -304,7 +322,7 @@ const DetalleContrato = () => {
                     montoTotal: cuota.montoTotal || cuota.monto || 0,
                     montoPagado: pagadoEnCuota,
                     estado: cuota.estado || 'PENDIENTE',
-                    pagos: [] 
+                    pagos: []
                 };
             });
 
@@ -389,7 +407,7 @@ const DetalleContrato = () => {
             setCuotaSeleccionada(null);
             return;
         }
-        
+
         // Si el contrato ha sido recargado, buscar la cuota actualizada
         let cuotaActualizada = cuota;
         if (contrato && contrato.cuotas) {
@@ -398,9 +416,9 @@ const DetalleContrato = () => {
                 cuotaActualizada = cuotaEncontrada;
             }
         }
-        
+
         setCuotaSeleccionada(cuotaActualizada);
-        
+
         try {
             const pagosRaw = await PagoService.listarPorCuota(cuotaActualizada.id, axiosInstance);
             const pagosFormateados = (pagosRaw || []).map(p => ({
@@ -416,10 +434,10 @@ const DetalleContrato = () => {
                 metodoPago: p.metodoPago || p.metodo || 'No especificado',
                 fotoVoucherUrl: p.fotoVoucherUrl || null
             }));
-            
+
             // Detectar si hay pagos pendientes
             const pagoPendienteEnCuota = (pagosRaw || []).find(p => p.estado === 'POR_VALIDAR');
-            
+
             setCuotaSeleccionada(prev => ({ ...prev, pagos: pagosFormateados, pagoPendiente: pagoPendienteEnCuota }));
         } catch (error) {
             toast.current?.show({ severity: 'warn', summary: 'Pagos', detail: 'No se pudieron cargar los recibos de esta cuota.' });
@@ -799,9 +817,9 @@ const DetalleContrato = () => {
 
             // Recargar el contrato para actualizar los datos
             await cargarDetalleContrato(contrato.id);
-            
+
             toast.current?.show({ severity: 'success', summary: 'Pago Registrado', detail: `Se generó el recibo por S/ ${montoAbonar.toLocaleString('en-US', { minimumFractionDigits: 2 })}` });
-            
+
             // Limpiar formulario y volver a seleccionar la cuota actualizada
             setCuotaPagar(null);
             setMontoAbonar(0);
@@ -819,7 +837,7 @@ const DetalleContrato = () => {
     const calcularDiasVencidos = (fechaVencimientoStr) => {
         if (!fechaVencimientoStr) return 0;
         let fecha;
-        
+
         // Parsear fecha sin afectar por zona horaria
         if (fechaVencimientoStr.includes('/')) {
             // Formato DD/MM/YYYY
@@ -836,7 +854,7 @@ const DetalleContrato = () => {
         const hoy = new Date();
         hoy.setHours(0, 0, 0, 0);
         fecha.setHours(0, 0, 0, 0);
-        
+
         const diffTime = hoy.getTime() - fecha.getTime();
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         return diffDays > 0 ? diffDays : 0;
@@ -865,7 +883,7 @@ const DetalleContrato = () => {
 
             await PagoService.procesarPendiente(pagoPendiente.id, formData, axiosInstance);
             toast.current?.show({ severity: 'success', summary: 'Pago Procesado', detail: 'El recibo ha sido validado correctamente.' });
-            
+
             // Recargar el contrato y limpiar estados
             await cargarDetalleContrato(contrato.id);
             setPagoPendiente(null);
@@ -877,58 +895,122 @@ const DetalleContrato = () => {
 
     const getStatusSeverity = (estado) => {
         const estadoUpper = (estado || '').toUpperCase();
-        
+
         // Estados de contrato activo/exitoso
         if (estadoUpper === 'ACTIVO' || estadoUpper === 'PAGADO' || estadoUpper === 'PAGADO_TOTAL' || estadoUpper === 'PAGADO_DESTIEMPO' || estadoUpper === 'VENDIDO') {
             return 'success';
         }
-        
-        
+
+
         // Estados de advertencia
         if (estadoUpper === 'PAGADO_PARCIAL' || estadoUpper === 'DESTIEMPO' || estadoUpper === 'RESERVADO' || estadoUpper === 'SEPARADO') {
             return 'warning';
         }
-        
+
         // Estados de pago atrasado
         if (estadoUpper === 'VENCIDA' || estadoUpper === 'VENCIDO' || estadoUpper === 'ATRASADA' || estadoUpper === 'ATRASADO') {
             return 'danger';
         }
-        
+
         // Estados por defecto (pendiente, info)
         if (estadoUpper === 'PENDIENTE' || estadoUpper === 'POR_VALIDAR') {
             return 'info';
         }
-        
+
         return 'info';
     };
 
-    const getEstadoCuotaTag = (rowData) => {
-        const estado = (rowData?.estado || '').toUpperCase();
-        const diasVencidos = (rowData?.diasVencidos > 0)
-            ? rowData.diasVencidos
-            : calcularDiasVencidos(rowData?.vencimientoRaw || rowData?.vencimiento);
-        const estaVencida = estado === 'VENCIDA' || estado === 'VENCIDO' || ((estado === 'PENDIENTE' || estado === 'PAGADO_PARCIAL') && diasVencidos > 0);
+    const estadoCuotaTemplate = (rowData) => {
+        const estadoOriginal = (rowData?.estado || '').toUpperCase();
+        const estadoFormateado = estadoOriginal.replace(/_/g, ' ');
 
-        if (estado === 'PAGADO_TOTAL' || estado === 'PAGADO') {
-            return <Tag severity="success" value="PAGADO" icon="pi pi-check-circle" className="text-xs font-bold" />;
-        }
-        if (estado === 'PAGADO_DESTIEMPO') {
-            return <Tag severity="warning" value="PAG. DESTIEMPO" icon="pi pi-exclamation-triangle" className="text-xs font-bold" />;
-        }
-        if (estaVencida) {
-            return <Tag severity="danger" value="VENCIDA" icon="pi pi-exclamation-triangle" className="text-xs font-bold" />;
-        }
-        if (estado === 'PAGADO_PARCIAL') {
-            return <Tag severity="warning" value="PARCIAL" icon="pi pi-clock" className="text-xs font-bold" />;
-        }
-        if (estado === 'PENDIENTE') {
-            return <Tag severity="info" value="PENDIENTE" icon="pi pi-clock" className="text-xs font-bold" />;
-        }
-        if (estado === 'POR_VALIDAR') {
-            return <Tag severity="warning" value="POR VALIDAR" icon="pi pi-clock" className="text-xs font-bold" />;
+        const fechaVencimientoString = rowData?.vencimientoRaw || rowData?.vencimiento;
+        if (!fechaVencimientoString) return <Tag value={estadoFormateado} />;
+        
+        let fecha;
+        if (fechaVencimientoString.includes('/')) {
+            const [dia, mes, anio] = fechaVencimientoString.split('/');
+            fecha = new Date(anio, mes - 1, dia);
+        } else {
+            fecha = new Date(fechaVencimientoString + 'T00:00:00');
         }
 
-        return <Tag value={rowData?.estado || '-'} severity={getStatusSeverity(rowData?.estado)} className="text-xs font-bold" />;
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        fecha.setHours(0, 0, 0, 0);
+
+        const unDiaEnMilisegundos = 1000 * 60 * 60 * 24;
+        const diferenciaMilisegundos = fecha.getTime() - hoy.getTime();
+        const diasDiferencia = Math.floor(diferenciaMilisegundos / unDiaEnMilisegundos);
+
+        const estaVencidaPorEstado = estadoOriginal === 'VENCIDA' || estadoOriginal === 'VENCIDO' || estadoOriginal === 'ATRASADA' || estadoOriginal === 'ATRASADO';
+        const estaVencidaPorFecha = (estadoOriginal === 'PENDIENTE' || estadoOriginal === 'PAGADO_PARCIAL') && diasDiferencia < 0;
+
+        if (estaVencidaPorEstado || estaVencidaPorFecha) {
+            return <Tag severity="danger" value="VENCIDO" icon="pi pi-exclamation-triangle" />;
+        }
+
+        const esPendienteOParcial = estadoOriginal === 'PENDIENTE' || estadoOriginal === 'PAGADO_PARCIAL';
+        const estaPorVencer = esPendienteOParcial && diasDiferencia >= 0 && diasDiferencia <= 3;
+
+        if (estaPorVencer) {
+            return (
+                <div className="flex flex-column gap-1 align-items-center">
+                    <Tag severity="warning" value="POR VENCER" />
+                    <span className="text-xs text-orange-600 font-bold flex align-items-center">
+                        <i className="pi pi-exclamation-triangle mr-1"></i>
+                        {diasDiferencia === 0 ? 'Vence hoy' : `En ${diasDiferencia} días`}
+                    </span>
+                </div>
+            );
+        }
+
+        if (estadoOriginal === 'PAGADO_DESTIEMPO') {
+            return <Tag severity="warning" value="PAG. DESTIEMPO" icon="pi pi-exclamation-triangle" />;
+        }
+
+        let severity = 'info';
+        if (estadoOriginal === 'PAGADO_TOTAL' || estadoOriginal === 'PAGADO') severity = 'success';
+        else if (estadoOriginal === 'PAGADO_PARCIAL' || estadoOriginal === 'POR_VALIDAR') severity = 'warning';
+
+        return <Tag severity={severity} value={estadoFormateado} />;
+    };
+
+    const retrasoTemplate = (rowData) => {
+        const estadoOriginal = (rowData?.estado || '').toUpperCase();
+        
+        if (estadoOriginal === 'PAGADO_DESTIEMPO') {
+            const pagoAtrasado = historialPagos.find(p => p.cuotaId === rowData?.id && p.pagoADestiempo);
+            const diasRetraso = pagoAtrasado ? pagoAtrasado.diasRetraso : (rowData?.diasRetraso || 0);
+            return diasRetraso > 0 ? <span className="text-red-600 font-bold text-sm">{diasRetraso}d</span> : <span className="text-400 text-sm">-</span>;
+        }
+
+        const fechaVencimientoString = rowData?.vencimientoRaw || rowData?.vencimiento;
+        if (!fechaVencimientoString) return <span className="text-400 text-sm">-</span>;
+        
+        let fecha;
+        if (fechaVencimientoString.includes('/')) {
+            const [dia, mes, anio] = fechaVencimientoString.split('/');
+            fecha = new Date(anio, mes - 1, dia);
+        } else {
+            fecha = new Date(fechaVencimientoString + 'T00:00:00');
+        }
+
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        fecha.setHours(0, 0, 0, 0);
+
+        const unDiaEnMilisegundos = 1000 * 60 * 60 * 24;
+        const diasDiferencia = Math.floor((fecha.getTime() - hoy.getTime()) / unDiaEnMilisegundos);
+
+        const estaVencidaPorEstado = estadoOriginal === 'VENCIDA' || estadoOriginal === 'VENCIDO' || estadoOriginal === 'ATRASADA' || estadoOriginal === 'ATRASADO';
+        const estaVencidaPorFecha = (estadoOriginal === 'PENDIENTE' || estadoOriginal === 'PAGADO_PARCIAL') && diasDiferencia < 0;
+
+        if (estaVencidaPorEstado || estaVencidaPorFecha) {
+            return <span className="text-red-600 font-bold text-sm">{Math.abs(diasDiferencia)}d</span>;
+        }
+
+        return <span className="text-400 text-sm">-</span>;
     };
 
     const estadoContratoActual = (contrato?.estadoContrato || '').toUpperCase();
@@ -965,7 +1047,7 @@ const DetalleContrato = () => {
         });
     }, [conversionDisponible, conversionPrompted]);
 
-    
+
 
     if (loading) {
         return (
@@ -997,7 +1079,7 @@ const DetalleContrato = () => {
                 )}
             </Dialog>
 
-            <Dialog header={<><i className="pi pi-file-pdf text-red-500 mr-2"></i>Documento Histórico / Vista Previa</>} visible={!!pdfViewer} style={{ width: 'min(1200px, 98vw)', height: '90vh' }} modal onHide={() => { if(pdfViewer) URL.revokeObjectURL(pdfViewer); setPdfViewer(null); }}>
+            <Dialog header={<><i className="pi pi-file-pdf text-red-500 mr-2"></i>Documento Histórico / Vista Previa</>} visible={!!pdfViewer} style={{ width: 'min(1200px, 98vw)', height: '90vh' }} modal onHide={() => { if (pdfViewer) URL.revokeObjectURL(pdfViewer); setPdfViewer(null); }}>
                 {pdfViewer && (
                     <div className="flex justify-content-center align-items-center surface-100 border-round p-2" style={{ minHeight: '70vh' }}>
                         <iframe src={pdfViewer} title="Historial" className="w-full border-none border-round" style={{ height: '80vh' }} />
@@ -1006,7 +1088,7 @@ const DetalleContrato = () => {
             </Dialog>
 
             <Dialog header={<><i className="pi pi-check-circle text-green-500 mr-2"></i>Proyeccion financiera</>} visible={mostrarConversionModal} style={{ width: 'min(1400px, 95vw)' }} modal onHide={() => { setMostrarConversionModal(false); setConversionDismissed(true); }}>
-                                <div className="grid p-fluid">
+                <div className="grid p-fluid">
                     <div className="col-12 lg:col-5">
                         <div className="surface-0 border-1 surface-border border-round-xl p-4 h-full">
                             <div className="flex align-items-center gap-2 mb-3">
@@ -1153,7 +1235,7 @@ const DetalleContrato = () => {
                         </div>
                         <div className="field mb-3">
                             <label className="font-medium text-700 block mb-2">Método de Pago</label>
-                            <Dropdown value={metodoPagoPendiente} options={metodosPago} onChange={(e) => setMetodoPagoPendiente(e.value)} placeholder='Selecione metodo de pago'/>
+                            <Dropdown value={metodoPagoPendiente} options={metodosPago} onChange={(e) => setMetodoPagoPendiente(e.value)} placeholder='Selecione metodo de pago' />
                         </div>
                         <div className="field mb-3">
                             <label className="font-medium text-700 block mb-2">Número de Operación</label>
@@ -1162,9 +1244,9 @@ const DetalleContrato = () => {
                         <div className="field mb-4">
                             <label className="font-medium text-700 block mb-2">Comprobante / Voucher (Opcional)</label>
                             <div className="relative flex flex-column align-items-center justify-content-center p-4 border-2 border-dashed border-round-xl surface-border hover:surface-hover transition-colors cursor-pointer bg-blue-50">
-                                <input 
-                                    type="file" 
-                                    className="opacity-0 absolute top-0 left-0 w-full h-full cursor-pointer z-10" 
+                                <input
+                                    type="file"
+                                    className="opacity-0 absolute top-0 left-0 w-full h-full cursor-pointer z-10"
                                     accept="image/*,application/pdf"
                                     onChange={(e) => setVoucherFilePendiente(e.target.files[0])}
                                 />
@@ -1269,9 +1351,9 @@ const DetalleContrato = () => {
                                         </div>
                                     )}
                                 </div>
-                                <Button 
-                                    label={expandirCambioLote ? 'Cancelar Cambio' : 'Cambiar Lote'} 
-                                    icon={expandirCambioLote ? 'pi pi-times' : 'pi pi-pencil'} 
+                                <Button
+                                    label={expandirCambioLote ? 'Cancelar Cambio' : 'Cambiar Lote'}
+                                    icon={expandirCambioLote ? 'pi pi-times' : 'pi pi-pencil'}
                                     onClick={() => setExpandirCambioLote(!expandirCambioLote)}
                                     className={`btn-primary-custom w-full shadow-2 border-round-xl font-bold mt-2 ${expandirCambioLote ? 'p-button-secondary text-white' : 'p-button-info text-white'}`}
                                     size="small"
@@ -1412,14 +1494,14 @@ const DetalleContrato = () => {
                         <label className="font-bold text-700 block mb-3">
                             <i className="pi pi-arrow-up text-blue-600 mr-2"></i>Por el frente:
                         </label>
-                                <InputText
-                                    value={medidasEdit.colindanciaFrente}
-                                    onChange={(e) => setMedidasEdit((prev) => ({ ...prev, colindanciaFrente: e.target.value }))}
-                                    rows={2}
-                                    autoResize
-                                    placeholder="Ej: Calle principal, cancha, propiedad de..."
-                                    className="w-full"
-                                />
+                        <InputText
+                            value={medidasEdit.colindanciaFrente}
+                            onChange={(e) => setMedidasEdit((prev) => ({ ...prev, colindanciaFrente: e.target.value }))}
+                            rows={2}
+                            autoResize
+                            placeholder="Ej: Calle principal, cancha, propiedad de..."
+                            className="w-full"
+                        />
                     </div>
                     {/* Metros lineales del frente */}
                     <div className="field col-12 md:col-6">
@@ -1441,15 +1523,15 @@ const DetalleContrato = () => {
                         <label className="font-bold text-700 block mb-3">
                             <i className="pi pi-arrow-right text-green-600 mr-2"></i>Por el lado derecho:
                         </label>
-                        
-                                <InputText
-                                    value={medidasEdit.colindanciaDerecha}
-                                    onChange={(e) => setMedidasEdit((prev) => ({ ...prev, colindanciaDerecha: e.target.value }))}
-                                    rows={2}
-                                    autoResize
-                                    placeholder="Ej: Propiedad de..., lote..."
-                                    className="w-full"
-                                />                                                                     
+
+                        <InputText
+                            value={medidasEdit.colindanciaDerecha}
+                            onChange={(e) => setMedidasEdit((prev) => ({ ...prev, colindanciaDerecha: e.target.value }))}
+                            rows={2}
+                            autoResize
+                            placeholder="Ej: Propiedad de..., lote..."
+                            className="w-full"
+                        />
                     </div>
 
                     {/* Medida lineal del derecho */}
@@ -1458,13 +1540,13 @@ const DetalleContrato = () => {
                             <i className="pi pi-ruler-horizontal text-blue-600 mr-2"></i>Con
                         </label>
                         <InputNumber
-                                    value={medidasEdit.mlDerecha === '' ? null : medidasEdit.mlDerecha}
-                                    onValueChange={(e) => setMedidasEdit((prev) => ({ ...prev, mlDerecha: e.value ?? '' }))}
-                                    minFractionDigits={2}
-                                    maxFractionDigits={2}
-                                    suffix=" ML"
-                                    className="w-full"
-                                />
+                            value={medidasEdit.mlDerecha === '' ? null : medidasEdit.mlDerecha}
+                            onValueChange={(e) => setMedidasEdit((prev) => ({ ...prev, mlDerecha: e.value ?? '' }))}
+                            minFractionDigits={2}
+                            maxFractionDigits={2}
+                            suffix=" ML"
+                            className="w-full"
+                        />
                     </div>
 
                     {/* Por el lado izquierdo */}
@@ -1472,15 +1554,15 @@ const DetalleContrato = () => {
                         <label className="font-bold text-700 block mb-3">
                             <i className="pi pi-arrow-left text-orange-600 mr-2"></i>Por el lado izquierdo:
                         </label>
-                        
-                                <InputText
-                                    value={medidasEdit.colindanciaIzquierda}
-                                    onChange={(e) => setMedidasEdit((prev) => ({ ...prev, colindanciaIzquierda: e.target.value }))}
-                                    rows={2}
-                                    autoResize
-                                    placeholder="Ej: Propiedad de..., lote..."
-                                    className="w-full"
-                                />                                                                              
+
+                        <InputText
+                            value={medidasEdit.colindanciaIzquierda}
+                            onChange={(e) => setMedidasEdit((prev) => ({ ...prev, colindanciaIzquierda: e.target.value }))}
+                            rows={2}
+                            autoResize
+                            placeholder="Ej: Propiedad de..., lote..."
+                            className="w-full"
+                        />
                     </div>
 
                     {/* Medida lineal lado izquierdo*/}
@@ -1489,13 +1571,13 @@ const DetalleContrato = () => {
                             <i className="pi pi-ruler-horizontal text-blue-600 mr-2"></i>Con
                         </label>
                         <InputNumber
-                                    value={medidasEdit.mlIzquierda === '' ? null : medidasEdit.mlIzquierda}
-                                    onValueChange={(e) => setMedidasEdit((prev) => ({ ...prev, mlIzquierda: e.value ?? '' }))}
-                                    minFractionDigits={2}
-                                    maxFractionDigits={2}
-                                    suffix=" ML"
-                                    className="w-full"
-                                />
+                            value={medidasEdit.mlIzquierda === '' ? null : medidasEdit.mlIzquierda}
+                            onValueChange={(e) => setMedidasEdit((prev) => ({ ...prev, mlIzquierda: e.value ?? '' }))}
+                            minFractionDigits={2}
+                            maxFractionDigits={2}
+                            suffix=" ML"
+                            className="w-full"
+                        />
                     </div>
 
 
@@ -1504,15 +1586,15 @@ const DetalleContrato = () => {
                         <label className="font-bold text-700 block mb-3">
                             <i className="pi pi-arrow-down text-purple-600 mr-2"></i>Por el fondo:
                         </label>
-                        
-                                <InputText
-                                    value={medidasEdit.colindanciaFondo}
-                                    onChange={(e) => setMedidasEdit((prev) => ({ ...prev, colindanciaFondo: e.target.value }))}
-                                    rows={2}
-                                    autoResize
-                                    placeholder="Ej: Propiedad de..., lote..."
-                                    className="w-full"
-                                />                           
+
+                        <InputText
+                            value={medidasEdit.colindanciaFondo}
+                            onChange={(e) => setMedidasEdit((prev) => ({ ...prev, colindanciaFondo: e.target.value }))}
+                            rows={2}
+                            autoResize
+                            placeholder="Ej: Propiedad de..., lote..."
+                            className="w-full"
+                        />
                     </div>
 
                     {/* Medida Lineal por el fondo*/}
@@ -1521,13 +1603,13 @@ const DetalleContrato = () => {
                             <i className="pi pi-ruler-horizontal text-blue-600 mr-2"></i>Con
                         </label>
                         <InputNumber
-                                    value={medidasEdit.mlFondo === '' ? null : medidasEdit.mlFondo}
-                                    onValueChange={(e) => setMedidasEdit((prev) => ({ ...prev, mlFondo: e.value ?? '' }))}
-                                    minFractionDigits={2}
-                                    maxFractionDigits={2}
-                                    suffix=" ML"
-                                    className="w-full"
-                                />
+                            value={medidasEdit.mlFondo === '' ? null : medidasEdit.mlFondo}
+                            onValueChange={(e) => setMedidasEdit((prev) => ({ ...prev, mlFondo: e.value ?? '' }))}
+                            minFractionDigits={2}
+                            maxFractionDigits={2}
+                            suffix=" ML"
+                            className="w-full"
+                        />
                     </div>
 
 
@@ -1556,7 +1638,7 @@ const DetalleContrato = () => {
             {/* HEADER */}
             <div className="flex flex-column md:flex-row justify-content-between align-items-start md:align-items-center mb-5 gap-4">
                 <div className="flex align-items-center gap-3">
-                    <Button icon="pi pi-arrow-left" rounded text severity="secondary" aria-label="Volver" onClick={() => navigate('/contrato/lista')} className="surface-200 hover:surface-300" />
+                    <Button icon="pi pi-arrow-left" rounded text severity="secondary" aria-label="Volver" onClick={() => navigate('/historial-comercial')} className="surface-200 hover:surface-300" />
                     <div>
                         <div className="flex align-items-center gap-3">
                             <i className="pi pi-file text-blue-600 text-3xl"></i>
@@ -1600,7 +1682,7 @@ const DetalleContrato = () => {
                         <i className={`pi pi-chevron-down text-xl transition-transform transition-duration-300 ${isAccordionOpen ? 'rotate-180' : ''}`}></i>
                     </div>
                 </div>
-                
+
                 <div className={`grid grid-nogutter border-top-1 surface-border surface-50 transition-all transition-duration-500 overflow-hidden ${isAccordionOpen ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0'}`} style={{ maxHeight: isAccordionOpen ? '1000px' : '0' }}>
                     {/* Tarjeta Cliente */}
                     <div className="col-12 lg:col-6 p-4 lg:border-right-1 surface-border detalle-titular-card">
@@ -1739,9 +1821,9 @@ const DetalleContrato = () => {
 
                     <div className="grid relative z-1 mb-5">
                         <h4 className="col-12 m-0 font-medium font-bold text-blue-50block">Emitido el {contrato.fechaEmision}</h4>
-                        
+
                         <div className="col-12 md:col-4 flex flex-column justify-content-center">
-                            
+
                             <span className="text-xs font-bold text-blue-300 uppercase tracking-widest mb-2 flex align-items-center gap-2">
 
                                 <i className="pi pi-tag"></i> Precio de Venta (Total)
@@ -1749,7 +1831,7 @@ const DetalleContrato = () => {
                             <span className="text-4xl lg:text-5xl font-bold">
                                 S/ {contrato.finanzas.precioTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                             </span>
-                            
+
                         </div>
 
                         <div className="col-12 md:col-4 flex flex-column justify-content-center md:border-left-1 border-white-alpha-20 md:pl-5">
@@ -1802,7 +1884,7 @@ const DetalleContrato = () => {
                                 <span className="text-2xl lg:text-3xl font-bold text-orange-400">S/ {contrato.finanzas.saldoDeudor.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                             </div>
                         </div>
-                        
+
                         <div className="w-full bg-bluegray-900 border-round-xl overflow-hidden mt-2 border-1 border-white-alpha-10" style={{ height: '16px' }}>
                             <div className="h-full bg-green-400 border-round-xl transition-all transition-duration-1000 relative" style={{ width: `${Math.max(contrato.finanzas.progresoPago, 2)}%`, background: 'linear-gradient(90deg, #10b981 0%, #34d399 100%)' }}>
                                 <div className="absolute top-0 left-0 w-full h-full bg-white-alpha-20 animation-pulse"></div>
@@ -1816,7 +1898,7 @@ const DetalleContrato = () => {
             <TabView className="custom-tabview">
                 <TabPanel header="Estado de Cuenta" leftIcon="pi pi-wallet mr-2">
                     <div className="grid mt-2" style={{ minHeight: '600px' }}>
-                        
+
                         {/* PANEL IZQUIERDO: CRONOGRAMA */}
                         <div className="col-12 lg:col-8 flex flex-column">
                             <div className="surface-0 shadow-1 border-round-2xl border-1 surface-border flex-1 flex flex-column overflow-hidden">
@@ -1831,7 +1913,7 @@ const DetalleContrato = () => {
                                         <Tag severity="danger" icon="pi pi-exclamation-triangle" value={`${contrato.finanzas.cuotasAtrasadas} Atrasada(s)`} className="px-3 py-2 text-sm font-bold" />
                                     )}
                                 </div>
-                                
+
                                 <DataTable
                                     value={cuotasVisibles}
                                     selectionMode="single"
@@ -1846,14 +1928,8 @@ const DetalleContrato = () => {
                                     <Column field="vencimiento" header="Vence" body={(r) => <div className="flex align-items-center justify-content-center gap-2"><i className="pi pi-calendar text-400"></i>{r.vencimiento}</div>} headerStyle={{ textAlign: 'center', fontSize: '1rem', fontWeight: 'bold' }} style={{ textAlign: 'center' }}></Column>
                                     <Column header="Monto" body={(r) => <span className="font-bold text-800">S/ {r.montoTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>} headerStyle={{ textAlign: 'center', fontSize: '1rem', fontWeight: 'bold' }} style={{ textAlign: 'center' }}></Column>
                                     <Column header="Deuda" body={(r) => r.montoTotal - r.montoPagado > 0 ? <span className="font-bold text-orange-600">S/ {(r.montoTotal - r.montoPagado).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span> : '-'} headerStyle={{ textAlign: 'center', fontSize: '1rem', fontWeight: 'bold' }} style={{ textAlign: 'center' }}></Column>
-                                    <Column header="Estado" body={(r) => getEstadoCuotaTag(r)} headerStyle={{ textAlign: 'center', fontSize: '1rem', fontWeight: 'bold' }} style={{ textAlign: 'center' }}></Column>
-                                    <Column header="Atraso" body={(r) => {
-                                        const diasVencidos = calcularDiasVencidos(r.vencimientoRaw || r.vencimiento);
-                                        if (diasVencidos > 0) {
-                                            return <span className="text-red-600 font-bold text-sm">{diasVencidos}d</span>;
-                                        }
-                                        return <span className="text-400 text-sm">-</span>;
-                                    }} headerStyle={{ textAlign: 'center', fontSize: '1rem', fontWeight: 'bold' }} style={{ textAlign: 'center', width: '10%' }}></Column>
+                                    <Column header="Estado" body={estadoCuotaTemplate} headerStyle={{ textAlign: 'center', fontSize: '1rem', fontWeight: 'bold' }} style={{ textAlign: 'center' }}></Column>
+                                    <Column header="Atraso" body={retrasoTemplate} headerStyle={{ textAlign: 'center', fontSize: '1rem', fontWeight: 'bold' }} style={{ textAlign: 'center', width: '10%' }}></Column>
                                     <Column body={() => <i className="pi pi-chevron-right text-400"></i>} style={{ width: '5%', textAlign: 'center' }}></Column>
                                 </DataTable>
                             </div>
@@ -1867,7 +1943,7 @@ const DetalleContrato = () => {
                                         <i className="pi pi-receipt text-blue-600"></i> Detalle de Abonos
                                     </h3>
                                 </div>
-                                
+
                                 <div className="p-4 flex-1 overflow-y-auto">
                                     {cuotaPagar ? (
                                         // PANEL DE REGISTRO DE PAGO
@@ -1912,9 +1988,9 @@ const DetalleContrato = () => {
                                             <div className="field mb-4">
                                                 <label className="font-medium text-700 block mb-2">Comprobante / Voucher (Opcional)</label>
                                                 <div className="relative flex flex-column align-items-center justify-content-center p-4 border-2 border-dashed border-round-xl surface-border hover:surface-hover transition-colors cursor-pointer bg-blue-50">
-                                                    <input 
-                                                        type="file" 
-                                                        className="opacity-0 absolute top-0 left-0 w-full h-full cursor-pointer z-10" 
+                                                    <input
+                                                        type="file"
+                                                        className="opacity-0 absolute top-0 left-0 w-full h-full cursor-pointer z-10"
                                                         accept="image/*,application/pdf"
                                                         onChange={(e) => setVoucherFileRegistro(e.target.files[0])}
                                                     />
@@ -1955,20 +2031,20 @@ const DetalleContrato = () => {
                                                 <div className="flex justify-content-center align-items-center gap-3">
                                                     <span className="flex align-items-center font-bold gap-2 text-lg"><i className="pi pi-calendar text-blue-500"></i> {cuotaSeleccionada.vencimiento}</span>
                                                     <span className="text-300">|</span>
-                                                    {getEstadoCuotaTag(cuotaSeleccionada)}
+                                                    {estadoCuotaTemplate(cuotaSeleccionada)}
                                                 </div>
                                                 {(cuotaSeleccionada.montoTotal - cuotaSeleccionada.montoPagado) > 0 && (
-                                                    <Button 
-                                                        label="Registrar Pago" 
-                                                        icon="pi pi-credit-card" 
-                                                        className="btn-primary-custom shadow-2 border-round-xl font-bold mt-3 w-full" 
+                                                    <Button
+                                                        label="Registrar Pago"
+                                                        icon="pi pi-credit-card"
+                                                        className="btn-primary-custom shadow-2 border-round-xl font-bold mt-3 w-full"
                                                         onClick={() => abrirPanelPago(cuotaSeleccionada)}
                                                     />
                                                 )}
                                             </div>
 
                                             <h3 className="text-sm font-bold uppercase tracking-widest mb-3 pl-2 m-0">Historial de Recibos</h3>
-                                            
+
                                             {/* INDICADOR DE PAGOS PENDIENTES */}
                                             {cuotaSeleccionada.pagoPendiente && (
                                                 <div className="bg-yellow-50 border-1 border-yellow-200 border-round-2xl p-3 mb-3 shadow-sm flex justify-content-between align-items-center">
@@ -1979,20 +2055,20 @@ const DetalleContrato = () => {
                                                             {/* <span className="text-xs text-yellow-600 ">ID: {cuotaSeleccionada.pagoPendiente.id}</span> */}
                                                         </div>
                                                     </div>
-                                                    <Button 
-                                                        label="Procesar" 
-                                                        icon="pi pi-cog" 
-                                                        className="p-button-sm p-button-warning text-white" 
+                                                    <Button
+                                                        label="Procesar"
+                                                        icon="pi pi-cog"
+                                                        className="p-button-sm p-button-warning text-white"
                                                         onClick={() => abrirDialogoProcesar(cuotaSeleccionada.pagoPendiente)}
                                                     />
                                                 </div>
                                             )}
-                                            
+
                                             {cuotaSeleccionada.pagos && cuotaSeleccionada.pagos.length > 0 ? (
                                                 <div className="flex flex-column gap-3">
                                                     {cuotaSeleccionada.pagos.map((pago, idx) => (
-                                                        <div 
-                                                            key={idx} 
+                                                        <div
+                                                            key={idx}
                                                             className={`surface-0 border-1 surface-border border-round-2xl p-3 shadow-sm transition-colors ${pago.fotoVoucherUrl ? 'hover:border-blue-400 cursor-pointer' : ''}`}
                                                             onClick={() => pago.fotoVoucherUrl && viewVoucher(pago.fotoVoucherUrl)}
                                                         >
@@ -2015,7 +2091,7 @@ const DetalleContrato = () => {
                                                             </div>
                                                         </div>
                                                     ))}
-                                                    
+
                                                     <div className="mt-4 bg-green-50 border-1 border-green-200 border-round-2xl p-3 flex justify-content-between align-items-center shadow-sm">
                                                         <span className="font-bold text-green-800">Total Pagado:</span>
                                                         <span className="text-2xl font-bold text-green-700">S/ {cuotaSeleccionada.montoPagado.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
@@ -2038,10 +2114,10 @@ const DetalleContrato = () => {
 
                 <TabPanel header="Historial de Modificaciones" leftIcon="pi pi-history mr-2">
                     <div className="surface-0 shadow-1 border-round-2xl border-1 surface-border p-4 mt-2">
-                                    <div className="flex justify-content-between align-items-center mb-4">
-                                        <h3 className="m-0 flex align-items-center text-800 text-xl"><i className="pi pi-history mr-2 text-primary"></i> Registro Histórico</h3>
-                                        <Button label="Vista Previa (Borrador)" icon="pi pi-eye" className="p-button-outlined p-button-secondary font-bold border-round-xl" onClick={handleVistaPrevia} />
-                                    </div>
+                        <div className="flex justify-content-between align-items-center mb-4">
+                            <h3 className="m-0 flex align-items-center text-800 text-xl"><i className="pi pi-history mr-2 text-primary"></i> Registro Histórico</h3>
+                            <Button label="Vista Previa (Borrador)" icon="pi pi-eye" className="p-button-outlined p-button-secondary font-bold border-round-xl" onClick={handleVistaPrevia} />
+                        </div>
                         <DataTable value={historiales} emptyMessage="No hay historial registrado." className="p-datatable-sm" paginator rows={10}>
                             <Column field="id" header="ID" style={{ width: '5%' }}></Column>
                             <Column field="tipoRegistro" header="Tipo" body={(r) => r.tipoRegistro ? r.tipoRegistro.replace(/_/g, ' ') : '-'} style={{ width: '12%' }}></Column>

@@ -31,11 +31,12 @@ import Vendedores from './pages/mantenimiento/Vendedores';
 import Lotizacion from './pages/mantenimiento/Lotizacion';
 import NuevoRegistro from './pages/operaciones/NuevoRegistro';
 import ListaCotizaciones from './pages/operaciones/ListaCotizaciones';
-import HistorialComercial from './pages/operaciones/HistorialComercial';
 import Contrato from './pages/operaciones/Contrato';
 import ListaContratos from './pages/operaciones/ListaContratos';
 import DetalleContrato from './pages/operaciones/DetalleContrato';
 import GestionCuotasPagos from './pages/operaciones/GestionCuotasPagos';
+import ReporteComisiones from './pages/reportes/ReporteComisiones';
+import ReporteLotes from './pages/reportes/ReporteLotes';
 
 function App() {
   return (
@@ -49,6 +50,8 @@ function App() {
               <Route exact path="/perfil" element={<Perfil />} />
               <Route exact path="/dashboard" element={<Dashboard />} />
               <Route exact path="/reportes" element={<ReportesDashboard />} />
+              <Route exact path="/reportes/lotes" element={<ReporteLotes />} />
+              <Route exact path="/reportes/comisiones" element={<ReporteComisiones />} />
               <Route exact path="/temas" element={<Temas />} />
               <Route exact path="/empresas" element={<Empresas />} />
               <Route exact path="/clientes" element={<Clientes />} />
@@ -57,9 +60,8 @@ function App() {
               <Route exact path="/lotizacion" element={<Lotizacion />} />
               <Route exact path="/cotizacion" element={<NuevoRegistro />} />
               <Route exact path="/cotizacion/lista" element={<ListaCotizaciones />} />
-              <Route exact path="/historial-comercial" element={<HistorialComercial />} />
+              <Route exact path="/historial-comercial" element={<ListaContratos />} />
               <Route exact path="/contrato/nuevo" element={<Contrato />} />
-              <Route exact path="/contrato/lista" element={<ListaContratos />} />
               <Route exact path="/detalle_contrato/:id" element={<DetalleContrato />} />
               <Route exact path="/cuotas-pagos" element={<GestionCuotasPagos />} />
             </Route>

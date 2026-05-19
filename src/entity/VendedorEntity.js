@@ -6,5 +6,6 @@ export const VendedorEntity = {
     telefono: '',
     email: '',
     tipoDocumento: 'DNI',
-    enabled: true
+    enabled: true,
+    jefeVentas: null
 };
