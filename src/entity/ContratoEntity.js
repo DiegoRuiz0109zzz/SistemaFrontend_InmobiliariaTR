@@ -18,7 +18,6 @@ export const ContratoEntity = {
 
     cantidadCuotas: null,
     descripcion: '',
-    observacion: '',
 
     // Tipo de inicial: 'SEPARACION' | 'VENTA'
     tipoInicial: null,

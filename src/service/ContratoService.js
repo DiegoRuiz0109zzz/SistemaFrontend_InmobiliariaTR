@@ -35,6 +35,23 @@ export const ContratoService = {
         return response.data;
     },
 
+    completarMedidas: async (id, payload, httpClient) => {
+        const client = resolveClient(httpClient);
+        const response = await client.put(`${RESOURCE}/${id}/completar-medidas`, payload);
+        return response.data;
+    },
+
+    subirDocumentoFirmado: async (id, archivo, motivo, httpClient) => {
+        const client = resolveClient(httpClient);
+        const formData = new FormData();
+        formData.append('archivo', archivo);
+        formData.append('motivo', motivo);
+        const response = await client.post(`${RESOURCE}/${id}/subir-documento`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        return response.data;
+    },
+
     registrarHitoOficial: async (id, httpClient) => {
         const client = resolveClient(httpClient);
         const response = await client.post(`${RESOURCE}/${id}/registrar-hito-oficial`);
@@ -47,6 +64,11 @@ export const ContratoService = {
             responseType: 'blob'
         });
         return response.data;
+    }
+    ,
+    obtenerVistaPreviaUrl: (id) => {
+        // Devuelve URL completa para abrir la vista previa en nueva pestaña
+        return `${window.location.origin}/api/${RESOURCE}/${id}/vista-previa`;
     }
 };
 

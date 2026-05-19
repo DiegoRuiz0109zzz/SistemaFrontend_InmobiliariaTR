@@ -28,6 +28,7 @@ const Vendedores = () => {
     const [globalFilter, setGlobalFilter] = useState('');
     const [selectedVendedores, setSelectedVendedores] = useState(null);
     const [saving, setSaving] = useState(false);
+    const [usuarios, setUsuarios] = useState([]);
 
     const toast = useRef(null);
     const dt = useRef(null);
@@ -42,9 +43,25 @@ const Vendedores = () => {
         }
     }, [axiosInstance]);
 
+    const cargarUsuarios = useCallback(async () => {
+        try {
+            const response = await axiosInstance.get('usuario/', { params: { page: 0, size: 1000 } });
+            const lista = response.data?.content || response.data || [];
+            const mapped = lista.map(u => ({
+                id: u.id,
+                nombreCompleto: `${u.nombres || ''} ${u.apellidos || ''}`.trim() || u.username
+            }));
+            setUsuarios(mapped);
+        } catch (error) {
+            console.error(error);
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar los usuarios.', life: 3500 });
+        }
+    }, [axiosInstance]);
+
     useEffect(() => {
         cargarVendedores();
-    }, [cargarVendedores]);
+        cargarUsuarios();
+    }, [cargarVendedores, cargarUsuarios]);
 
     const openNew = () => {
         setVendedor(emptyVendedor);
@@ -252,7 +269,7 @@ const Vendedores = () => {
                             paginator
                             rows={10}
                             globalFilter={globalFilter}
-                            globalFilterFields={['numeroDocumento', 'tipoDocumento', 'nombres', 'apellidos', 'telefono', 'email']}
+                            globalFilterFields={['numeroDocumento', 'tipoDocumento', 'nombres', 'apellidos', 'telefono', 'email', 'jefeVentas.nombres', 'jefeVentas.apellidos']}
                             emptyMessage="No se encontraron vendedores."
                         >
                             <Column header="N°" body={indexBodyTemplate} style={{ width: '80px', textAlign: 'center' }} />
@@ -262,6 +279,10 @@ const Vendedores = () => {
                             <Column field="apellidos" header="Apellidos" style={{ minWidth: '180px' }} />
                             <Column field="telefono" header="Teléfono" style={{ minWidth: '140px' }} />
                             <Column field="email" header="Correo" style={{ minWidth: '200px' }} />
+                            <Column header="Jefe de Ventas" body={(rowData) => {
+                                if (!rowData.jefeVentas) return '-';
+                                return `${rowData.jefeVentas.nombres || ''} ${rowData.jefeVentas.apellidos || ''}`.trim() || rowData.jefeVentas.username || '';
+                            }} style={{ minWidth: '180px' }} />
                             <Column header="Acciones" body={actionBodyTemplate} style={{ minWidth: '140px', textAlign: 'center' }} />
                         </DataTable>
                     </div>
@@ -357,6 +378,22 @@ const Vendedores = () => {
                                 value={vendedor.email}
                                 onChange={(e) => onInputChange(e, 'email')}
                                 placeholder="ejemplo@correo.com"
+                            />
+                        </div>
+
+                        <div className="field col-12 md:col-6">
+                            <label htmlFor="jefeVentas">Jefe de Ventas</label>
+                            <Dropdown
+                                id="jefeVentas"
+                                value={vendedor.jefeVentas?.id || null}
+                                options={usuarios}
+                                optionLabel="nombreCompleto"
+                                optionValue="id"
+                                onChange={(e) => setVendedor((prev) => ({ ...prev, jefeVentas: e.value ? { id: e.value } : null }))}
+                                placeholder="Seleccione jefe de ventas"
+                                filter
+                                showClear
+                                className="w-full"
                             />
                         </div>
                     </div>

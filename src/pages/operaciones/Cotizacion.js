@@ -537,6 +537,41 @@ const Cotizacion = ({ embedded = false }) => {
                 return;
             }
 
+            const listadoInteresados = Array.isArray(interesados) ? interesados : [];
+            const interesadoExistente = listadoInteresados.find((item) => item?.numeroDocumento === documento);
+            if (interesadoExistente) {
+                const dep = interesadoExistente.departamento || '';
+                const prov = interesadoExistente.provincia || '';
+                const dist = interesadoExistente.distrito || '';
+                const ubig = interesadoExistente.ubigeo || '';
+
+                setCliente({
+                    id: undefined,
+                    interesadoId: interesadoExistente.id || undefined,
+                    numeroDocumento: interesadoExistente.numeroDocumento || documento,
+                    tipoDocumento: interesadoExistente.tipoDocumento || 'DNI',
+                    nombres: interesadoExistente.nombres || '',
+                    apellidos: interesadoExistente.apellidos || '',
+                    estadoCivil: interesadoExistente.estadoCivil || '',
+                    telefono: interesadoExistente.telefono || '',
+                    email: interesadoExistente.email || '',
+                    departamento: dep,
+                    provincia: prov,
+                    distrito: dist,
+                    ubigeo: ubig,
+                    direccion: interesadoExistente.direccion || ''
+                });
+                setDni(interesadoExistente.numeroDocumento || documento);
+                setCoCompradorSeleccionado(null);
+                setMostrarCoComprador(false);
+                if (dep) {
+                    await cargarProvincias(dep);
+                    if (prov) await cargarDistritos(dep, prov);
+                }
+                toast.current?.show({ severity: 'success', summary: 'Encontrado', detail: 'Interesado cargado desde el sistema.' });
+                return;
+            }
+
             const response = await ReniecService.consultarDNI(documento, axiosInstance);
             if (!response?.success) {
                 toast.current?.show({ severity: 'warn', summary: 'RENIEC', detail: response?.message || 'DNI no encontrado.' });

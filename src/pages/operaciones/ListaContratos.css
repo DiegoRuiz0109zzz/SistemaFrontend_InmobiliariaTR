@@ -1,21 +1,149 @@
-.listacontratos-page .main-content {
-    display: flex;
-    flex-direction: column;
+/* ListaContratos.css - Premium Dashboard Styles */
+
+.listacontratos-premium {
+    padding: 1.5rem;
+    background-color: var(--surface-ground);
+    min-height: 100vh;
+    font-family: var(--font-family);
 }
 
-/* =====================================
-   Tabla Maestra Custom
-   ===================================== */
-.custom-master-table .p-datatable-thead>tr>th {
-    background-color: #f8fafc;
-    color: #475569;
-    font-size: 0.8rem;
+/* KPI Cards */
+.kpi-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    position: relative;
+}
+
+.kpi-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05) !important;
+}
+
+.kpi-icon {
+    width: 3.5rem;
+    height: 3.5rem;
+}
+
+/* Custom Dropdown Overrides for Filters */
+.dropdown-blue .p-dropdown-label {
+    font-weight: 700;
+}
+
+.calendar-custom .p-inputtext {
+    border-radius: 0.5rem;
+    border: none;
+    background-color: var(--gray-50);
+    padding: 0.75rem;
+}
+
+.calendar-custom .p-button {
+    background-color: var(--gray-100) !important;
+    color: var(--gray-600) !important;
+    border: none;
+}
+
+/* Premium DataTable Styling */
+.premium-table {
+    border-radius: 1rem;
+}
+
+.premium-table .p-datatable-thead > tr > th {
+    background-color: white !important;
+    color: var(--text-color-secondary) !important;
+    font-size: 0.85rem !important;
     text-transform: uppercase;
-    padding: 1rem;
-    border-bottom: 2px solid #e2e8f0;
+    letter-spacing: 0.05em;
+    padding: 1.5rem 1rem !important;
+    border-bottom: 2px solid var(--surface-border) !important;
+    border-top: none !important;
+    font-weight: 900 !important;
 }
 
-.custom-master-table .p-datatable-tbody>tr>td {
+.premium-table .p-datatable-tbody > tr > td {
+    padding: 1.2rem 1rem !important;
+    border-bottom: 1px solid var(--surface-border) !important;
+    color: var(--text-color) !important;
+    background-color: white;
+    font-size: 1.05rem !important;
+    font-weight: 600;
+}
+
+.premium-table .p-datatable-tbody > tr:hover > td {
+    background-color: var(--surface-hover) !important;
+}
+
+/* Pagination Overrides */
+.premium-table .p-paginator {
+    background-color: white;
+    border: none !important;
     padding: 1rem;
-    border-bottom: 1px solid #f1f5f9;
+    border-top: 1px solid var(--surface-border);
+    justify-content: flex-end;
+}
+
+.premium-table .p-paginator .p-paginator-current {
+    margin-right: auto;
+    font-weight: 600;
+    color: var(--text-color-secondary);
+}
+
+.premium-table .p-paginator .p-paginator-pages .p-paginator-page.p-highlight {
+    background-color: var(--blue-600);
+    color: white;
+    border-radius: 0.5rem;
+}
+
+/* KPI font weight enhancement */
+.kpi-card p, .kpi-card span {
+    font-weight: 900 !important;
+}
+
+/* Action Buttons */
+.dt-actions-group {
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+}
+
+.premium-table .p-datatable-tbody > tr:hover .dt-actions-group {
+    opacity: 1;
+}
+
+.dt-action-btn {
+    width: 2rem !important;
+    height: 2rem !important;
+    border-radius: 50% !important;
+    background: transparent !important;
+    border: none !important;
+    transition: all 0.2s ease !important;
+}
+
+.dt-action-btn.dt-btn-view {
+    color: var(--blue-500) !important;
+}
+
+.dt-action-btn.dt-btn-view:hover {
+    background-color: var(--blue-100) !important;
+}
+
+.dt-action-btn.dt-btn-schedule {
+    color: var(--green-500) !important;
+}
+
+.dt-action-btn.dt-btn-schedule:hover {
+    background-color: var(--green-100) !important;
+}
+
+.dt-action-btn.dt-btn-edit {
+    color: var(--red-400) !important;
+}
+
+.dt-action-btn.dt-btn-edit:hover {
+    background-color: var(--red-100) !important;
+}
+
+/* Grid Layout for Filters */
+@media screen and (max-width: 991px) {
+    .filter-grid {
+        display: flex;
+        flex-direction: column;
+    }
 }

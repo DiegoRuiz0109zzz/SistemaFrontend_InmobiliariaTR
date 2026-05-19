@@ -21,7 +21,6 @@ const Menu = () => {
             label: 'Inicio',
             items: [
                 { label: 'Dashboard', icon: 'pi pi-fw pi-home', to: 'dashboard' },
-                { label: 'Reportes y Finanzas', icon: 'pi pi-fw pi-chart-bar', to: 'reportes' },
                 { label: 'Mi Perfil', icon: 'pi pi-fw pi-user', to: 'perfil' }
             ]
         },
@@ -57,32 +56,15 @@ const Menu = () => {
             label: 'Operaciones Inmobiliarias',
             items: [
                 { label: 'Cotizacion y Contrato', icon: 'pi pi-fw pi-plus', to: 'cotizacion' },
+                { label: 'Lista de Cotizaciones', icon: 'pi pi-fw pi-list', to: 'cotizacion/lista' },
                 {
-                    label: 'Cotizacion',
-                    icon: 'pi pi-fw pi-calculator',
-                    items: [
-                        { label: 'Lista de Cotizaciones', icon: 'pi pi-fw pi-list', to: 'cotizacion/lista' }
-                    ]
-                },
-                {
-                    label: 'Contrato',
-                    icon: 'pi pi-fw pi-file-edit',
-                    items: [
-                        { label: 'Lista de Contratos', icon: 'pi pi-fw pi-list', to: 'contrato/lista' }
-                    ]
-                },
-                {
-                    label: 'Historial comercial',
+                    label: 'Historial Comercial',
                     icon: 'pi pi-fw pi-history',
                     to: 'historial-comercial'
-                },
-                {
-                    label: 'Cobranza',
-                    icon: 'pi pi-fw pi-money-bill',
-                    to: 'cuotas-pagos'
                 }
             ]
         });
+
 
         const usuariosItems = [];
         if (configRoles.includes(role)) {
@@ -105,6 +87,17 @@ const Menu = () => {
                 items: mantenimientoItems
             });
         }
+
+        menu.push({
+            label: 'Reportes',
+            items: [
+                { label: 'Reporte de Anticuamiento', icon: 'pi pi-fw pi-chart-line', to: 'reportes' },
+                { label: 'Reporte Maestro', icon: 'pi pi-fw pi-table', to: 'reportes/maestro' },
+                { label: 'Reporte de Lotes', icon: 'pi pi-fw pi-map', to: 'reportes/lotes' },
+                { label: 'Reporte de Comisiones', icon: 'pi pi-fw pi-percentage', to: 'reportes/comisiones' },
+                { label: 'Pagos Efectuados', icon: 'pi pi-fw pi-money-bill', to: 'reportes/pagos' }
+            ]
+        });
 
         const configuracionItems = [];
 

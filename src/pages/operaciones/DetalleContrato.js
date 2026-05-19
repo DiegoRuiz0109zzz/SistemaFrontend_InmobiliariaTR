@@ -7,6 +7,7 @@ import { Tag } from 'primereact/tag';
 import { Toast } from 'primereact/toast';
 import { Skeleton } from 'primereact/skeleton';
 import { Dialog } from 'primereact/dialog';
+import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { TabView, TabPanel } from 'primereact/tabview';
 import { Divider } from 'primereact/divider';
 import { useAuth } from '../../context/AuthContext';
@@ -19,6 +20,8 @@ import { ContratoHistorialService } from '../../service/ContratoHistorialService
 import { InputNumber } from 'primereact/inputnumber';
 import { Dropdown } from 'primereact/dropdown';
 import { InputText } from 'primereact/inputtext';
+import { Calendar } from 'primereact/calendar';
+import { Checkbox } from 'primereact/checkbox';
 import { InputTextarea } from 'primereact/inputtextarea';
 
 import './DetalleContrato.css';
@@ -28,7 +31,7 @@ const DetalleContrato = () => {
     const toast = useRef(null);
     const { id } = useParams();
     const navigate = useNavigate();
-    
+
     const [loading, setLoading] = useState(true);
     const [contrato, setContrato] = useState(null);
     const [cuotaSeleccionada, setCuotaSeleccionada] = useState(null);
@@ -37,8 +40,23 @@ const DetalleContrato = () => {
     const [pdfViewer, setPdfViewer] = useState(null);
     const [dialogoSubirPdf, setDialogoSubirPdf] = useState(false);
     const [archivoContrato, setArchivoContrato] = useState(null);
-    const [observacionSubida, setObservacionSubida] = useState('');
+    const [motivoDocumento, setMotivoDocumento] = useState('');
     const [subiendoPdf, setSubiendoPdf] = useState(false);
+    const [historialPagos, setHistorialPagos] = useState([]);
+
+    // Estados para convertir contrato separado a activo
+    const [mostrarConversionModal, setMostrarConversionModal] = useState(false);
+    const [conversionCuotas, setConversionCuotas] = useState(36);
+    const [conversionFechaInicio, setConversionFechaInicio] = useState(new Date(new Date().setMonth(new Date().getMonth() + 1)));
+    const [conversionFlexible, setConversionFlexible] = useState(false);
+    const [conversionCuotasEspeciales, setConversionCuotasEspeciales] = useState(0);
+    const [conversionMontoEspecial, setConversionMontoEspecial] = useState(0);
+    const [conversionCronograma, setConversionCronograma] = useState([]);
+    const [conversionDescripcion, setConversionDescripcion] = useState('');
+    const [simulandoConversion, setSimulandoConversion] = useState(false);
+    const [confirmandoConversion, setConfirmandoConversion] = useState(false);
+    const [conversionPrompted, setConversionPrompted] = useState(false);
+    const [conversionDismissed, setConversionDismissed] = useState(false);
 
     // Datos base para edición
     const [clientes, setClientes] = useState([]);
@@ -69,9 +87,22 @@ const DetalleContrato = () => {
     const [etapaEdit, setEtapaEdit] = useState(null);
     const [manzanaEdit, setManzanaEdit] = useState(null);
     const [loteEditId, setLoteEditId] = useState(null);
-    const [expandirCambioLote, setExpandirCambioLote] = useState(false);
     const [observacionNota, setObservacionNota] = useState('');
+    const [medidasEdit, setMedidasEdit] = useState({
+        mlFrente: '',
+        mlDerecha: '',
+        mlIzquierda: '',
+        mlFondo: '',
+        colindanciaFrente: '',
+        colindanciaDerecha: '',
+        colindanciaIzquierda: '',
+        colindanciaFondo: ''
+    });
+    const [expandirCambioLote, setExpandirCambioLote] = useState(false);
     const [guardandoEdicion, setGuardandoEdicion] = useState(false);
+
+    // Estado para mostrar panel de medidas si falta completarlas
+    const [mostrarPanelMedidas, setMostrarPanelMedidas] = useState(false);
 
     const metodosPago = [
         { label: 'Transferencia BCP', value: 'Transferencia BCP' },
@@ -82,7 +113,7 @@ const DetalleContrato = () => {
 
     const buildVoucherUrl = (url) => url ? `http://localhost:8080/${url.replace(/^\//, '')}` : null;
     const isPdf = (url) => url && url.toLowerCase().endsWith('.pdf');
-    
+
     // Parsear fecha sin que se vea afectada por zona horaria
     const formatearFecha = (fechaStr) => {
         if (!fechaStr) return 'N/A';
@@ -130,6 +161,27 @@ const DetalleContrato = () => {
         } catch (e) {
             return fechaStr;
         }
+    };
+
+    const getLocalYMD = (dateObj) => {
+        if (!dateObj) return null;
+        const d = dateObj instanceof Date ? dateObj : new Date(dateObj);
+        if (Number.isNaN(d.getTime())) return null;
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    };
+
+    const parseLocalYMD = (value) => {
+        if (!value) return null;
+        if (value instanceof Date) return value;
+        if (typeof value === 'string' && value.includes('T')) return new Date(value);
+        if (typeof value === 'string' && value.includes('-')) {
+            const [y, m, d] = value.split('T')[0].split('-');
+            return new Date(y, Number(m) - 1, Number(d));
+        }
+        return new Date(value);
     };
 
     useEffect(() => {
@@ -234,6 +286,23 @@ const DetalleContrato = () => {
             setHistoriales(Array.isArray(histRaw) ? histRaw : []);
             const cuotasList = Array.isArray(cuotasRaw) ? cuotasRaw : [];
 
+            // Cargar historial global de pagos para poder ver los días de retraso en la tabla principal
+            try {
+                const pagosPorCuota = await Promise.all(
+                    cuotasList.map(async (cuota) => {
+                        try {
+                            const pagos = await PagoService.listarPorCuota(cuota.id, axiosInstance);
+                            return (pagos || []).map(p => ({ ...p, cuotaId: cuota.id }));
+                        } catch (e) {
+                            return [];
+                        }
+                    })
+                );
+                setHistorialPagos(pagosPorCuota.flat());
+            } catch (e) {
+                setHistorialPagos([]);
+            }
+
             let totalPagadoReal = 0;
             let cuotasAtrasadas = 0;
             let cuotasPagadas = 0;
@@ -253,7 +322,7 @@ const DetalleContrato = () => {
                     montoTotal: cuota.montoTotal || cuota.monto || 0,
                     montoPagado: pagadoEnCuota,
                     estado: cuota.estado || 'PENDIENTE',
-                    pagos: [] 
+                    pagos: []
                 };
             });
 
@@ -272,6 +341,8 @@ const DetalleContrato = () => {
                 id: Number(contratoId),
                 codigo: `C-${contratoId.toString().padStart(4, '0')}`,
                 fechaEmision: formatearFecha(data.fechaRegistro),
+                cotizacionOrigen: data.cotizacionOrigen || null,
+                urlDocumentoFirmado: data.urlDocumentoFirmado || null,
                 vendedor: data.vendedor ? `${data.vendedor.nombres} ${data.vendedor.apellidos}` : 'No asignado',
                 vendedorDetalle: data.vendedor ? {
                     id: data.vendedor.id,
@@ -306,6 +377,7 @@ const DetalleContrato = () => {
                     numero: data.lote?.numero || null,
                     manzana: data.lote?.manzana || null
                 },
+                medidas: data.medidas || null,
                 finanzas: {
                     precioTotal: data.precioTotal || 0,
                     montoInicial: montoInicialAcordado,
@@ -335,7 +407,7 @@ const DetalleContrato = () => {
             setCuotaSeleccionada(null);
             return;
         }
-        
+
         // Si el contrato ha sido recargado, buscar la cuota actualizada
         let cuotaActualizada = cuota;
         if (contrato && contrato.cuotas) {
@@ -344,9 +416,9 @@ const DetalleContrato = () => {
                 cuotaActualizada = cuotaEncontrada;
             }
         }
-        
+
         setCuotaSeleccionada(cuotaActualizada);
-        
+
         try {
             const pagosRaw = await PagoService.listarPorCuota(cuotaActualizada.id, axiosInstance);
             const pagosFormateados = (pagosRaw || []).map(p => ({
@@ -354,19 +426,53 @@ const DetalleContrato = () => {
                 id: `REC-${p.id}`,
                 fechaPago: p.fechaPago ? (() => {
                     const fecha = new Date(p.fechaPago);
-                    return fecha.toLocaleDateString('es-PE') + ' ' + fecha.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
+                    return fecha.toLocaleDateString('es-PE');
                 })() : 'N/A',
+                fechaPagoRaw: p.fechaPago || null,
+                numeroOperacion: p.numeroOperacion || p.numeroOperacionReferencia || p.numeroOperacion || '',
                 montoAbonado: p.montoAbonado || p.monto || 0,
                 metodoPago: p.metodoPago || p.metodo || 'No especificado',
                 fotoVoucherUrl: p.fotoVoucherUrl || null
             }));
-            
+
             // Detectar si hay pagos pendientes
             const pagoPendienteEnCuota = (pagosRaw || []).find(p => p.estado === 'POR_VALIDAR');
-            
+
             setCuotaSeleccionada(prev => ({ ...prev, pagos: pagosFormateados, pagoPendiente: pagoPendienteEnCuota }));
         } catch (error) {
             toast.current?.show({ severity: 'warn', summary: 'Pagos', detail: 'No se pudieron cargar los recibos de esta cuota.' });
+        }
+    };
+
+    const viewVoucher = (url) => {
+        if (!url) return;
+        const full = buildVoucherUrl(url);
+        if (isPdf(full)) {
+            // Try to find matching historial entry and use descargarPdf; otherwise try to fetch the blob directly
+            const fileName = url.split('/').pop();
+            const match = historiales.find(h => (h.rutaDocumentoPdf || '').endsWith(fileName));
+            if (match) {
+                verHistorialPdf(match.id);
+                return;
+            }
+
+            // Fallback: try to GET the file as blob via axiosInstance, then open in new tab
+            (async () => {
+                try {
+                    const client = axiosInstance || null;
+                    if (client) {
+                        const resp = await client.get(full, { responseType: 'blob' });
+                        const blobUrl = URL.createObjectURL(resp.data);
+                        window.open(blobUrl, '_blank');
+                        return;
+                    }
+                } catch (e) {
+                    // final fallback: open constructed URL in new tab
+                    window.open(full, '_blank');
+                }
+            })();
+        } else {
+            setVoucherViewer(full);
         }
     };
 
@@ -380,6 +486,16 @@ const DetalleContrato = () => {
         setManzanaEdit(contrato.lote?.manzana?.id || null);
         setLoteEditId(contrato.lote?.id || null);
         setObservacionNota('');
+        setMedidasEdit({
+            mlFrente: contrato.medidas?.mlFrente ?? '',
+            mlDerecha: contrato.medidas?.mlDerecha ?? '',
+            mlIzquierda: contrato.medidas?.mlIzquierda ?? '',
+            mlFondo: contrato.medidas?.mlFondo ?? '',
+            colindanciaFrente: contrato.medidas?.colindanciaFrente ?? '',
+            colindanciaDerecha: contrato.medidas?.colindanciaDerecha ?? '',
+            colindanciaIzquierda: contrato.medidas?.colindanciaIzquierda ?? '',
+            colindanciaFondo: contrato.medidas?.colindanciaFondo ?? ''
+        });
         setDialogoEditarContrato(true);
     };
 
@@ -393,6 +509,16 @@ const DetalleContrato = () => {
         setLoteEditId(null);
         setExpandirCambioLote(false);
         setObservacionNota('');
+        setMedidasEdit({
+            mlFrente: '',
+            mlDerecha: '',
+            mlIzquierda: '',
+            mlFondo: '',
+            colindanciaFrente: '',
+            colindanciaDerecha: '',
+            colindanciaIzquierda: '',
+            colindanciaFondo: ''
+        });
     };
 
     const guardarEdiciones = async () => {
@@ -424,17 +550,183 @@ const DetalleContrato = () => {
         }
     };
 
+    const abrirConversionModal = () => {
+        setConversionCronograma([]);
+        setConversionDescripcion('');
+        setConversionDismissed(false);
+        if (contrato?.cotizacionOrigen) {
+            const origen = contrato.cotizacionOrigen;
+            const cuotasOrigen = origen.cantidadCuotas || 36;
+            const fechaOrigen = parseLocalYMD(origen.fechaInicioPago) || conversionFechaInicio;
+            const flex = !!(origen.cuotasFlexibles || origen.cuotasEspeciales || origen.montoCuotaEspecial);
+            const cuotasEsp = origen.cuotasEspeciales || 0;
+            const montoEsp = origen.montoCuotaEspecial || 0;
+
+            setConversionCuotas(cuotasOrigen);
+            if (fechaOrigen) {
+                setConversionFechaInicio(fechaOrigen);
+            }
+            setConversionFlexible(flex);
+            setConversionCuotasEspeciales(cuotasEsp);
+            setConversionMontoEspecial(montoEsp);
+            simularConversionConDatos({
+                cuotas: cuotasOrigen,
+                fechaInicio: fechaOrigen,
+                flexible: flex,
+                cuotasEspeciales: cuotasEsp,
+                montoEspecial: montoEsp
+            });
+        }
+        setMostrarConversionModal(true);
+    };
+
+    const simularConversionConDatos = async ({ cuotas, fechaInicio, flexible, cuotasEspeciales, montoEspecial }) => {
+        if (!cuotas || cuotas <= 0) {
+            toast.current?.show({ severity: 'warn', summary: 'Validación', detail: 'Ingrese un número de cuotas válido.' });
+            return;
+        }
+        if (!fechaInicio) {
+            toast.current?.show({ severity: 'warn', summary: 'Validación', detail: 'Seleccione la fecha de inicio de pago.' });
+            return;
+        }
+
+        setSimulandoConversion(true);
+        try {
+            const payload = {
+                precioTotal: contrato?.finanzas?.precioTotal || 0,
+                montoInicial: contrato?.finanzas?.montoInicial || 0,
+                cantidadCuotas: cuotas,
+                fechaInicioPago: getLocalYMD(fechaInicio),
+                cuotasEspeciales: flexible ? cuotasEspeciales : 0,
+                montoCuotaEspecial: flexible ? montoEspecial : 0
+            };
+
+            const respuesta = await ContratoService.simular(payload, axiosInstance);
+            if (Array.isArray(respuesta)) {
+                const cronogramaSimulado = respuesta.map((item) => {
+                    const fecha = item?.fechaVencimiento || item?.fecha || item?.vencimiento || null;
+                    return {
+                        numero: item?.numeroCuota ?? item?.numero,
+                        tipoCuota: item?.tipoCuota || 'MENSUAL',
+                        montoTotal: Number(item?.montoTotal ?? item?.monto ?? 0),
+                        fecha,
+                        estado: item?.estado || 'PENDIENTE'
+                    };
+                });
+                setConversionCronograma(cronogramaSimulado);
+                setConversionDescripcion('Simulación completada');
+                return;
+            }
+            if (respuesta && respuesta.cuotas) {
+                setConversionCronograma(respuesta.cuotas || []);
+                setConversionDescripcion(respuesta.descripcion || 'Simulación completada');
+                return;
+            }
+
+            toast.current?.show({ severity: 'warn', summary: 'Respuesta inesperada', detail: 'El servidor no devolvió los datos esperados.' });
+        } catch (error) {
+            toast.current?.show({ severity: 'error', summary: 'Error en simulación', detail: error.response?.data?.message || 'No se pudo simular el cronograma.' });
+        } finally {
+            setSimulandoConversion(false);
+        }
+    };
+
+    const simularConversion = async () => {
+        await simularConversionConDatos({
+            cuotas: conversionCuotas,
+            fechaInicio: conversionFechaInicio,
+            flexible: conversionFlexible,
+            cuotasEspeciales: conversionCuotasEspeciales,
+            montoEspecial: conversionMontoEspecial
+        });
+    };
+
+    const confirmarConversion = async () => {
+        if (!conversionCuotas || conversionCuotas <= 0) {
+            toast.current?.show({ severity: 'warn', summary: 'Validación', detail: 'Ingrese un número de cuotas válido.' });
+            return;
+        }
+        if (!conversionFechaInicio) {
+            toast.current?.show({ severity: 'warn', summary: 'Validación', detail: 'Seleccione la fecha de inicio de pago.' });
+            return;
+        }
+        if (!contrato?.cliente?.id) {
+            toast.current?.show({ severity: 'warn', summary: 'Validación', detail: 'No se encontró el titular del contrato.' });
+            return;
+        }
+
+        setConfirmandoConversion(true);
+        try {
+            const payload = {
+                clienteId: contrato?.cliente?.id || null,
+                coCompradorId: contrato?.coComprador?.id || null,
+                loteId: contrato?.lote?.id || null,
+                cantidadCuotas: conversionCuotas,
+                fechaInicioPago: getLocalYMD(conversionFechaInicio),
+                cuotasEspeciales: conversionFlexible ? conversionCuotasEspeciales : 0,
+                montoCuotaEspecial: conversionFlexible ? conversionMontoEspecial : 0
+            };
+
+            await ContratoService.actualizar(contrato.id, payload, axiosInstance);
+            toast.current?.show({ severity: 'success', summary: 'Éxito', detail: 'Contrato actualizado y cronograma generado.' });
+            setMostrarConversionModal(false);
+            await cargarDetalleContrato(contrato.id);
+        } catch (error) {
+            console.error(error);
+            const detalle = error?.response?.data?.message || 'No se pudo convertir el contrato.';
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: detalle });
+        } finally {
+            setConfirmandoConversion(false);
+        }
+    };
+
     const verHistorialPdf = async (historialId) => {
         try {
             const blob = await ContratoHistorialService.descargarPdf(historialId, axiosInstance);
             const url = URL.createObjectURL(blob);
-            setPdfViewer(url);
+            window.open(url, '_blank');
+            // Optionally revoke URL after some time
+            setTimeout(() => URL.revokeObjectURL(url), 10000);
         } catch (error) {
             toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar el PDF histórico.' });
         }
     };
 
+    const medidasCompletas = (() => {
+        const medidas = contrato?.medidas;
+        if (!medidas) return false;
+        const campos = [
+            medidas.mlFrente,
+            medidas.mlDerecha,
+            medidas.mlIzquierda,
+            medidas.mlFondo,
+            medidas.colindanciaFrente,
+            medidas.colindanciaDerecha,
+            medidas.colindanciaIzquierda,
+            medidas.colindanciaFondo,
+            medidas.perimetro
+        ];
+        return campos.every((valor) => valor !== null && valor !== undefined && `${valor}`.trim() !== '');
+    })();
+
     const handleVistaPrevia = async () => {
+        if (!contrato?.id) return;
+
+        if (contrato?.estadoContrato === 'ACTIVO' && !medidasCompletas) {
+            setMedidasEdit({
+                mlFrente: contrato.medidas?.mlFrente ?? '',
+                mlDerecha: contrato.medidas?.mlDerecha ?? '',
+                mlIzquierda: contrato.medidas?.mlIzquierda ?? '',
+                mlFondo: contrato.medidas?.mlFondo ?? '',
+                colindanciaFrente: contrato.medidas?.colindanciaFrente ?? '',
+                colindanciaDerecha: contrato.medidas?.colindanciaDerecha ?? '',
+                colindanciaIzquierda: contrato.medidas?.colindanciaIzquierda ?? '',
+                colindanciaFondo: contrato.medidas?.colindanciaFondo ?? ''
+            });
+            setMostrarPanelMedidas(true);
+            return;
+        }
+
         try {
             toast.current?.show({ severity: 'info', summary: 'Generando...', detail: 'Cargando vista previa del contrato.' });
             const blob = await ContratoService.generarVistaPreviaPdf(contrato.id, axiosInstance);
@@ -445,18 +737,47 @@ const DetalleContrato = () => {
         }
     };
 
+    const guardarYGenerarPreviaMedidas = async () => {
+        if (!contrato?.id) return;
+        try {
+            await ContratoService.completarMedidas(contrato.id, {
+                mlFrente: medidasEdit.mlFrente === '' ? null : Number(medidasEdit.mlFrente),
+                mlDerecha: medidasEdit.mlDerecha === '' ? null : Number(medidasEdit.mlDerecha),
+                mlIzquierda: medidasEdit.mlIzquierda === '' ? null : Number(medidasEdit.mlIzquierda),
+                mlFondo: medidasEdit.mlFondo === '' ? null : Number(medidasEdit.mlFondo),
+                colindanciaFrente: medidasEdit.colindanciaFrente || null,
+                colindanciaDerecha: medidasEdit.colindanciaDerecha || null,
+                colindanciaIzquierda: medidasEdit.colindanciaIzquierda || null,
+                colindanciaFondo: medidasEdit.colindanciaFondo || null
+            }, axiosInstance);
+            await cargarDetalleContrato(contrato.id);
+            setMostrarPanelMedidas(false);
+            // Después de guardar, generar la vista previa
+            handleVistaPrevia();
+        } catch (error) {
+            console.error('Error al guardar medidas:', error);
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudieron guardar las medidas.' });
+        }
+    };
+
     const handleSubirPdf = async () => {
+        const esReemplazo = Boolean(contrato?.urlDocumentoFirmado);
         if (!archivoContrato) {
             toast.current?.show({ severity: 'warn', summary: 'Atención', detail: 'Debe seleccionar un archivo PDF.' });
             return;
         }
+        if (esReemplazo && !motivoDocumento.trim()) {
+            toast.current?.show({ severity: 'warn', summary: 'Atención', detail: 'Ingrese el motivo del reemplazo.' });
+            return;
+        }
         setSubiendoPdf(true);
         try {
-            await ContratoHistorialService.subirPdf(contrato.id, 'CONTRATO_SUBIDO_PDF', observacionSubida, archivoContrato, axiosInstance);
-            toast.current?.show({ severity: 'success', summary: 'Éxito', detail: 'Contrato subido correctamente.' });
+            const motivoFinal = motivoDocumento.trim() || 'Subida inicial del documento firmado.';
+            await ContratoService.subirDocumentoFirmado(contrato.id, archivoContrato, motivoFinal, axiosInstance);
+            toast.current?.show({ severity: 'success', summary: 'Éxito', detail: esReemplazo ? 'Documento reemplazado correctamente.' : 'Documento subido correctamente.' });
             setDialogoSubirPdf(false);
             setArchivoContrato(null);
-            setObservacionSubida('');
+            setMotivoDocumento('');
             cargarDetalleContrato(contrato.id);
         } catch (error) {
             toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo subir el archivo.' });
@@ -496,9 +817,9 @@ const DetalleContrato = () => {
 
             // Recargar el contrato para actualizar los datos
             await cargarDetalleContrato(contrato.id);
-            
+
             toast.current?.show({ severity: 'success', summary: 'Pago Registrado', detail: `Se generó el recibo por S/ ${montoAbonar.toLocaleString('en-US', { minimumFractionDigits: 2 })}` });
-            
+
             // Limpiar formulario y volver a seleccionar la cuota actualizada
             setCuotaPagar(null);
             setMontoAbonar(0);
@@ -516,7 +837,7 @@ const DetalleContrato = () => {
     const calcularDiasVencidos = (fechaVencimientoStr) => {
         if (!fechaVencimientoStr) return 0;
         let fecha;
-        
+
         // Parsear fecha sin afectar por zona horaria
         if (fechaVencimientoStr.includes('/')) {
             // Formato DD/MM/YYYY
@@ -533,7 +854,7 @@ const DetalleContrato = () => {
         const hoy = new Date();
         hoy.setHours(0, 0, 0, 0);
         fecha.setHours(0, 0, 0, 0);
-        
+
         const diffTime = hoy.getTime() - fecha.getTime();
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         return diffDays > 0 ? diffDays : 0;
@@ -562,7 +883,7 @@ const DetalleContrato = () => {
 
             await PagoService.procesarPendiente(pagoPendiente.id, formData, axiosInstance);
             toast.current?.show({ severity: 'success', summary: 'Pago Procesado', detail: 'El recibo ha sido validado correctamente.' });
-            
+
             // Recargar el contrato y limpiar estados
             await cargarDetalleContrato(contrato.id);
             setPagoPendiente(null);
@@ -574,63 +895,159 @@ const DetalleContrato = () => {
 
     const getStatusSeverity = (estado) => {
         const estadoUpper = (estado || '').toUpperCase();
-        
+
         // Estados de contrato activo/exitoso
-        if (estadoUpper === 'ACTIVO' || estadoUpper === 'PAGADO' || estadoUpper === 'PAGADO_TOTAL' || estadoUpper === 'PAGADO_DESTIEMPO') {
+        if (estadoUpper === 'ACTIVO' || estadoUpper === 'PAGADO' || estadoUpper === 'PAGADO_TOTAL' || estadoUpper === 'PAGADO_DESTIEMPO' || estadoUpper === 'VENDIDO') {
             return 'success';
         }
-        
-        // Estados de éxito (vendido)
-        if (estadoUpper === 'VENDIDO' || estadoUpper === 'SEPARADO') {
-            return 'success';
-        }
-        
+
+
         // Estados de advertencia
-        if (estadoUpper === 'PAGADO_PARCIAL' || estadoUpper === 'DESTIEMPO' || estadoUpper === 'RESERVADO') {
+        if (estadoUpper === 'PAGADO_PARCIAL' || estadoUpper === 'DESTIEMPO' || estadoUpper === 'RESERVADO' || estadoUpper === 'SEPARADO') {
             return 'warning';
         }
-        
+
         // Estados de pago atrasado
         if (estadoUpper === 'VENCIDA' || estadoUpper === 'VENCIDO' || estadoUpper === 'ATRASADA' || estadoUpper === 'ATRASADO') {
             return 'danger';
         }
-        
+
         // Estados por defecto (pendiente, info)
         if (estadoUpper === 'PENDIENTE' || estadoUpper === 'POR_VALIDAR') {
             return 'info';
         }
-        
+
         return 'info';
     };
 
-    const getEstadoCuotaTag = (rowData) => {
-        const estado = (rowData?.estado || '').toUpperCase();
-        const diasVencidos = (rowData?.diasVencidos > 0)
-            ? rowData.diasVencidos
-            : calcularDiasVencidos(rowData?.vencimientoRaw || rowData?.vencimiento);
-        const estaVencida = estado === 'VENCIDA' || estado === 'VENCIDO' || ((estado === 'PENDIENTE' || estado === 'PAGADO_PARCIAL') && diasVencidos > 0);
+    const estadoCuotaTemplate = (rowData) => {
+        const estadoOriginal = (rowData?.estado || '').toUpperCase();
+        const estadoFormateado = estadoOriginal.replace(/_/g, ' ');
 
-        if (estado === 'PAGADO_TOTAL' || estado === 'PAGADO') {
-            return <Tag severity="success" value="PAGADO" icon="pi pi-check-circle" className="text-xs font-bold" />;
-        }
-        if (estado === 'PAGADO_DESTIEMPO') {
-            return <Tag severity="warning" value="PAG. DESTIEMPO" icon="pi pi-exclamation-triangle" className="text-xs font-bold" />;
-        }
-        if (estaVencida) {
-            return <Tag severity="danger" value="VENCIDA" icon="pi pi-exclamation-triangle" className="text-xs font-bold" />;
-        }
-        if (estado === 'PAGADO_PARCIAL') {
-            return <Tag severity="warning" value="PARCIAL" icon="pi pi-clock" className="text-xs font-bold" />;
-        }
-        if (estado === 'PENDIENTE') {
-            return <Tag severity="info" value="PENDIENTE" icon="pi pi-clock" className="text-xs font-bold" />;
-        }
-        if (estado === 'POR_VALIDAR') {
-            return <Tag severity="warning" value="POR VALIDAR" icon="pi pi-clock" className="text-xs font-bold" />;
+        const fechaVencimientoString = rowData?.vencimientoRaw || rowData?.vencimiento;
+        if (!fechaVencimientoString) return <Tag value={estadoFormateado} />;
+        
+        let fecha;
+        if (fechaVencimientoString.includes('/')) {
+            const [dia, mes, anio] = fechaVencimientoString.split('/');
+            fecha = new Date(anio, mes - 1, dia);
+        } else {
+            fecha = new Date(fechaVencimientoString + 'T00:00:00');
         }
 
-        return <Tag value={rowData?.estado || '-'} severity={getStatusSeverity(rowData?.estado)} className="text-xs font-bold" />;
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        fecha.setHours(0, 0, 0, 0);
+
+        const unDiaEnMilisegundos = 1000 * 60 * 60 * 24;
+        const diferenciaMilisegundos = fecha.getTime() - hoy.getTime();
+        const diasDiferencia = Math.floor(diferenciaMilisegundos / unDiaEnMilisegundos);
+
+        const estaVencidaPorEstado = estadoOriginal === 'VENCIDA' || estadoOriginal === 'VENCIDO' || estadoOriginal === 'ATRASADA' || estadoOriginal === 'ATRASADO';
+        const estaVencidaPorFecha = (estadoOriginal === 'PENDIENTE' || estadoOriginal === 'PAGADO_PARCIAL') && diasDiferencia < 0;
+
+        if (estaVencidaPorEstado || estaVencidaPorFecha) {
+            return <Tag severity="danger" value="VENCIDO" icon="pi pi-exclamation-triangle" />;
+        }
+
+        const esPendienteOParcial = estadoOriginal === 'PENDIENTE' || estadoOriginal === 'PAGADO_PARCIAL';
+        const estaPorVencer = esPendienteOParcial && diasDiferencia >= 0 && diasDiferencia <= 3;
+
+        if (estaPorVencer) {
+            return (
+                <div className="flex flex-column gap-1 align-items-center">
+                    <Tag severity="warning" value="POR VENCER" />
+                    <span className="text-xs text-orange-600 font-bold flex align-items-center">
+                        <i className="pi pi-exclamation-triangle mr-1"></i>
+                        {diasDiferencia === 0 ? 'Vence hoy' : `En ${diasDiferencia} días`}
+                    </span>
+                </div>
+            );
+        }
+
+        if (estadoOriginal === 'PAGADO_DESTIEMPO') {
+            return <Tag severity="warning" value="PAG. DESTIEMPO" icon="pi pi-exclamation-triangle" />;
+        }
+
+        let severity = 'info';
+        if (estadoOriginal === 'PAGADO_TOTAL' || estadoOriginal === 'PAGADO') severity = 'success';
+        else if (estadoOriginal === 'PAGADO_PARCIAL' || estadoOriginal === 'POR_VALIDAR') severity = 'warning';
+
+        return <Tag severity={severity} value={estadoFormateado} />;
     };
+
+    const retrasoTemplate = (rowData) => {
+        const estadoOriginal = (rowData?.estado || '').toUpperCase();
+        
+        if (estadoOriginal === 'PAGADO_DESTIEMPO') {
+            const pagoAtrasado = historialPagos.find(p => p.cuotaId === rowData?.id && p.pagoADestiempo);
+            const diasRetraso = pagoAtrasado ? pagoAtrasado.diasRetraso : (rowData?.diasRetraso || 0);
+            return diasRetraso > 0 ? <span className="text-red-600 font-bold text-sm">{diasRetraso}d</span> : <span className="text-400 text-sm">-</span>;
+        }
+
+        const fechaVencimientoString = rowData?.vencimientoRaw || rowData?.vencimiento;
+        if (!fechaVencimientoString) return <span className="text-400 text-sm">-</span>;
+        
+        let fecha;
+        if (fechaVencimientoString.includes('/')) {
+            const [dia, mes, anio] = fechaVencimientoString.split('/');
+            fecha = new Date(anio, mes - 1, dia);
+        } else {
+            fecha = new Date(fechaVencimientoString + 'T00:00:00');
+        }
+
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        fecha.setHours(0, 0, 0, 0);
+
+        const unDiaEnMilisegundos = 1000 * 60 * 60 * 24;
+        const diasDiferencia = Math.floor((fecha.getTime() - hoy.getTime()) / unDiaEnMilisegundos);
+
+        const estaVencidaPorEstado = estadoOriginal === 'VENCIDA' || estadoOriginal === 'VENCIDO' || estadoOriginal === 'ATRASADA' || estadoOriginal === 'ATRASADO';
+        const estaVencidaPorFecha = (estadoOriginal === 'PENDIENTE' || estadoOriginal === 'PAGADO_PARCIAL') && diasDiferencia < 0;
+
+        if (estaVencidaPorEstado || estaVencidaPorFecha) {
+            return <span className="text-red-600 font-bold text-sm">{Math.abs(diasDiferencia)}d</span>;
+        }
+
+        return <span className="text-400 text-sm">-</span>;
+    };
+
+    const estadoContratoActual = (contrato?.estadoContrato || '').toUpperCase();
+    const esSeparacion = estadoContratoActual === 'SEPARADO';
+    const cuotaInicial = contrato?.cuotas?.find((c) => c.numero === 0 || c.tipoCuota === 'INICIAL' || c.tipo === 'INICIAL');
+    const inicialCompleta = cuotaInicial
+        ? (Number(cuotaInicial.montoTotal || 0) - Number(cuotaInicial.montoPagado || 0) <= 0)
+        : (contrato?.finanzas?.faltaPagarInicial || 0) <= 0;
+    const progresoInicial = cuotaInicial && Number(cuotaInicial.montoTotal || 0) > 0
+        ? Math.min(100, Math.round((Number(cuotaInicial.montoPagado || 0) / Number(cuotaInicial.montoTotal || 0)) * 100))
+        : 0;
+    const tieneCronograma = (contrato?.cuotas || []).some((c) => (c?.numero ?? 0) > 0);
+    const conversionDisponible = inicialCompleta && !tieneCronograma;
+    const cuotasVisibles = tieneCronograma || !cuotaInicial
+        ? (contrato?.cuotas || [])
+        : [cuotaInicial];
+
+    useEffect(() => {
+        if (!conversionDisponible || conversionPrompted) return;
+        setConversionPrompted(true);
+        confirmDialog({
+            message: 'Inicial pagada totalmente. Deseas hacer la Proyeccion Financiera?',
+            header: 'Proyeccion financiera',
+            icon: 'pi pi-exclamation-triangle',
+            acceptLabel: 'Si',
+            rejectLabel: 'No',
+            accept: () => {
+                setConversionDismissed(false);
+                setMostrarConversionModal(true);
+            },
+            reject: () => {
+                setConversionDismissed(true);
+            }
+        });
+    }, [conversionDisponible, conversionPrompted]);
+
+
 
     if (loading) {
         return (
@@ -651,6 +1068,7 @@ const DetalleContrato = () => {
     return (
         <div className="detallecontrato-page surface-ground p-3 md:p-5">
             <Toast ref={toast} />
+            <ConfirmDialog />
 
             {/* MODALES */}
             <Dialog header={<><i className="pi pi-image text-blue-500 mr-2"></i>Comprobante</>} visible={!!voucherViewer} style={{ width: '700px', maxWidth: '95vw' }} onHide={() => setVoucherViewer(null)}>
@@ -661,28 +1079,149 @@ const DetalleContrato = () => {
                 )}
             </Dialog>
 
-            <Dialog header={<><i className="pi pi-file-pdf text-red-500 mr-2"></i>Documento Histórico</>} visible={!!pdfViewer} style={{ width: '700px', maxWidth: '95vw' }} onHide={() => { if(pdfViewer) URL.revokeObjectURL(pdfViewer); setPdfViewer(null); }}>
+            <Dialog header={<><i className="pi pi-file-pdf text-red-500 mr-2"></i>Documento Histórico / Vista Previa</>} visible={!!pdfViewer} style={{ width: 'min(1200px, 98vw)', height: '90vh' }} modal onHide={() => { if (pdfViewer) URL.revokeObjectURL(pdfViewer); setPdfViewer(null); }}>
                 {pdfViewer && (
-                    <div className="flex justify-content-center align-items-center surface-100 border-round p-2" style={{ minHeight: '400px' }}>
-                        <iframe src={pdfViewer} title="Historial" className="w-full border-none border-round" style={{ height: '500px' }} />
+                    <div className="flex justify-content-center align-items-center surface-100 border-round p-2" style={{ minHeight: '70vh' }}>
+                        <iframe src={pdfViewer} title="Historial" className="w-full border-none border-round" style={{ height: '80vh' }} />
                     </div>
                 )}
             </Dialog>
 
-            <Dialog header={<><i className="pi pi-upload text-primary mr-2"></i>Subir Contrato Firmado</>} visible={dialogoSubirPdf} style={{ width: '450px' }} modal onHide={() => setDialogoSubirPdf(false)}>
+            <Dialog header={<><i className="pi pi-check-circle text-green-500 mr-2"></i>Proyeccion financiera</>} visible={mostrarConversionModal} style={{ width: 'min(1400px, 95vw)' }} modal onHide={() => { setMostrarConversionModal(false); setConversionDismissed(true); }}>
+                <div className="grid p-fluid">
+                    <div className="col-12 lg:col-5">
+                        <div className="surface-0 border-1 surface-border border-round-xl p-4 h-full">
+                            <div className="flex align-items-center gap-2 mb-3">
+                                <i className="pi pi-wallet text-green-600"></i>
+                                <span className="font-bold text-lg">Configuracion del Cronograma</span>
+                            </div>
+
+                            <div className="field mb-3">
+                                <label className="font-medium text-700 block mb-2">Numero de cuotas</label>
+                                <InputNumber value={conversionCuotas} onValueChange={(e) => setConversionCuotas(e.value)} min={1} max={240} showButtons className="w-full" />
+                            </div>
+
+                            <div className="field mb-3">
+                                <label className="font-medium text-700 block mb-2">Fecha inicio de pago</label>
+                                <Calendar value={conversionFechaInicio} onChange={(e) => setConversionFechaInicio(e.value)} dateFormat="dd/mm/yy" showIcon className="w-full" />
+                            </div>
+
+                            <div className="field mb-3">
+                                <div className="flex align-items-center">
+                                    <Checkbox inputId="flexible-conversion" checked={conversionFlexible} onChange={(e) => setConversionFlexible(e.checked)} />
+                                    <label htmlFor="flexible-conversion" className="ml-2 font-medium text-700">Simulacion especial (cuotas mixtas)</label>
+                                </div>
+                            </div>
+
+                            {conversionFlexible && (
+                                <div className="grid">
+                                    <div className="field col-12 md:col-6">
+                                        <label className="text-xs font-bold text-orange-800 uppercase">Cuotas especiales</label>
+                                        <InputNumber value={conversionCuotasEspeciales} onValueChange={(e) => setConversionCuotasEspeciales(e.value)} min={0} className="w-full" />
+                                    </div>
+                                    <div className="field col-12 md:col-6">
+                                        <label className="text-xs font-bold text-orange-800 uppercase">Monto especial (S/)</label>
+                                        <InputNumber value={conversionMontoEspecial} onValueChange={(e) => setConversionMontoEspecial(e.value)} mode="currency" currency="PEN" className="w-full" />
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="flex gap-2 mt-4">
+                                <Button label="Simular" icon="pi pi-calculator" className="btn-primary-custom shadow-2 border-round-xl font-bold" style={{ color: '#fff' }} onClick={simularConversion} loading={simulandoConversion} />
+                                <Button label="Guardar cronograma" icon="pi pi-check" className="p-button-success" style={{ background: '#10b981', borderColor: '#10b981', color: '#fff' }} onClick={confirmarConversion} loading={confirmandoConversion} disabled={conversionCronograma.length === 0} />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="col-12 lg:col-7">
+                        <div className="surface-0 border-1 surface-border border-round-xl p-4 h-full">
+                            <div className="flex align-items-center gap-2 mb-3">
+                                <i className="pi pi-calendar text-blue-600"></i>
+                                <span className="font-bold text-lg">Proyeccion financiera</span>
+                            </div>
+
+                            {conversionDescripcion && (
+                                <div className={`bg-${esSeparacion ? 'orange' : 'blue'}-50 border-1 border-${esSeparacion ? 'orange' : 'blue'}-100 border-round p-3 mb-3 text-sm text-700`}>
+                                    {conversionDescripcion}
+                                </div>
+                            )}
+
+                            {conversionCronograma.length === 0 ? (
+                                <div className="p-4 border-1 border-dashed surface-border border-round text-500 text-center">
+                                    Sin simulacion. Ajuste los parametros y simule.
+                                </div>
+                            ) : (
+                                <div style={{ maxHeight: '420px', overflowY: 'auto' }}>
+                                    <div className="grid mb-3">
+                                        <div className="col-12 md:col-4">
+                                            <div className="summary-box bg-white h-full p-3">
+                                                <span className="summary-title">Total a Financiar</span>
+                                                <span className="summary-value">S/ {contrato.finanzas.saldoFinanciar.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                            </div>
+                                        </div>
+                                        <div className="col-12 md:col-4">
+                                            <div className="summary-box bg-white h-full p-3">
+                                                <span className="summary-title">Cuotas</span>
+                                                <span className="summary-value">{conversionCuotas} + Inicial</span>
+                                            </div>
+                                        </div>
+                                        <div className="col-12 md:col-4">
+                                            <div className="summary-box bg-white h-full p-3">
+                                                <span className="summary-title">Cuotas Especiales</span>
+                                                <span className="summary-value">{conversionFlexible ? `${conversionCuotasEspeciales} x S/ ${conversionMontoEspecial}` : 'N/A'}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <DataTable value={conversionCronograma} className="p-datatable-sm custom-table" scrollable scrollHeight="250px">
+                                        <Column field="numero" header="N°" style={{ width: '10%' }}></Column>
+                                        <Column field="tipoCuota" header="Tipo" style={{ width: '20%' }}></Column>
+                                        <Column field="fecha" header="Vencimiento" style={{ width: '30%' }} body={(row) => formatearFechaLarga(row.fecha)}></Column>
+                                        <Column header="Monto (S/)" style={{ width: '20%', textAlign: 'right' }} body={(row) => `S/ ${Number(row.montoTotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`}>
+                                        </Column>
+                                        <Column field="estado" header="Estado" style={{ width: '20%', textAlign: 'center' }}></Column>
+                                    </DataTable>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </Dialog>
+
+            <Dialog header={<><i className="pi pi-upload text-primary mr-2"></i>{contrato?.urlDocumentoFirmado ? 'Reemplazar Documento Firmado' : 'Subir Documento Firmado'}</>} visible={dialogoSubirPdf} style={{ width: '520px' }} modal onHide={() => setDialogoSubirPdf(false)}>
                 <div className="flex flex-column gap-3 mt-3">
                     <div className="flex flex-column gap-2">
                         <label className="font-bold">Archivo PDF Firmado</label>
-                        <input type="file" accept="application/pdf" onChange={(e) => setArchivoContrato(e.target.files[0])} className="p-inputtext p-component" />
+                        <div className="relative flex flex-column align-items-center justify-content-center p-4 border-2 border-dashed border-round-xl surface-border hover:surface-hover transition-colors cursor-pointer bg-blue-50">
+                            <input
+                                type="file"
+                                className="opacity-0 absolute top-0 left-0 w-full h-full cursor-pointer z-10"
+                                accept="application/pdf"
+                                onChange={(e) => setArchivoContrato(e.target.files[0])}
+                            />
+                            {archivoContrato ? (
+                                <div className="text-center flex flex-column align-items-center">
+                                    <i className="pi pi-file-check text-3xl text-green-500 mb-2"></i>
+                                    <span className="font-bold text-700 text-sm">{archivoContrato.name}</span>
+                                    <span className="text-xs text-500">{(archivoContrato.size / (1024 * 1024)).toFixed(2)} MB</span>
+                                </div>
+                            ) : (
+                                <div className="text-center flex flex-column align-items-center">
+                                    <i className="pi pi-cloud-upload text-2xl text-blue-500 mb-2"></i>
+                                    <span className="font-bold text-700 text-sm">Haz clic o arrastra</span>
+                                    <span className="text-xs text-500 mt-1">PDF firmado</span>
+                                </div>
+                            )}
+                        </div>
                     </div>
                     <div className="flex flex-column gap-2">
-                        <label className="font-bold">Observación (Opcional)</label>
-                        <input type="text" value={observacionSubida} onChange={(e) => setObservacionSubida(e.target.value)} className="p-inputtext p-component" />
+                        <label className="font-bold">Motivo {contrato?.urlDocumentoFirmado ? '(Requerido)' : '(Opcional)'}</label>
+                        <input type="text" value={motivoDocumento} onChange={(e) => setMotivoDocumento(e.target.value)} className="p-inputtext p-component" />
                     </div>
                 </div>
                 <div className="flex justify-content-end gap-2 mt-4">
                     <Button label="Cancelar" icon="pi pi-times" onClick={() => setDialogoSubirPdf(false)} className="p-button-text" />
-                    <Button label="Subir Archivo" icon="pi pi-check" onClick={handleSubirPdf} loading={subiendoPdf} />
+                    <Button label={contrato?.urlDocumentoFirmado ? 'Reemplazar' : 'Subir Archivo'} icon="pi pi-check" onClick={handleSubirPdf} loading={subiendoPdf} className="btn-primary-custom shadow-2 border-round-xl font-bold" />
                 </div>
             </Dialog>
 
@@ -692,11 +1231,11 @@ const DetalleContrato = () => {
                     <div className="p-fluid">
                         <div className="mb-3">
                             <span className="font-bold block mb-2">Recibo: {pagoPendiente.id}</span>
-                            <span className="text-xl font-black text-blue-600 block mb-3">S/ {(pagoPendiente.montoAbonado || pagoPendiente.monto || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                            <span className="text-lg font-bold text-blue-600 block mb-3">S/ {(pagoPendiente.montoAbonado || pagoPendiente.monto || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                         </div>
                         <div className="field mb-3">
                             <label className="font-medium text-700 block mb-2">Método de Pago</label>
-                            <Dropdown value={metodoPagoPendiente} options={metodosPago} onChange={(e) => setMetodoPagoPendiente(e.value)} />
+                            <Dropdown value={metodoPagoPendiente} options={metodosPago} onChange={(e) => setMetodoPagoPendiente(e.value)} placeholder='Selecione metodo de pago' />
                         </div>
                         <div className="field mb-3">
                             <label className="font-medium text-700 block mb-2">Número de Operación</label>
@@ -705,9 +1244,9 @@ const DetalleContrato = () => {
                         <div className="field mb-4">
                             <label className="font-medium text-700 block mb-2">Comprobante / Voucher (Opcional)</label>
                             <div className="relative flex flex-column align-items-center justify-content-center p-4 border-2 border-dashed border-round-xl surface-border hover:surface-hover transition-colors cursor-pointer bg-blue-50">
-                                <input 
-                                    type="file" 
-                                    className="opacity-0 absolute top-0 left-0 w-full h-full cursor-pointer z-10" 
+                                <input
+                                    type="file"
+                                    className="opacity-0 absolute top-0 left-0 w-full h-full cursor-pointer z-10"
                                     accept="image/*,application/pdf"
                                     onChange={(e) => setVoucherFilePendiente(e.target.files[0])}
                                 />
@@ -728,7 +1267,7 @@ const DetalleContrato = () => {
                         </div>
                         <div className="flex justify-content-end gap-2">
                             <Button label="Cancelar" icon="pi pi-times" className="p-button-text p-button-secondary" onClick={() => setPagoPendiente(null)} />
-                            <Button label="Procesar Pago" icon="pi pi-check" className="p-button-success" onClick={procesarPagoPendiente} />
+                            <Button label="Procesar Pago" icon="pi pi-check" className="p-button-success border-round-xl font-bold shadow-2 p-button-success text-white" onClick={procesarPagoPendiente} />
                         </div>
                     </div>
                 )}
@@ -812,11 +1351,11 @@ const DetalleContrato = () => {
                                         </div>
                                     )}
                                 </div>
-                                <Button 
-                                    label={expandirCambioLote ? 'Cancelar Cambio' : 'Cambiar Lote'} 
-                                    icon={expandirCambioLote ? 'pi pi-times' : 'pi pi-pencil'} 
+                                <Button
+                                    label={expandirCambioLote ? 'Cancelar Cambio' : 'Cambiar Lote'}
+                                    icon={expandirCambioLote ? 'pi pi-times' : 'pi pi-pencil'}
                                     onClick={() => setExpandirCambioLote(!expandirCambioLote)}
-                                    className={`w-full ${expandirCambioLote ? 'p-button-secondary' : 'p-button-info'} text-white border-round-lg font-bold mt-2`}
+                                    className={`btn-primary-custom w-full shadow-2 border-round-xl font-bold mt-2 ${expandirCambioLote ? 'p-button-secondary text-white' : 'p-button-info text-white'}`}
                                     size="small"
                                 />
                             </div>
@@ -941,14 +1480,165 @@ const DetalleContrato = () => {
 
                 <div className="flex justify-content-end gap-2 mt-4">
                     <Button label="Cancelar" icon="pi pi-times" className="p-button-outlined p-button-danger border-round-xl font-bold" onClick={cerrarEditorContrato} disabled={guardandoEdicion} />
-                    <Button label="Guardar Cambios" icon="pi pi-save" className="text-white p-button-success border-round-xl font-bold shadow-2" onClick={guardarEdiciones} loading={guardandoEdicion} />
+                    <Button label="Guardar Cambios" icon="pi pi-save" className={`btn-primary-custom border-round-xl font-bold shadow-2 p-button-success text-white`} onClick={guardarEdiciones} loading={guardandoEdicion} />
+                </div>
+            </Dialog>
+
+            {/* PANEL: COMPLETAR MEDIDAS PARA VISTA PREVIA */}
+            <Dialog header="Completar Medidas y Colindancias" visible={mostrarPanelMedidas} style={{ width: 'min(800px, 95vw)' }} onHide={() => setMostrarPanelMedidas(false)}>
+                <div className="formgrid grid dialog-content-specific">
+
+
+                    {/* Por el frente */}
+                    <div className="field col-12 md:col-6">
+                        <label className="font-bold text-700 block mb-3">
+                            <i className="pi pi-arrow-up text-blue-600 mr-2"></i>Por el frente:
+                        </label>
+                        <InputText
+                            value={medidasEdit.colindanciaFrente}
+                            onChange={(e) => setMedidasEdit((prev) => ({ ...prev, colindanciaFrente: e.target.value }))}
+                            rows={2}
+                            autoResize
+                            placeholder="Ej: Calle principal, cancha, propiedad de..."
+                            className="w-full"
+                        />
+                    </div>
+                    {/* Metros lineales del frente */}
+                    <div className="field col-12 md:col-6">
+                        <label className="font-bold text-700 block mb-3">
+                            <i className="pi pi-ruler-horizontal text-blue-600 mr-2"></i>Con
+                        </label>
+                        <InputNumber
+                            value={medidasEdit.mlFrente === '' ? null : medidasEdit.mlFrente}
+                            onValueChange={(e) => setMedidasEdit((prev) => ({ ...prev, mlFrente: e.value ?? '' }))}
+                            minFractionDigits={2}
+                            maxFractionDigits={2}
+                            suffix=" ML"
+                            className="w-full"
+                        />
+                    </div>
+
+                    {/* Por el lado derecho */}
+                    <div className="field col-12 md:col-6">
+                        <label className="font-bold text-700 block mb-3">
+                            <i className="pi pi-arrow-right text-green-600 mr-2"></i>Por el lado derecho:
+                        </label>
+
+                        <InputText
+                            value={medidasEdit.colindanciaDerecha}
+                            onChange={(e) => setMedidasEdit((prev) => ({ ...prev, colindanciaDerecha: e.target.value }))}
+                            rows={2}
+                            autoResize
+                            placeholder="Ej: Propiedad de..., lote..."
+                            className="w-full"
+                        />
+                    </div>
+
+                    {/* Medida lineal del derecho */}
+                    <div className="field col-12 md:col-6">
+                        <label className="font-bold text-700 block mb-3">
+                            <i className="pi pi-ruler-horizontal text-blue-600 mr-2"></i>Con
+                        </label>
+                        <InputNumber
+                            value={medidasEdit.mlDerecha === '' ? null : medidasEdit.mlDerecha}
+                            onValueChange={(e) => setMedidasEdit((prev) => ({ ...prev, mlDerecha: e.value ?? '' }))}
+                            minFractionDigits={2}
+                            maxFractionDigits={2}
+                            suffix=" ML"
+                            className="w-full"
+                        />
+                    </div>
+
+                    {/* Por el lado izquierdo */}
+                    <div className="field col-12 md:col-6">
+                        <label className="font-bold text-700 block mb-3">
+                            <i className="pi pi-arrow-left text-orange-600 mr-2"></i>Por el lado izquierdo:
+                        </label>
+
+                        <InputText
+                            value={medidasEdit.colindanciaIzquierda}
+                            onChange={(e) => setMedidasEdit((prev) => ({ ...prev, colindanciaIzquierda: e.target.value }))}
+                            rows={2}
+                            autoResize
+                            placeholder="Ej: Propiedad de..., lote..."
+                            className="w-full"
+                        />
+                    </div>
+
+                    {/* Medida lineal lado izquierdo*/}
+                    <div className="field col-12 md:col-6">
+                        <label className="font-bold text-700 block mb-3">
+                            <i className="pi pi-ruler-horizontal text-blue-600 mr-2"></i>Con
+                        </label>
+                        <InputNumber
+                            value={medidasEdit.mlIzquierda === '' ? null : medidasEdit.mlIzquierda}
+                            onValueChange={(e) => setMedidasEdit((prev) => ({ ...prev, mlIzquierda: e.value ?? '' }))}
+                            minFractionDigits={2}
+                            maxFractionDigits={2}
+                            suffix=" ML"
+                            className="w-full"
+                        />
+                    </div>
+
+
+                    {/* Por el fondo */}
+                    <div className="field col-12 md:col-6">
+                        <label className="font-bold text-700 block mb-3">
+                            <i className="pi pi-arrow-down text-purple-600 mr-2"></i>Por el fondo:
+                        </label>
+
+                        <InputText
+                            value={medidasEdit.colindanciaFondo}
+                            onChange={(e) => setMedidasEdit((prev) => ({ ...prev, colindanciaFondo: e.target.value }))}
+                            rows={2}
+                            autoResize
+                            placeholder="Ej: Propiedad de..., lote..."
+                            className="w-full"
+                        />
+                    </div>
+
+                    {/* Medida Lineal por el fondo*/}
+                    <div className="field col-12 md:col-6">
+                        <label className="font-bold text-700 block mb-3">
+                            <i className="pi pi-ruler-horizontal text-blue-600 mr-2"></i>Con
+                        </label>
+                        <InputNumber
+                            value={medidasEdit.mlFondo === '' ? null : medidasEdit.mlFondo}
+                            onValueChange={(e) => setMedidasEdit((prev) => ({ ...prev, mlFondo: e.value ?? '' }))}
+                            minFractionDigits={2}
+                            maxFractionDigits={2}
+                            suffix=" ML"
+                            className="w-full"
+                        />
+                    </div>
+
+
+                    {/* Perímetro calculado */}
+                    <div className="col-12 mt-4">
+                        <div className="surface-0 border-1 surface-border border-round-xl p-4 bg-blue-50 border-blue-100">
+                            <div className="flex justify-content-between align-items-center">
+                                <div>
+                                    <span className="font-medium text-700 block">Perímetro calculado</span>
+                                    <small className="text-500">Suma de todos los lados</small>
+                                </div>
+                                <span className="font-bold text-blue-900 text-3xl">
+                                    {(Number(medidasEdit.mlFrente || 0) + Number(medidasEdit.mlDerecha || 0) + Number(medidasEdit.mlIzquierda || 0) + Number(medidasEdit.mlFondo || 0)).toFixed(2)} ML
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex justify-content-end gap-2 mt-4">
+                    <Button label="Cancelar" icon="pi pi-times" className="p-button-outlined p-button-danger border-round-xl font-bold" onClick={() => setMostrarPanelMedidas(false)} />
+                    <Button label="Guardar y Ver Vista Previa" icon="pi pi-check" className={`btn-primary-custom border-round-xl font-bold shadow-2 p-button-success text-white`} onClick={guardarYGenerarPreviaMedidas} />
                 </div>
             </Dialog>
 
             {/* HEADER */}
             <div className="flex flex-column md:flex-row justify-content-between align-items-start md:align-items-center mb-5 gap-4">
                 <div className="flex align-items-center gap-3">
-                    <Button icon="pi pi-arrow-left" rounded text severity="secondary" aria-label="Volver" onClick={() => navigate('/contrato/lista')} className="surface-200 hover:surface-300" />
+                    <Button icon="pi pi-arrow-left" rounded text severity="secondary" aria-label="Volver" onClick={() => navigate('/historial-comercial')} className="surface-200 hover:surface-300" />
                     <div>
                         <div className="flex align-items-center gap-3">
                             <i className="pi pi-file text-blue-600 text-3xl"></i>
@@ -958,13 +1648,23 @@ const DetalleContrato = () => {
                     </div>
                 </div>
                 <div className="flex align-items-center gap-2">
-                    {historiales.some(h => h.tipoRegistro === 'CONTRATO_SUBIDO_PDF') ? (
-                        <Button label="Ver Contrato Firmado" icon="pi pi-file-pdf" className="p-button-primary border-round-xl font-bold shadow-2 text-white" onClick={() => { const subido = historiales.find(h => h.tipoRegistro === 'CONTRATO_SUBIDO_PDF'); if (subido) verHistorialPdf(subido.id); }} />
-                    ) : (
-                        <Button label="Subir Contrato" icon="pi pi-upload" className="p-button-primary border-round-xl font-bold shadow-2 text-white" onClick={() => setDialogoSubirPdf(true)} />
+                    {conversionDisponible && (
+                        <Button label="Proyeccion financiera" icon="pi pi-check" className="p-button-success border-round-xl font-bold shadow-2 text-white" style={{ background: '#10b981', borderColor: '#10b981' }} onClick={abrirConversionModal} />
                     )}
-                    <Button label="Editar Contrato" icon="pi pi-pencil" className="text-white p-button-warning border-round-xl font-bold shadow-2" onClick={abrirEditorContrato} />
-                    <Button label="Ir a Cobranza" icon="pi pi-wallet" className="p-button-primary border-round-xl font-bold shadow-2" onClick={() => navigate('/cuotas-pagos', { state: { buscarContrato: contrato.cliente.numeroDocumento } })} />
+                    {contrato?.urlDocumentoFirmado ? (
+                        <>
+                            <Button label="Ver Documento" icon="pi pi-file-pdf" className="p-button-success border-round-xl font-bold shadow-2 text-white" onClick={() => {
+                                const h = historiales.find(hh => hh.rutaDocumentoPdf && contrato.urlDocumentoFirmado && hh.rutaDocumentoPdf.endsWith(contrato.urlDocumentoFirmado.split('/').pop()));
+                                if (h) verHistorialPdf(h.id);
+                                else window.open(buildVoucherUrl(contrato.urlDocumentoFirmado), '_blank');
+                            }} />
+                            <Button label="Reemplazar" icon="pi pi-upload" className="p-button-warning border-round-xl font-bold shadow-2 text-white" style={{ background: '#f59e0b', borderColor: '#f59e0b' }} onClick={() => setDialogoSubirPdf(true)} />
+                        </>
+                    ) : (
+                        <Button label={`Subir ${contrato?.estadoContrato || 'Contrato'}`} icon="pi pi-upload" className="p-button-danger border-round-xl font-bold shadow-2 text-white" onClick={() => setDialogoSubirPdf(true)} />
+                    )}
+                    <Button label="Editar Contrato" icon="pi pi-pencil" className="text-white p-button-warning border-round-xl font-bold shadow-2 text-white" onClick={abrirEditorContrato} />
+                    {/* <Button label="Ir a Cobranza" icon="pi pi-wallet" className="p-button-primary border-round-xl font-bold shadow-2" onClick={() => navigate('/cuotas-pagos', { state: { buscarContrato: contrato.cliente.numeroDocumento } })} /> */}
                 </div>
             </div>
 
@@ -982,7 +1682,7 @@ const DetalleContrato = () => {
                         <i className={`pi pi-chevron-down text-xl transition-transform transition-duration-300 ${isAccordionOpen ? 'rotate-180' : ''}`}></i>
                     </div>
                 </div>
-                
+
                 <div className={`grid grid-nogutter border-top-1 surface-border surface-50 transition-all transition-duration-500 overflow-hidden ${isAccordionOpen ? 'max-h-screen opacity-100' : 'max-h-0 opacity-0'}`} style={{ maxHeight: isAccordionOpen ? '1000px' : '0' }}>
                     {/* Tarjeta Cliente */}
                     <div className="col-12 lg:col-6 p-4 lg:border-right-1 surface-border detalle-titular-card">
@@ -1019,7 +1719,7 @@ const DetalleContrato = () => {
                     {/* Tarjeta Lote */}
                     <div className="col-12 lg:col-6 p-4 lg:border-right-1 surface-border detalle-titular-card">
                         <div className="flex align-items-start gap-4">
-                            <div className="bg-teal-100 text-teal-600 p-3 border-round-2xl">
+                            <div className={`p-3 border-round-2xl ${esSeparacion ? 'bg-orange-100 text-orange-700' : 'bg-teal-100 text-teal-600'}`}>
                                 <i className="pi pi-map-marker text-3xl"></i>
                             </div>
                             <div className="w-full">
@@ -1058,106 +1758,164 @@ const DetalleContrato = () => {
                 </div>
             </div>
 
-            {/* 2. SECCIÓN FINANCIERA (BANNER GIGANTE) */}
-            <div className="border-round-3xl p-4 lg:p-5 mb-5 shadow-4 relative overflow-hidden text-white" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #172554 100%)' }}>
-                <i className="pi pi-chart-line absolute text-white opacity-10" style={{ right: '-50px', top: '-50px', fontSize: '24rem', transform: 'rotate(-10deg)' }}></i>
+            {/* 2. SECCIÓN FINANCIERA */}
+            {esSeparacion ? (
+                <div className="border-round-3xl p-4 lg:p-5 mb-5 shadow-4 relative overflow-hidden text-white" style={{ background: 'linear-gradient(135deg, #7c2d12 0%, #c2410c 50%, #9a3412 100%)' }}>
+                    <i className="pi pi-wallet absolute text-white opacity-10" style={{ right: '-40px', top: '-50px', fontSize: '22rem', transform: 'rotate(-8deg)' }}></i>
 
-                <div className="grid relative z-1 mb-5">
-                    <h4 className="col-12 m-0 font-medium font-bold text-blue-50block">Emitido el {contrato.fechaEmision}</h4>
-                    
-                    <div className="col-12 md:col-4 flex flex-column justify-content-center">
-                        
-                        <span className="text-xs font-bold text-blue-300 uppercase tracking-widest mb-2 flex align-items-center gap-2">
+                    <div className="grid relative z-1 mb-4">
+                        <h4 className="col-12 m-0 font-medium font-bold text-orange-50">Separación registrada el {contrato.fechaEmision}</h4>
 
-                            <i className="pi pi-tag"></i> Precio de Venta (Total)
-                        </span>
-                        <span className="text-4xl lg:text-5xl font-bold">
-                            S/ {contrato.finanzas.precioTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                        </span>
-                        
+                        <div className="col-12 md:col-4 flex flex-column justify-content-center">
+                            <span className="text-xs font-bold text-orange-200 uppercase tracking-widest mb-2 flex align-items-center gap-2">
+                                <i className="pi pi-tag"></i> Precio de Inicial
+                            </span>
+                            <span className="text-4xl lg:text-5xl font-bold">
+                                S/ {contrato.finanzas.montoInicial.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            </span>
+                        </div>
+
+                        <div className="col-12 md:col-4 flex flex-column justify-content-center md:border-left-1 border-white-alpha-20 md:pl-5">
+                            <span className="text-xs font-bold text-orange-200 uppercase tracking-widest mb-2 flex align-items-center gap-2">
+                                <i className="pi pi-calendar"></i> Fecha limite separacion
+                            </span>
+                            <span className="text-2xl lg:text-3xl font-bold">
+                                {cuotaInicial?.vencimiento || 'N/A'}
+                            </span>
+                        </div>
+
                     </div>
 
-                    <div className="col-12 md:col-4 flex flex-column justify-content-center md:border-left-1 border-white-alpha-20 md:pl-5">
-                        <span className="text-xs font-bold text-blue-200 uppercase tracking-widest mb-2 flex align-items-center gap-2">
-                            <i className="pi pi-wallet"></i> Saldo a Financiar
-                        </span>
-                        <span className="text-4xl lg:text-5xl font-bold">
-                            S/ {contrato.finanzas.saldoFinanciar.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                        </span>
-                    </div>
-
-                    <div className="col-12 md:col-4">
-                        <div className="detalle-inicial-card border-round-2xl p-3 text-sm border-1 border-white-alpha-20">
-                            <div className="font-bold text-blue-900 mb-2 border-bottom-1 border-blue-100 pb-2 uppercase tracking-widest text-xs">Detalle de Cuota Inicial</div>
-                            <div className="flex justify-content-between align-items-center mb-2 detalle-inicial-line">
-                                <span className="detalle-inicial-label">Inicial Acordada:</span>
-                                <span className="detalle-inicial-value detalle-inicial-value-total">S/ {contrato.finanzas.montoInicial.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                    <div className="relative z-1 p-4 border-round-2xl border-1 border-white-alpha-10 shadow-inset" style={{ backgroundColor: 'rgba(0,0,0,0.25)' }}>
+                        <div className="flex flex-column sm:flex-row justify-content-between align-items-start sm:align-items-end mb-3 gap-4">
+                            <div>
+                                <span className="text-orange-200 text-xs font-bold uppercase tracking-widest block mb-2 flex align-items-center gap-2">
+                                    <i className="pi pi-check-circle text-yellow-200"></i> Progreso de Inicial
+                                </span>
+                                <div className="flex align-items-baseline gap-3">
+                                    <span className="text-4xl md:text-5xl font-bold text-yellow-200">
+                                        S/ {contrato.finanzas.montoInicialPagado.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                    </span>
+                                    <span className="text-xl font-bold text-yellow-200 bg-yellow-500-alpha-20 border-1 border-yellow-500-alpha-30 px-2 py-1 border-round-xl">
+                                        {progresoInicial}%
+                                    </span>
+                                </div>
                             </div>
-                            <div className="flex justify-content-between align-items-center mb-2 detalle-inicial-line">
-                                <span className="detalle-inicial-label">Inicial Pagada:</span>
-                                <span className="detalle-inicial-value detalle-inicial-value-paid">S/ {contrato.finanzas.montoInicialPagado.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                            <div className="text-left sm:text-right">
+                                <span className="text-orange-100 text-xs font-bold uppercase tracking-widest block mb-1 flex align-items-center justify-content-start sm:justify-content-end gap-2">
+                                    <i className="pi pi-exclamation-circle"></i> Falta Inicial
+                                </span>
+                                <span className="text-2xl lg:text-3xl font-bold text-yellow-200">S/ {contrato.finanzas.faltaPagarInicial.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                             </div>
-                            <div className="flex justify-content-between align-items-center pt-2 mt-2 border-top-1 border-blue-100 detalle-inicial-footer">
-                                <span className="detalle-inicial-label detalle-inicial-label-footer">Saldo Inicial:</span>
-                                <span className="detalle-inicial-value detalle-inicial-value-balance">S/ {contrato.finanzas.faltaPagarInicial.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        <div className="w-full bg-orange-900 border-round-xl overflow-hidden mt-2 border-1 border-white-alpha-10" style={{ height: '16px' }}>
+                            <div className="h-full border-round-xl transition-all transition-duration-1000 relative" style={{ width: `${Math.max(progresoInicial, 2)}%`, background: 'linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%)' }}>
+                                <div className="absolute top-0 left-0 w-full h-full bg-white-alpha-20 animation-pulse"></div>
                             </div>
                         </div>
                     </div>
                 </div>
+            ) : (
+                <div className="border-round-3xl p-4 lg:p-5 mb-5 shadow-4 relative overflow-hidden text-white" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #172554 100%)' }}>
+                    <i className="pi pi-chart-line absolute text-white opacity-10" style={{ right: '-50px', top: '-50px', fontSize: '24rem', transform: 'rotate(-10deg)' }}></i>
 
-                <div className="relative z-1 p-4 border-round-2xl border-1 border-white-alpha-10 shadow-inset" style={{ backgroundColor: 'rgba(0,0,0,0.3)' }}>
-                    <div className="flex flex-column sm:flex-row justify-content-between align-items-start sm:align-items-end mb-3 gap-4">
-                        <div>
-                            <span className="text-blue-300 text-xs font-bold uppercase tracking-widest block mb-2 flex align-items-center gap-2">
-                                <i className="pi pi-check-circle text-green-400"></i> Progreso de Pago General
+                    <div className="grid relative z-1 mb-5">
+                        <h4 className="col-12 m-0 font-medium font-bold text-blue-50block">Emitido el {contrato.fechaEmision}</h4>
+
+                        <div className="col-12 md:col-4 flex flex-column justify-content-center">
+
+                            <span className="text-xs font-bold text-blue-300 uppercase tracking-widest mb-2 flex align-items-center gap-2">
+
+                                <i className="pi pi-tag"></i> Precio de Venta (Total)
                             </span>
-                            <div className="flex align-items-baseline gap-3">
-                                <span className="text-4xl md:text-5xl font-bold text-green-400">
-                                    S/ {contrato.finanzas.totalPagado.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                                </span>
-                                <span className="text-xl font-bold text-green-400 bg-green-500-alpha-20 border-1 border-green-500-alpha-30 px-2 py-1 border-round-xl">
-                                    {contrato.finanzas.progresoPago}%
-                                </span>
+                            <span className="text-4xl lg:text-5xl font-bold">
+                                S/ {contrato.finanzas.precioTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            </span>
+
+                        </div>
+
+                        <div className="col-12 md:col-4 flex flex-column justify-content-center md:border-left-1 border-white-alpha-20 md:pl-5">
+                            <span className="text-xs font-bold text-blue-200 uppercase tracking-widest mb-2 flex align-items-center gap-2">
+                                <i className="pi pi-wallet"></i> Saldo a Financiar
+                            </span>
+                            <span className="text-4xl lg:text-5xl font-bold">
+                                S/ {contrato.finanzas.saldoFinanciar.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            </span>
+                        </div>
+
+                        <div className="col-12 md:col-4">
+                            <div className="detalle-inicial-card border-round-2xl p-3 text-sm border-1 border-white-alpha-20">
+                                <div className="font-bold text-blue-900 mb-2 border-bottom-1 border-blue-100 pb-2 uppercase tracking-widest text-xs">Detalle de Cuota Inicial</div>
+                                <div className="flex justify-content-between align-items-center mb-2 detalle-inicial-line">
+                                    <span className="detalle-inicial-label">Inicial Acordada:</span>
+                                    <span className="detalle-inicial-value detalle-inicial-value-total">S/ {contrato.finanzas.montoInicial.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                </div>
+                                <div className="flex justify-content-between align-items-center mb-2 detalle-inicial-line">
+                                    <span className="detalle-inicial-label">Inicial Pagada:</span>
+                                    <span className="detalle-inicial-value detalle-inicial-value-paid">S/ {contrato.finanzas.montoInicialPagado.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                </div>
+                                <div className="flex justify-content-between align-items-center pt-2 mt-2 border-top-1 border-blue-100 detalle-inicial-footer">
+                                    <span className="detalle-inicial-label detalle-inicial-label-footer">Saldo Inicial:</span>
+                                    <span className="detalle-inicial-value detalle-inicial-value-balance">S/ {contrato.finanzas.faltaPagarInicial.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                </div>
                             </div>
                         </div>
-                        <div className="text-left sm:text-right">
-                            <span className="text-orange-200 text-xs font-bold uppercase tracking-widest block mb-1 flex align-items-center justify-content-start sm:justify-content-end gap-2">
-                                <i className="pi pi-exclamation-circle"></i> Deuda Actual
-                            </span>
-                            <span className="text-2xl lg:text-3xl font-bold text-orange-400">S/ {contrato.finanzas.saldoDeudor.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-                        </div>
                     </div>
-                    
-                    <div className="w-full bg-bluegray-900 border-round-xl overflow-hidden mt-2 border-1 border-white-alpha-10" style={{ height: '16px' }}>
-                        <div className="h-full bg-green-400 border-round-xl transition-all transition-duration-1000 relative" style={{ width: `${Math.max(contrato.finanzas.progresoPago, 2)}%`, background: 'linear-gradient(90deg, #10b981 0%, #34d399 100%)' }}>
-                            <div className="absolute top-0 left-0 w-full h-full bg-white-alpha-20 animation-pulse"></div>
+
+                    <div className="relative z-1 p-4 border-round-2xl border-1 border-white-alpha-10 shadow-inset" style={{ backgroundColor: 'rgba(0,0,0,0.3)' }}>
+                        <div className="flex flex-column sm:flex-row justify-content-between align-items-start sm:align-items-end mb-3 gap-4">
+                            <div>
+                                <span className="text-blue-300 text-xs font-bold uppercase tracking-widest block mb-2 flex align-items-center gap-2">
+                                    <i className="pi pi-check-circle text-green-400"></i> Progreso de Pago General
+                                </span>
+                                <div className="flex align-items-baseline gap-3">
+                                    <span className="text-4xl md:text-5xl font-bold text-green-400">
+                                        S/ {contrato.finanzas.totalPagado.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                    </span>
+                                    <span className="text-xl font-bold text-green-400 bg-green-500-alpha-20 border-1 border-green-500-alpha-30 px-2 py-1 border-round-xl">
+                                        {contrato.finanzas.progresoPago}%
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="text-left sm:text-right">
+                                <span className="text-orange-200 text-xs font-bold uppercase tracking-widest block mb-1 flex align-items-center justify-content-start sm:justify-content-end gap-2">
+                                    <i className="pi pi-exclamation-circle"></i> Deuda Actual
+                                </span>
+                                <span className="text-2xl lg:text-3xl font-bold text-orange-400">S/ {contrato.finanzas.saldoDeudor.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                        </div>
+
+                        <div className="w-full bg-bluegray-900 border-round-xl overflow-hidden mt-2 border-1 border-white-alpha-10" style={{ height: '16px' }}>
+                            <div className="h-full bg-green-400 border-round-xl transition-all transition-duration-1000 relative" style={{ width: `${Math.max(contrato.finanzas.progresoPago, 2)}%`, background: 'linear-gradient(90deg, #10b981 0%, #34d399 100%)' }}>
+                                <div className="absolute top-0 left-0 w-full h-full bg-white-alpha-20 animation-pulse"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            )}
 
             {/* 3. TABS DE PRIMEREACT (Cronograma vs Abonos) */}
             <TabView className="custom-tabview">
                 <TabPanel header="Estado de Cuenta" leftIcon="pi pi-wallet mr-2">
                     <div className="grid mt-2" style={{ minHeight: '600px' }}>
-                        
+
                         {/* PANEL IZQUIERDO: CRONOGRAMA */}
                         <div className="col-12 lg:col-8 flex flex-column">
                             <div className="surface-0 shadow-1 border-round-2xl border-1 surface-border flex-1 flex flex-column overflow-hidden">
                                 <div className="p-4 border-bottom-1 surface-border bg-white flex justify-content-between align-items-center">
                                     <div>
                                         <h2 className="m-0 text-800 text-xl flex align-items-center gap-2">
-                                            <i className="pi pi-calendar text-blue-600"></i> Cronograma de Cuotas
+                                            <i className="pi pi-calendar text-blue-600"></i> {esSeparacion ? 'Cuota Inicial' : 'Cronograma de Cuotas'}
                                         </h2>
                                         <p className="text-sm text-500 m-0 mt-1">Seleccione una cuota para ver sus pagos a la derecha.</p>
                                     </div>
-                                    {contrato.finanzas.cuotasAtrasadas > 0 && (
+                                    {!esSeparacion && contrato.finanzas.cuotasAtrasadas > 0 && (
                                         <Tag severity="danger" icon="pi pi-exclamation-triangle" value={`${contrato.finanzas.cuotasAtrasadas} Atrasada(s)`} className="px-3 py-2 text-sm font-bold" />
                                     )}
                                 </div>
-                                
+
                                 <DataTable
-                                    value={contrato.cuotas}
+                                    value={cuotasVisibles}
                                     selectionMode="single"
                                     selection={cuotaSeleccionada}
                                     onSelectionChange={(e) => seleccionarCuota(e.value)}
@@ -1170,14 +1928,8 @@ const DetalleContrato = () => {
                                     <Column field="vencimiento" header="Vence" body={(r) => <div className="flex align-items-center justify-content-center gap-2"><i className="pi pi-calendar text-400"></i>{r.vencimiento}</div>} headerStyle={{ textAlign: 'center', fontSize: '1rem', fontWeight: 'bold' }} style={{ textAlign: 'center' }}></Column>
                                     <Column header="Monto" body={(r) => <span className="font-bold text-800">S/ {r.montoTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>} headerStyle={{ textAlign: 'center', fontSize: '1rem', fontWeight: 'bold' }} style={{ textAlign: 'center' }}></Column>
                                     <Column header="Deuda" body={(r) => r.montoTotal - r.montoPagado > 0 ? <span className="font-bold text-orange-600">S/ {(r.montoTotal - r.montoPagado).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span> : '-'} headerStyle={{ textAlign: 'center', fontSize: '1rem', fontWeight: 'bold' }} style={{ textAlign: 'center' }}></Column>
-                                    <Column header="Estado" body={(r) => getEstadoCuotaTag(r)} headerStyle={{ textAlign: 'center', fontSize: '1rem', fontWeight: 'bold' }} style={{ textAlign: 'center' }}></Column>
-                                    <Column header="Atraso" body={(r) => {
-                                        const diasVencidos = calcularDiasVencidos(r.vencimientoRaw || r.vencimiento);
-                                        if (diasVencidos > 0) {
-                                            return <span className="text-red-600 font-bold text-sm">{diasVencidos}d</span>;
-                                        }
-                                        return <span className="text-400 text-sm">-</span>;
-                                    }} headerStyle={{ textAlign: 'center', fontSize: '1rem', fontWeight: 'bold' }} style={{ textAlign: 'center', width: '10%' }}></Column>
+                                    <Column header="Estado" body={estadoCuotaTemplate} headerStyle={{ textAlign: 'center', fontSize: '1rem', fontWeight: 'bold' }} style={{ textAlign: 'center' }}></Column>
+                                    <Column header="Atraso" body={retrasoTemplate} headerStyle={{ textAlign: 'center', fontSize: '1rem', fontWeight: 'bold' }} style={{ textAlign: 'center', width: '10%' }}></Column>
                                     <Column body={() => <i className="pi pi-chevron-right text-400"></i>} style={{ width: '5%', textAlign: 'center' }}></Column>
                                 </DataTable>
                             </div>
@@ -1191,7 +1943,7 @@ const DetalleContrato = () => {
                                         <i className="pi pi-receipt text-blue-600"></i> Detalle de Abonos
                                     </h3>
                                 </div>
-                                
+
                                 <div className="p-4 flex-1 overflow-y-auto">
                                     {cuotaPagar ? (
                                         // PANEL DE REGISTRO DE PAGO
@@ -1201,19 +1953,19 @@ const DetalleContrato = () => {
                                                     <h3 className="m-0 text-lg font-bold flex align-items-center text-800">
                                                         <i className="pi pi-credit-card text-green-600 mr-2 text-xl"></i> Registrar Pago
                                                     </h3>
-                                                    <p className="m-0 text-sm text-500 mt-1">Cuota N° {cuotaPagar.numero} - Vence: {cuotaPagar.vencimiento}</p>
+                                                    <p className="m-0 text-sm text-500 mt-1 font-bold">Cuota N° {cuotaPagar.numero} - Vence: {cuotaPagar.vencimiento}</p>
                                                 </div>
                                                 <Button icon="pi pi-arrow-left" className="p-button-text p-button-secondary" onClick={() => setCuotaPagar(null)} tooltip="Volver" />
                                             </div>
 
                                             <div className="bg-blue-50 border-round p-3 mb-4 border-1 border-blue-200">
                                                 <div className="flex justify-content-between mb-2">
-                                                    <span className="text-sm font-medium text-blue-700">Monto Total de Cuota</span>
-                                                    <span className="font-bold text-blue-900">S/ {cuotaPagar.montoTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                                    <span className="text-lg font-bold text-blue-700">Monto Total de Cuota</span>
+                                                    <span className="font-bold text-blue-900 text-lg">S/ {cuotaPagar.montoTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                                                 </div>
                                                 <div className="flex justify-content-between align-items-center">
-                                                    <span className="text-sm font-medium text-blue-700">Falta Pagar</span>
-                                                    <span className="font-black text-lg text-blue-700">S/ {(cuotaPagar.montoTotal - cuotaPagar.montoPagado).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                                    <span className="text-lg font-bold text-blue-700">Falta Pagar</span>
+                                                    <span className="font-bold text-lg text-blue-700">S/ {(cuotaPagar.montoTotal - cuotaPagar.montoPagado).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                                                 </div>
                                             </div>
 
@@ -1236,9 +1988,9 @@ const DetalleContrato = () => {
                                             <div className="field mb-4">
                                                 <label className="font-medium text-700 block mb-2">Comprobante / Voucher (Opcional)</label>
                                                 <div className="relative flex flex-column align-items-center justify-content-center p-4 border-2 border-dashed border-round-xl surface-border hover:surface-hover transition-colors cursor-pointer bg-blue-50">
-                                                    <input 
-                                                        type="file" 
-                                                        className="opacity-0 absolute top-0 left-0 w-full h-full cursor-pointer z-10" 
+                                                    <input
+                                                        type="file"
+                                                        className="opacity-0 absolute top-0 left-0 w-full h-full cursor-pointer z-10"
                                                         accept="image/*,application/pdf"
                                                         onChange={(e) => setVoucherFileRegistro(e.target.files[0])}
                                                     />
@@ -1279,51 +2031,54 @@ const DetalleContrato = () => {
                                                 <div className="flex justify-content-center align-items-center gap-3">
                                                     <span className="flex align-items-center font-bold gap-2 text-lg"><i className="pi pi-calendar text-blue-500"></i> {cuotaSeleccionada.vencimiento}</span>
                                                     <span className="text-300">|</span>
-                                                    {getEstadoCuotaTag(cuotaSeleccionada)}
+                                                    {estadoCuotaTemplate(cuotaSeleccionada)}
                                                 </div>
                                                 {(cuotaSeleccionada.montoTotal - cuotaSeleccionada.montoPagado) > 0 && (
-                                                    <Button 
-                                                        label="Registrar Pago" 
-                                                        icon="pi pi-credit-card" 
-                                                        className="btn-primary-custom shadow-2 border-round-xl font-bold mt-3 w-full" 
+                                                    <Button
+                                                        label="Registrar Pago"
+                                                        icon="pi pi-credit-card"
+                                                        className="btn-primary-custom shadow-2 border-round-xl font-bold mt-3 w-full"
                                                         onClick={() => abrirPanelPago(cuotaSeleccionada)}
                                                     />
                                                 )}
                                             </div>
 
                                             <h3 className="text-sm font-bold uppercase tracking-widest mb-3 pl-2 m-0">Historial de Recibos</h3>
-                                            
+
                                             {/* INDICADOR DE PAGOS PENDIENTES */}
                                             {cuotaSeleccionada.pagoPendiente && (
                                                 <div className="bg-yellow-50 border-1 border-yellow-200 border-round-2xl p-3 mb-3 shadow-sm flex justify-content-between align-items-center">
                                                     <div className="flex align-items-center gap-2">
                                                         <i className="pi pi-exclamation-circle text-yellow-600 text-lg"></i>
                                                         <div className="flex flex-column">
-                                                            <span className="text-sm font-bold text-yellow-700">Pago Pendiente de Validación</span>
-                                                            <span className="text-xs text-yellow-600 ">ID: {cuotaSeleccionada.pagoPendiente.id}</span>
+                                                            <span className="text-lg font-bold text-yellow-700">Pago Pendiente de Validación</span>
+                                                            {/* <span className="text-xs text-yellow-600 ">ID: {cuotaSeleccionada.pagoPendiente.id}</span> */}
                                                         </div>
                                                     </div>
-                                                    <Button 
-                                                        label="Procesar" 
-                                                        icon="pi pi-cog" 
-                                                        className="p-button-sm p-button-warning text-white" 
+                                                    <Button
+                                                        label="Procesar"
+                                                        icon="pi pi-cog"
+                                                        className="p-button-sm p-button-warning text-white"
                                                         onClick={() => abrirDialogoProcesar(cuotaSeleccionada.pagoPendiente)}
                                                     />
                                                 </div>
                                             )}
-                                            
+
                                             {cuotaSeleccionada.pagos && cuotaSeleccionada.pagos.length > 0 ? (
                                                 <div className="flex flex-column gap-3">
                                                     {cuotaSeleccionada.pagos.map((pago, idx) => (
-                                                        <div 
-                                                            key={idx} 
+                                                        <div
+                                                            key={idx}
                                                             className={`surface-0 border-1 surface-border border-round-2xl p-3 shadow-sm transition-colors ${pago.fotoVoucherUrl ? 'hover:border-blue-400 cursor-pointer' : ''}`}
-                                                            onClick={() => pago.fotoVoucherUrl && setVoucherViewer(buildVoucherUrl(pago.fotoVoucherUrl))}
+                                                            onClick={() => pago.fotoVoucherUrl && viewVoucher(pago.fotoVoucherUrl)}
                                                         >
                                                             <div className="flex justify-content-between align-items-center mb-3 border-bottom-1 surface-border pb-2">
                                                                 <div className="flex align-items-center gap-2">
                                                                     <i className={`pi ${pago.fotoVoucherUrl ? 'pi-image text-blue-500' : 'pi-file text-400'} text-lg`}></i>
-                                                                    <span className="font-bold text-700">{pago.id}</span>
+                                                                    <div className="flex flex-column">
+                                                                        <span className="font-bold text-700">{pago.id}</span>
+                                                                        {pago.numeroOperacion && <small className="text-500">Operación: {pago.numeroOperacion}</small>}
+                                                                    </div>
                                                                 </div>
                                                                 <span className="text-x font-bold text-600 surface-100 px-3 py-2 border-round-md">{pago.fechaPago}</span>
                                                             </div>
@@ -1336,7 +2091,7 @@ const DetalleContrato = () => {
                                                             </div>
                                                         </div>
                                                     ))}
-                                                    
+
                                                     <div className="mt-4 bg-green-50 border-1 border-green-200 border-round-2xl p-3 flex justify-content-between align-items-center shadow-sm">
                                                         <span className="font-bold text-green-800">Total Pagado:</span>
                                                         <span className="text-2xl font-bold text-green-700">S/ {cuotaSeleccionada.montoPagado.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
@@ -1368,7 +2123,7 @@ const DetalleContrato = () => {
                             <Column field="tipoRegistro" header="Tipo" body={(r) => r.tipoRegistro ? r.tipoRegistro.replace(/_/g, ' ') : '-'} style={{ width: '12%' }}></Column>
                             <Column field="descripcion" header="Descripción del Cambio" style={{ width: '35%' }}></Column>
                             <Column field="observacion" header="Nota Adicional" body={(r) => r.observacion || '-'} style={{ width: '25%' }}></Column>
-                            <Column field="fechaRegistro" header="Fecha" body={(r) => new Date(r.fechaRegistro).toLocaleString()} style={{ width: '15%' }}></Column>
+                            <Column field="fechaRegistro" header="Fecha" body={(r) => (r.fechaRegistro ? new Date(r.fechaRegistro).toLocaleDateString('es-PE') : '')} style={{ width: '15%' }}></Column>
                             <Column body={(r) => (
                                 <div className="flex gap-2 justify-content-center">
                                     {r.rutaDocumentoPdf && (
