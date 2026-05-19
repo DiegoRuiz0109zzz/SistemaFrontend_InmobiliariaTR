@@ -193,7 +193,7 @@ const ReporteComisiones = () => {
 
     return (
         <div className="usuario-page reporte-comisiones-page">
-            <div className="container" style={{ maxWidth: '100%', padding: '0 1rem' }}>
+            <div className="container">
                 <PageHeader
                     title="Reporte de Comisiones"
                     description="Visualiza y gestiona las comisiones de vendedores y jefes de ventas."
@@ -210,9 +210,9 @@ const ReporteComisiones = () => {
                             searchPlaceholder="Buscar comisión..."
                             extraActions={
                                 <Button
-                                    icon="pi pi-file-excel"
-                                    className="p-button-success"
-                                    tooltip="Exportar Excel"
+                                    icon="pi pi-download"
+                                    className="btn-export"
+                                    tooltip="Exportar a CSV"
                                     tooltipOptions={{ position: 'bottom' }}
                                     onClick={exportCSV}
                                 />
@@ -230,7 +230,6 @@ const ReporteComisiones = () => {
                             globalFilter={globalFilter}
                             globalFilterFields={['contratoCodigo', 'beneficiarioNombre', 'rolBeneficiario', 'estadoPago', 'clienteNombre', 'loteDescripcion']}
                             emptyMessage="No se encontraron comisiones."
-                            className="p-datatable-sm"
                             rowGroupMode="rowspan"
                             groupRowsBy={['fechaGeneracion', 'contratoCodigo', 'loteDescripcion', 'fechaIngreso', 'clienteNombre', 'totalAbonado', 'precioOficinaLote', 'precioVentaContrato', 'diferenciaPrecio']}
                             sortField="contratoCodigo"

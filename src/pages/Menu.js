@@ -65,16 +65,6 @@ const Menu = () => {
             ]
         });
 
-        menu.push({
-            label: 'Reportes',
-            items: [
-                { label: 'Reportes y Finanzas', icon: 'pi pi-fw pi-chart-bar', to: 'reportes' },
-                { label: 'Reporte de Lotes', icon: 'pi pi-fw pi-map', to: 'reportes/lotes' },
-                { label: 'Reporte de Comisiones', icon: 'pi pi-fw pi-percentage', to: 'reportes/comisiones' },
-                { label: 'Reporte de Financiamiento', icon: 'pi pi-fw pi-wallet', to: 'reportes/financiamiento' },
-                { label: 'Pagos Efectuados', icon: 'pi pi-fw pi-money-bill', to: 'reportes/pagos' }
-            ]
-        });
 
         const usuariosItems = [];
         if (configRoles.includes(role)) {
@@ -97,6 +87,17 @@ const Menu = () => {
                 items: mantenimientoItems
             });
         }
+
+        menu.push({
+            label: 'Reportes',
+            items: [
+                { label: 'Reporte de Anticuamiento', icon: 'pi pi-fw pi-chart-line', to: 'reportes' },
+                { label: 'Reporte Maestro', icon: 'pi pi-fw pi-table', to: 'reportes/maestro' },
+                { label: 'Reporte de Lotes', icon: 'pi pi-fw pi-map', to: 'reportes/lotes' },
+                { label: 'Reporte de Comisiones', icon: 'pi pi-fw pi-percentage', to: 'reportes/comisiones' },
+                { label: 'Pagos Efectuados', icon: 'pi pi-fw pi-money-bill', to: 'reportes/pagos' }
+            ]
+        });
 
         const configuracionItems = [];
 

@@ -37,6 +37,8 @@ import DetalleContrato from './pages/operaciones/DetalleContrato';
 import GestionCuotasPagos from './pages/operaciones/GestionCuotasPagos';
 import ReporteComisiones from './pages/reportes/ReporteComisiones';
 import ReporteLotes from './pages/reportes/ReporteLotes';
+import ReporteMaestro from './pages/reportes/ReporteMaestro';
+import ReportePagos from './pages/reportes/ReportePagos';
 
 function App() {
   return (
@@ -52,6 +54,8 @@ function App() {
               <Route exact path="/reportes" element={<ReportesDashboard />} />
               <Route exact path="/reportes/lotes" element={<ReporteLotes />} />
               <Route exact path="/reportes/comisiones" element={<ReporteComisiones />} />
+              <Route exact path="/reportes/maestro" element={<ReporteMaestro />} />
+              <Route exact path="/reportes/pagos" element={<ReportePagos />} />
               <Route exact path="/temas" element={<Temas />} />
               <Route exact path="/empresas" element={<Empresas />} />
               <Route exact path="/clientes" element={<Clientes />} />

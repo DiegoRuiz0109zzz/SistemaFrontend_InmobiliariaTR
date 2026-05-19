@@ -1,1 +1,0 @@
-// Este archivo fue eliminado porque la funcionalidad se movió a ListaContratos.js

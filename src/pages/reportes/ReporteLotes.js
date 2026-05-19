@@ -203,7 +203,69 @@ const ReporteLotes = () => {
     const renderHeader = () => {
         return (
             <div className="flex flex-column gap-3">
-                <div className="flex justify-content-between align-items-center flex-wrap gap-2">
+                <div className="p-4 border-round-xl border-1 surface-border bg-white">
+                    <h3 className="text-lg font-bold mb-4 mt-0" style={{ color: 'var(--text-primary)' }}>Filtros de Búsqueda</h3>
+                    <div className="formgrid grid">
+                        <div className="field col-12 md:col-3">
+                            <label className="font-bold text-sm block mb-2 text-700">Urbanización</label>
+                            <Dropdown 
+                                value={filters.ubz.value} 
+                                options={urbanizaciones} 
+                                onChange={(e) => onFilterChange('ubz', e.value)} 
+                                placeholder="Seleccione urbanización" 
+                                showClear 
+                                className="w-full"
+                            />
+                        </div>
+                        <div className="field col-12 md:col-3">
+                            <label className="font-bold text-sm block mb-2 text-700">Etapa</label>
+                            <Dropdown 
+                                value={filters.etapa.value} 
+                                options={etapas} 
+                                onChange={(e) => onFilterChange('etapa', e.value)} 
+                                placeholder="Seleccione etapa" 
+                                showClear 
+                                className="w-full"
+                            />
+                        </div>
+                        <div className="field col-12 md:col-3">
+                            <label className="font-bold text-sm block mb-2 text-700">Manzana</label>
+                            <Dropdown 
+                                value={filters.mz.value} 
+                                options={manzanas} 
+                                onChange={(e) => onFilterChange('mz', e.value)} 
+                                placeholder="Seleccione manzana" 
+                                showClear 
+                                className="w-full"
+                            />
+                        </div>
+                        <div className="field col-12 md:col-3">
+                            <label className="font-bold text-sm block mb-2 text-700">Cliente</label>
+                            <Dropdown 
+                                value={filters.clienteNombre.value} 
+                                options={clientesList} 
+                                onChange={(e) => onFilterChange('clienteNombre', e.value)} 
+                                placeholder="Seleccione cliente" 
+                                showClear 
+                                filter
+                                className="w-full"
+                            />
+                        </div>
+                        <div className="field col-12 md:col-6">
+                            <label className="font-bold text-sm block mb-2 text-700">Estado de Venta</label>
+                            <Dropdown 
+                                value={filters.estadoVenta.value} 
+                                options={estados} 
+                                onChange={(e) => onFilterChange('estadoVenta', e.value)} 
+                                placeholder="Seleccione estado" 
+                                showClear 
+                                className="w-full"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex justify-content-between align-items-center flex-wrap gap-2 mt-2">
                     <div className="flex align-items-center gap-4">
                         <div className="bg-primary-reverse text-primary border-round px-4 py-2 flex align-items-center gap-2">
                             <i className="pi pi-check-square text-xl"></i>
@@ -224,59 +286,13 @@ const ReporteLotes = () => {
                             />
                         </span>
                         <Button
-                            icon="pi pi-file-excel"
-                            label="Exportar Excel"
-                            className="p-button-success btn-export"
+                            icon="pi pi-download"
+                            className="btn-export"
                             tooltip="Exportar a CSV"
                             tooltipOptions={{ position: 'bottom' }}
                             onClick={exportCSV}
                         />
                     </div>
-                </div>
-                
-                <div className="flex flex-wrap gap-2 p-3 border-round align-items-center" style={{ backgroundColor: 'var(--surface-50)' }}>
-                    <span className="font-semibold text-color-secondary mr-2"><i className="pi pi-filter mr-2"></i>Filtros:</span>
-                    <Dropdown 
-                        value={filters.ubz.value} 
-                        options={urbanizaciones} 
-                        onChange={(e) => onFilterChange('ubz', e.value)} 
-                        placeholder="Urbanización" 
-                        showClear 
-                        className="w-full md:w-15rem"
-                    />
-                    <Dropdown 
-                        value={filters.etapa.value} 
-                        options={etapas} 
-                        onChange={(e) => onFilterChange('etapa', e.value)} 
-                        placeholder="Etapa" 
-                        showClear 
-                        className="w-full md:w-10rem"
-                    />
-                    <Dropdown 
-                        value={filters.mz.value} 
-                        options={manzanas} 
-                        onChange={(e) => onFilterChange('mz', e.value)} 
-                        placeholder="Manzana" 
-                        showClear 
-                        className="w-full md:w-10rem"
-                    />
-                    <Dropdown 
-                        value={filters.clienteNombre.value} 
-                        options={clientesList} 
-                        onChange={(e) => onFilterChange('clienteNombre', e.value)} 
-                        placeholder="Cliente" 
-                        showClear 
-                        filter
-                        className="w-full md:w-15rem"
-                    />
-                    <Dropdown 
-                        value={filters.estadoVenta.value} 
-                        options={estados} 
-                        onChange={(e) => onFilterChange('estadoVenta', e.value)} 
-                        placeholder="Estado" 
-                        showClear 
-                        className="w-full md:w-12rem"
-                    />
                 </div>
             </div>
         );
@@ -284,7 +300,7 @@ const ReporteLotes = () => {
 
     return (
         <div className="usuario-page reporte-lotes-page">
-            <div className="container" style={{ maxWidth: '100%', padding: '0 1rem' }}>
+            <div className="container">
                 <PageHeader
                     title="Reporte de Lotes"
                     description="Vista general de todos los lotes, precios y estado comercial."

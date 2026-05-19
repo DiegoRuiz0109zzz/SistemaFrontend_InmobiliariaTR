@@ -16,13 +16,15 @@ const ActionToolbar = ({
 }) => {
     return (
         <div className="action-toolbar">
-            {onNew && (
+            {onNew ? (
                 <Button
                     label={newLabel}
                     icon="pi pi-plus"
                     className="btn-primary-custom"
                     onClick={onNew}
                 />
+            ) : (
+                <div></div>
             )}
 
             <div className="toolbar-actions flex align-items-center gap-2">
