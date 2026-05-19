@@ -34,7 +34,6 @@ import ListaCotizaciones from './pages/operaciones/ListaCotizaciones';
 import Contrato from './pages/operaciones/Contrato';
 import ListaContratos from './pages/operaciones/ListaContratos';
 import DetalleContrato from './pages/operaciones/DetalleContrato';
-import GestionCuotasPagos from './pages/operaciones/GestionCuotasPagos';
 import ReporteComisiones from './pages/reportes/ReporteComisiones';
 import ReporteLotes from './pages/reportes/ReporteLotes';
 import ReporteMaestro from './pages/reportes/ReporteMaestro';
@@ -67,7 +66,6 @@ function App() {
               <Route exact path="/historial-comercial" element={<ListaContratos />} />
               <Route exact path="/contrato/nuevo" element={<Contrato />} />
               <Route exact path="/detalle_contrato/:id" element={<DetalleContrato />} />
-              <Route exact path="/cuotas-pagos" element={<GestionCuotasPagos />} />
             </Route>
             <Route exact path="/login" element={<Login />} />
             <Route exact path="/register" element={<Register />} />
