@@ -15,14 +15,12 @@ export const AppTopbar = (props) => {
     const { darkMode, toggleDarkMode } = useTheme();
 
     // Obtener nombre de usuario del contexto
-    const userName = user?.username || 'Usuario';
+    const userName = user?.nombres ? `${user.nombres} ${user.apellidos}`.trim() : user?.username || 'Usuario';
 
     // Generar iniciales del nombre
     const initials = useMemo(() => {
-        return userName
-            .substring(0, 2)
-            .toUpperCase();
-    }, [userName]);
+        return (user?.nombres ? (user.nombres.substring(0, 1) + (user.apellidos?.substring(0, 1) || '')).toUpperCase() : userName.substring(0, 2).toUpperCase());
+    }, [userName, user?.nombres, user?.apellidos]);
 
     // Items del menú desplegable
     const menuItems = useMemo(() => [
