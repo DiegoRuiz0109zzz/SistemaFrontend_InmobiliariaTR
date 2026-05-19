@@ -59,7 +59,7 @@ const ReporteLotes = () => {
     }, [lotesReporte]);
     const estados = [
         { label: 'DISPONIBLE', value: 'DISPONIBLE' },
-        { label: 'SEPARADO', value: 'SEPARADO' },
+        { label: 'SEPARADO', value: 'RESERVADO' },
         { label: 'VENDIDO', value: 'VENDIDO' }
     ];
 
