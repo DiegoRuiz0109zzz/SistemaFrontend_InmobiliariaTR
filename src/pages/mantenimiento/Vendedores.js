@@ -271,6 +271,7 @@ const Vendedores = () => {
                             globalFilter={globalFilter}
                             globalFilterFields={['numeroDocumento', 'tipoDocumento', 'nombres', 'apellidos', 'telefono', 'email', 'jefeVentas.nombres', 'jefeVentas.apellidos']}
                             emptyMessage="No se encontraron vendedores."
+                            exportFilename="Vendedores"
                         >
                             <Column header="N°" body={indexBodyTemplate} style={{ width: '80px', textAlign: 'center' }} />
                             <Column field="numeroDocumento" header="Documento" style={{ minWidth: '140px' }} />

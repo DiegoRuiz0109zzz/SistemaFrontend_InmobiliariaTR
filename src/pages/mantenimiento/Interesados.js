@@ -375,10 +375,12 @@ const Interesados = () => {
                             paginator
                             rows={10}
                             globalFilter={globalFilter}
-                            globalFilterFields={['numeroDocumento', 'tipoDocumento', 'nombres', 'apellidos', 'estadoCivil', 'telefono', 'email', 'direccion', 'departamento', 'provincia', 'distrito']}
+                            globalFilterFields={['id', 'numeroDocumento', 'tipoDocumento', 'nombres', 'apellidos', 'estadoCivil', 'telefono', 'email', 'direccion', 'departamento', 'provincia', 'distrito']}
                             emptyMessage="No se encontraron interesados."
+                            exportFilename="Interesados"
                         >
                             <Column header="N°" body={indexBodyTemplate} style={{ width: '80px', textAlign: 'center' }} />
+                            <Column field="id" header="ID" style={{ width: '80px', textAlign: 'center' }} />
                             <Column field="numeroDocumento" header="Documento" style={{ minWidth: '140px' }} />
                             <Column field="tipoDocumento" header="Tipo" style={{ minWidth: '120px' }} />
                             <Column field="nombres" header="Nombres" style={{ minWidth: '180px' }} />

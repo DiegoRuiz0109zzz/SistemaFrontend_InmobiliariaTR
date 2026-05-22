@@ -341,6 +341,7 @@ const ReporteMaestro = () => {
                             emptyMessage="No se encontraron registros en el reporte maestro."
                             sortField="nroContrato"
                             sortOrder={-1}
+                            exportFilename="Reporte_Maestro"
                         >
                             <Column header="N°" body={indexBodyTemplate} style={{ width: '60px', textAlign: 'center' }} />
                             <Column field="nroContrato" header="Nro Contrato" sortable style={{ minWidth: '110px', fontWeight: 'bold' }} />

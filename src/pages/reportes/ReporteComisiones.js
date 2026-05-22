@@ -234,6 +234,7 @@ const ReporteComisiones = () => {
                             groupRowsBy={['fechaGeneracion', 'contratoCodigo', 'loteDescripcion', 'fechaIngreso', 'clienteNombre', 'totalAbonado', 'precioOficinaLote', 'precioVentaContrato', 'diferenciaPrecio']}
                             sortField="contratoCodigo"
                             sortOrder={1}
+                            exportFilename="Reporte_Comisiones"
                         >
                             <Column field="fechaGeneracion" header="Mes de Activación" body={(row) => formatMonthYear(row.fechaGeneracion)} style={{ minWidth: '140px' }} />
                             <Column field="contratoCodigo" header="Contrato" style={{ minWidth: '100px', fontWeight: 'bold' }} />

@@ -26,6 +26,14 @@ const ListaContratos = () => {
     const [documentoVisible, setDocumentoVisible] = useState(false);
     const [documentoUrl, setDocumentoUrl] = useState(null);
 
+    const dt = useRef(null);
+
+    const exportCSV = () => {
+        if (dt.current) {
+            dt.current.exportCSV();
+        }
+    };
+
     // Filter states
     const [globalFilter, setGlobalFilter] = useState('');
     const [estadoContratoFilter, setEstadoContratoFilter] = useState('Todos');
@@ -354,7 +362,7 @@ const ListaContratos = () => {
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <Button label="Exportar" icon="pi pi-download" className="p-button-outlined p-button-secondary border-round-xl font-bold bg-white" />
+                    <Button label="Exportar" icon="pi pi-download" className="p-button-outlined p-button-secondary border-round-xl font-bold bg-white" onClick={exportCSV} />
                     <Button label="Nuevo Contrato" icon="pi pi-plus" className="btn-primary-custom shadow-2 border-round-xl font-bold" onClick={() => navigate('/contrato/nuevo')} />
                 </div>
             </div>
@@ -471,6 +479,7 @@ const ListaContratos = () => {
             {/* DataTable */}
             <div className="surface-0 border-round-2xl shadow-1 overflow-hidden">
                 <DataTable
+                    ref={dt}
                     value={filteredContratos}
                     paginator
                     rows={7}
@@ -478,6 +487,7 @@ const ListaContratos = () => {
                     className="premium-table"
                     stripedRows={false}
                     emptyMessage="No se encontraron contratos con estos filtros."
+                    exportFilename="Contratos"
                     paginatorTemplate="CurrentPageReport PrevPageLink PageLinks NextPageLink"
                     currentPageReportTemplate="Mostrando {last} contratos"
                 >

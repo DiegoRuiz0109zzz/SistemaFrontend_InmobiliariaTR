@@ -16,6 +16,7 @@ const mockClientesPagos = [
 ];
 
 const ReportePagos = () => {
+    const dt = useRef(null);
     const toast = useRef(null);
 
     const [filtroBuscarCliente, setFiltroBuscarCliente] = useState('');
@@ -40,6 +41,12 @@ const ReportePagos = () => {
                 <span className="text-xs font-bold w-3rem text-right">{rowData.progreso}%</span>
             </div>
         );
+    };
+
+    const exportCSV = () => {
+        if (dt.current) {
+            dt.current.exportCSV();
+        }
     };
 
     return (
@@ -70,9 +77,12 @@ const ReportePagos = () => {
                                     <Dropdown value={filtroEstadoContrato} options={estadosContrato} onChange={(e) => setFiltroEstadoContrato(e.value)} placeholder="Estado de Contrato" className="w-full" showClear />
                                 </div>
                             </div>
+                            <div className="flex justify-content-end mt-3">
+                                <Button label="Exportar" icon="pi pi-download" className="p-button-outlined p-button-secondary border-round-xl font-bold bg-white" onClick={exportCSV} />
+                            </div>
                         </div>
 
-                        <DataTable value={mockClientesPagos} paginator rows={10} className="p-datatable-sm shadow-1 border-round-lg overflow-hidden" emptyMessage="No se encontraron clientes.">
+                        <DataTable ref={dt} value={mockClientesPagos} paginator rows={10} className="p-datatable-sm shadow-1 border-round-lg overflow-hidden" emptyMessage="No se encontraron clientes." exportFilename="Reporte_Pagos">
                             <Column field="contratoId" header="Contrato" sortable body={(r) => <span className="font-bold">C-{r.contratoId}</span>}></Column>
                             <Column field="cliente" header="Cliente" sortable></Column>
                             <Column field="lote" header="Lote"></Column>

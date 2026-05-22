@@ -405,7 +405,7 @@ export const Usuario = () => {
             message: `¿Está seguro de eliminar al usuario "${rowData.nombres} ${rowData.apellidos}"?`,
             header: 'Confirmar Eliminación',
             icon: 'pi pi-exclamation-triangle',
-            acceptClassName: 'p-button-danger',
+            acceptClassName: 'p-button-danger text-white',
             rejectClassName: 'p-button-outlined',
             acceptLabel: 'Sí, eliminar',
             rejectLabel: 'No',
@@ -500,6 +500,7 @@ export const Usuario = () => {
                             paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
                             currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords} usuarios"
                             emptyMessage="No se encontraron usuarios."
+                            exportFilename="Usuarios"
                         >
                             <Column header="N°" body={indexBodyTemplate} style={{ width: '80px', textAlign: 'center' }}></Column>
                             <Column field="id" header="Documento" body={idBody} style={{ minWidth: '120px' }}></Column>

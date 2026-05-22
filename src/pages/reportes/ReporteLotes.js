@@ -325,6 +325,7 @@ const ReporteLotes = () => {
                             emptyMessage="No se encontraron lotes."
                             header={renderHeader()}
                             className="text-base" 
+                            exportFilename="Reporte_Lotes"
                         >
                             <Column field="ubz" header="Urbanización" sortable style={{ minWidth: '180px', fontSize: '1rem' }} />
                             <Column field="etapa" header="Etapa" body={etapaBodyTemplate} sortable style={{ minWidth: '120px', fontSize: '1rem' }} />
