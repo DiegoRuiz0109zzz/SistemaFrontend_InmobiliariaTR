@@ -1,52 +1,170 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Button } from 'primereact/button';
-import { Dropdown } from 'primereact/dropdown';
-import { InputText } from 'primereact/inputtext';
-import { ProgressBar } from 'primereact/progressbar';
 import { Toast } from 'primereact/toast';
+import { Tag } from 'primereact/tag';
 import PageHeader from '../../components/ui/PageHeader';
+import ActionToolbar from '../../components/ui/ActionToolbar';
+import { useAuth } from '../../context/AuthContext';
+import { ContratoService } from '../../service/ContratoService';
+import { CuotaService } from '../../service/CuotaService';
+import { PagoService } from '../../service/PagoService';
 import '../Usuario.css';
 
-const mockClientesPagos = [
-    { contratoId: 101, cliente: 'Ana Lopez', lote: 'Mz B Lt 3', precioTotal: 15000, totalPagado: 5000, saldoRestante: 10000, progreso: 33 },
-    { contratoId: 102, cliente: 'Luis Mendoza', lote: 'Mz A Lt 15', precioTotal: 25000, totalPagado: 25000, saldoRestante: 0, progreso: 100 },
-    { contratoId: 103, cliente: 'Sofia Castro', lote: 'Mz C Lt 8', precioTotal: 12000, totalPagado: 1200, saldoRestante: 10800, progreso: 10 }
-];
-
 const ReportePagos = () => {
+    const { axiosInstance } = useAuth();
     const dt = useRef(null);
     const toast = useRef(null);
 
-    const [filtroBuscarCliente, setFiltroBuscarCliente] = useState('');
-    const [filtroEstadoContrato, setFiltroEstadoContrato] = useState(null);
+    const [contratos, setContratos] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [globalFilter, setGlobalFilter] = useState('');
+    const [expandedRows, setExpandedRows] = useState(null);
+    const [pagosMap, setPagosMap] = useState({}); // { contratoId: [pagos] }
+    const [loadingPagos, setLoadingPagos] = useState({}); // { contratoId: boolean }
 
-    const estadosContrato = [
-        { label: 'ACTIVO', value: 'ACTIVO' }, 
-        { label: 'FINALIZADO', value: 'FINALIZADO' }, 
-        { label: 'RESOLUCIÓN', value: 'RESOLUCION' }
-    ];
+    const cargarContratos = useCallback(async () => {
+        setLoading(true);
+        try {
+            const data = await ContratoService.listar(axiosInstance);
+            
+            // Format data
+            const formatted = (data || []).map(c => ({
+                ...c,
+                clienteNombre: c.cliente ? `${c.cliente.nombres} ${c.cliente.apellidos}`.trim() : 'N/A',
+                loteDescripcion: c.lote ? c.lote.descripcion || (c.lote.numero ? `Lote ${c.lote.numero}` : 'N/A') : 'N/A',
+                precioTotal: c.precioTotal || 0
+            }));
+            
+            setContratos(formatted);
+        } catch (error) {
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudieron cargar los contratos.' });
+        } finally {
+            setLoading(false);
+        }
+    }, [axiosInstance]);
+
+    useEffect(() => {
+        cargarContratos();
+    }, [cargarContratos]);
+
+    const onRowExpand = async (e) => {
+        const contrato = e.data;
+        if (pagosMap[contrato.id]) return; // Already loaded
+
+        setLoadingPagos(prev => ({ ...prev, [contrato.id]: true }));
+        try {
+            const cuotas = await CuotaService.listarPorContrato(contrato.id, axiosInstance);
+            const pagosTotales = [];
+            
+            await Promise.all((cuotas || []).map(async (cuota) => {
+                const pagos = await PagoService.listarPorCuota(cuota.id, axiosInstance);
+                if (pagos && pagos.length > 0) {
+                    pagos.forEach(p => {
+                        pagosTotales.push({
+                            ...p,
+                            cuotaNumero: cuota.numeroCuota !== undefined ? cuota.numeroCuota : cuota.numero,
+                            cuotaId: cuota.id
+                        });
+                    });
+                }
+            }));
+            
+            // Sort by date descending
+            pagosTotales.sort((a, b) => new Date(b.fechaPago || 0) - new Date(a.fechaPago || 0));
+            
+            setPagosMap(prev => ({ ...prev, [contrato.id]: pagosTotales }));
+        } catch (error) {
+            toast.current?.show({ severity: 'warn', summary: 'Atención', detail: `No se pudieron cargar los pagos del contrato ${contrato.nroContrato}` });
+            setPagosMap(prev => ({ ...prev, [contrato.id]: [] }));
+        } finally {
+            setLoadingPagos(prev => ({ ...prev, [contrato.id]: false }));
+        }
+    };
 
     const formatCurrency = (value) => {
+        if (value == null) return '-';
         return value.toLocaleString('es-PE', { style: 'currency', currency: 'PEN' });
     };
 
-    const progresoPagoTemplate = (rowData) => {
+    const formatDate = (dateString) => {
+        if (!dateString) return '-';
+        if (dateString.includes('T')) {
+            const d = new Date(dateString);
+            if (!Number.isNaN(d.getTime())) return d.toLocaleDateString('es-PE');
+        }
+        const [anio, mes, dia] = dateString.split('-');
+        if(anio && mes && dia) return `${dia}/${mes}/${anio}`;
+        return dateString;
+    };
+
+    const estadoBodyTemplate = (rowData) => {
+        const st = (rowData.estado || rowData.estadoPago || '').toUpperCase();
+        let severity = 'info';
+        if (st === 'PROCESADO') severity = 'success';
+        else if (st === 'PENDIENTE' || st === 'POR_VALIDAR') severity = 'warning';
+        else if (st === 'ANULADO') severity = 'danger';
+        return <Tag value={st} severity={severity} className="font-bold px-2 py-1" />;
+    };
+
+    const handleDescargarNotaVenta = async (pagoId) => {
+        try {
+            toast.current?.show({ severity: 'info', summary: 'Descargando...', detail: 'Generando Nota de Venta' });
+            const blob = await PagoService.descargarNotaVenta(pagoId, axiosInstance);
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank');
+        } catch (error) {
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo generar la nota de venta.' });
+        }
+    };
+
+    const rowExpansionTemplate = (contrato) => {
+        const pagos = pagosMap[contrato.id];
+        const isLoading = loadingPagos[contrato.id];
+
+        if (isLoading) {
+            return <div className="p-3 text-center text-500"><i className="pi pi-spin pi-spinner mr-2"></i>Cargando pagos efectuados...</div>;
+        }
+
+        if (!pagos || pagos.length === 0) {
+            return <div className="p-3 text-center text-500">No hay pagos efectuados registrados para este contrato.</div>;
+        }
+
         return (
-            <div className="flex align-items-center">
-                <div className="w-full mr-2">
-                    <ProgressBar value={rowData.progreso} displayValueTemplate={() => ''} style={{ height: '8px' }} color={rowData.progreso === 100 ? 'var(--green-500)' : 'var(--blue-500)'} />
-                </div>
-                <span className="text-xs font-bold w-3rem text-right">{rowData.progreso}%</span>
+            <div className="p-3 bg-blue-50 border-round">
+                <h5 className="mt-0 mb-3 text-blue-800"><i className="pi pi-history mr-2"></i>Historial de Pagos Efectuados</h5>
+                <DataTable value={pagos} responsiveLayout="scroll" className="p-datatable-sm" emptyMessage="Sin pagos">
+                    <Column field="id" header="Recibo / Comprobante" body={(r) => (
+                        <div className="flex flex-column">
+                            <span className="font-bold text-800">{r.numeroComprobante || `REC-${r.id}`}</span>
+                        </div>
+                    )} style={{width: '15%'}}></Column>
+                    <Column field="fechaPago" header="Fecha de Pago" body={(r) => formatDate(r.fechaPago)}></Column>
+                    <Column field="cuotaNumero" header="Cuota N°" body={(r) => r.cuotaNumero === 0 ? 'Inicial' : r.cuotaNumero} align="center"></Column>
+                    <Column header="Método y Operación" body={(r) => (
+                        <div className="flex flex-column">
+                            <span>{r.metodoPago}</span>
+                            {r.numeroOperacion && <small className="text-500">Op: {r.numeroOperacion}</small>}
+                        </div>
+                    )}></Column>
+                    <Column field="descripcion" header="Descripción" body={(r) => r.descripcion ? <span className="text-sm text-600">{r.descripcion}</span> : '-'}></Column>
+                    <Column field="montoAbonado" header="Monto (S/)" body={(r) => <span className="font-bold text-green-700">{formatCurrency(r.montoAbonado)}</span>} align="right"></Column>
+                    <Column field="estado" header="Estado" body={estadoBodyTemplate} align="center"></Column>
+                    <Column header="Acciones" body={(r) => (
+                        <div className="flex align-items-center justify-content-center">
+                            {r.numeroComprobante && (
+                                <Button icon="pi pi-file-pdf" className="p-button-rounded p-button-danger p-button-text" tooltip="Descargar Nota de Venta" onClick={() => handleDescargarNotaVenta(r.id)} />
+                            )}
+                        </div>
+                    )} align="center"></Column>
+                </DataTable>
             </div>
         );
     };
 
     const exportCSV = () => {
-        if (dt.current) {
-            dt.current.exportCSV();
-        }
+        dt.current?.exportCSV();
     };
 
     return (
@@ -54,7 +172,7 @@ const ReportePagos = () => {
             <div className="container">
                 <PageHeader
                     title="Reporte de Pagos Efectuados"
-                    description="Visualiza el estado y progreso de los pagos de todos los clientes."
+                    description="Visualiza los contratos y explora el historial de pagos efectuados por cada uno."
                     icon="pi pi-money-bill"
                 />
 
@@ -62,34 +180,44 @@ const ReportePagos = () => {
                     <div className="content-card">
                         <Toast ref={toast} />
 
-                        <div className="p-4 mb-4 border-round-xl border-1 surface-border bg-white mt-3">
-                            <h3 className="text-lg font-bold mb-4 mt-0" style={{ color: 'var(--text-primary)' }}>Filtros de Búsqueda</h3>
-                            <div className="formgrid grid">
-                                <div className="field col-12 md:col-6">
-                                    <label className="font-bold text-sm block mb-2 text-700">Buscar Cliente</label>
-                                    <div className="p-inputgroup">
-                                        <InputText value={filtroBuscarCliente} onChange={(e) => setFiltroBuscarCliente(e.target.value)} placeholder="Buscar por DNI o Nombres..." />
-                                        <Button icon="pi pi-search" className="p-button-primary" />
-                                    </div>
-                                </div>
-                                <div className="field col-12 md:col-6">
-                                    <label className="font-bold text-sm block mb-2 text-700">Estado de Contrato</label>
-                                    <Dropdown value={filtroEstadoContrato} options={estadosContrato} onChange={(e) => setFiltroEstadoContrato(e.value)} placeholder="Estado de Contrato" className="w-full" showClear />
-                                </div>
-                            </div>
-                            <div className="flex justify-content-end mt-3">
-                                <Button label="Exportar" icon="pi pi-download" className="p-button-outlined p-button-secondary border-round-xl font-bold bg-white" onClick={exportCSV} />
-                            </div>
-                        </div>
+                        <ActionToolbar
+                            onSearch={setGlobalFilter}
+                            searchValue={globalFilter}
+                            searchPlaceholder="Buscar por cliente o Nro. de contrato..."
+                            extraActions={
+                                <Button
+                                    icon="pi pi-download"
+                                    tooltip="Exportar a Excel (CSV)"
+                                    tooltipOptions={{ position: 'bottom' }}
+                                    className="btn-export"
+                                    onClick={exportCSV}
+                                />
+                            }
+                        />
 
-                        <DataTable ref={dt} value={mockClientesPagos} paginator rows={10} className="p-datatable-sm shadow-1 border-round-lg overflow-hidden" emptyMessage="No se encontraron clientes." exportFilename="Reporte_Pagos">
-                            <Column field="contratoId" header="Contrato" sortable body={(r) => <span className="font-bold">C-{r.contratoId}</span>}></Column>
-                            <Column field="cliente" header="Cliente" sortable></Column>
-                            <Column field="lote" header="Lote"></Column>
-                            <Column field="precioTotal" header="Precio Total" body={(r) => formatCurrency(r.precioTotal)} sortable></Column>
-                            <Column field="totalPagado" header="Pagado" body={(r) => <span className="text-green-700 font-bold">{formatCurrency(r.totalPagado)}</span>} sortable></Column>
-                            <Column field="saldoRestante" header="Saldo Restante" body={(r) => <span className="text-orange-600 font-bold">{formatCurrency(r.saldoRestante)}</span>}></Column>
-                            <Column header="Progreso" body={progresoPagoTemplate} style={{ width: '20%' }} sortable field="progreso"></Column>
+                        <DataTable
+                            ref={dt}
+                            value={contratos}
+                            expandedRows={expandedRows}
+                            onRowToggle={(e) => setExpandedRows(e.data)}
+                            onRowExpand={onRowExpand}
+                            rowExpansionTemplate={rowExpansionTemplate}
+                            dataKey="id"
+                            paginator
+                            rows={15}
+                            loading={loading}
+                            globalFilter={globalFilter}
+                            globalFilterFields={['nroContrato', 'clienteNombre', 'loteDescripcion']}
+                            emptyMessage="No se encontraron contratos."
+                            exportFilename="Reporte_Pagos_Efectuados"
+                            className="p-datatable-sm shadow-1 border-round-lg overflow-hidden mt-3"
+                        >
+                            <Column expander style={{ width: '3em' }} />
+                            <Column field="nroContrato" header="N° Contrato" sortable body={(r) => <span className="font-bold text-blue-700">{r.nroContrato || `C-${r.id}`}</span>}></Column>
+                            <Column field="clienteNombre" header="Cliente" sortable></Column>
+                            <Column field="loteDescripcion" header="Inmueble" sortable></Column>
+                            <Column field="precioTotal" header="Precio Total" sortable align="right" body={(r) => formatCurrency(r.precioTotal)}></Column>
+                            <Column field="estadoContrato" header="Estado Contrato" sortable align="center" body={(r) => <Tag value={r.estadoContrato || r.estado} severity={r.estadoContrato === 'ACTIVO' ? 'success' : 'warning'} />}></Column>
                         </DataTable>
                     </div>
                 </div>
@@ -99,3 +227,4 @@ const ReportePagos = () => {
 };
 
 export default ReportePagos;
+

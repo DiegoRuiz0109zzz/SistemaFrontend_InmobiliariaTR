@@ -123,7 +123,14 @@ const ListaContratos = () => {
                 let tipoInicialFmt = item.tipoInicial || 'TOTAL';
                 if (tipoInicialFmt.toUpperCase() === 'PARCIAL') tipoInicialFmt = 'PARCIAL';
 
-                let estadoLoteValue = item.lote?.estadoVenta || (totalPagadoReal < (item.montoInicialAcordado || 0) ? 'SEPARADO' : 'VENDIDO');
+                let estadoLoteValue = item.lote?.estadoVenta;
+                
+                if (tipoInicialFmt === 'PARCIAL') {
+                    estadoLoteValue = 'SEPARADO';
+                } else if (!estadoLoteValue) {
+                    estadoLoteValue = totalPagadoReal < (item.montoInicialAcordado || 0) ? 'SEPARADO' : 'VENDIDO';
+                }
+
                 if (estadoLoteValue === 'VENDIDO') estadoLoteValue = 'ACTIVO';
 
                 return {
@@ -248,32 +255,13 @@ const ListaContratos = () => {
         );
     };
 
-    const docFirmadoTemplate = (row) => (
-        <div className="flex justify-content-center">
-            {row.tieneDocumento ? (
-                <div className="flex align-items-center justify-content-center bg-green-100 text-green-600 border-round" style={{ width: '28px', height: '28px' }}>
-                    <i className="pi pi-file-check" style={{ fontSize: '1rem' }}></i>
-                </div>
-            ) : (
-                <div className="flex align-items-center justify-content-center bg-red-100 text-red-600 border-round" style={{ width: '28px', height: '28px' }}>
-                    <i className="pi pi-file-excel" style={{ fontSize: '1rem' }}></i>
-                </div>
-            )}
-        </div>
-    );
-
-    const tipoInicialTemplate = (row) => (
-        <div className="flex flex-column align-items-center gap-1">
-            <span className={`dt-tag ${row.tipoInicialFmt === 'TOTAL' ? 'dt-tag-total' : 'dt-tag-parcial'} w-max`}>{row.tipoInicialFmt}</span>
-            {row.tieneEspeciales && (
-                <span className="dt-tag dt-tag-especial w-max"><i className="pi pi-star-fill text-xs mr-1"></i> ESPECIAL</span>
-            )}
-        </div>
-    );
-
-    const estadoTemplate = (row) => (
-        <div className="flex justify-content-center">
+    const estadoDocTemplate = (row) => (
+        <div className="flex flex-column align-items-center gap-2">
             <span className={`dt-tag ${row.estadoLote === 'ACTIVO' ? 'dt-tag-activo' : 'dt-tag-separado'}`}>{row.estadoLote}</span>
+            <div className={`flex align-items-center justify-content-center border-round px-2 py-1 ${row.tieneDocumento ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                <i className={row.tieneDocumento ? "pi pi-file-check mr-1" : "pi pi-file-excel mr-1"} style={{ fontSize: '0.8rem' }}></i>
+                <span className="text-xs font-bold" style={{ fontSize: '0.7rem' }}>{row.tieneDocumento ? 'Firmado' : 'Sin Doc'}</span>
+            </div>
         </div>
     );
 
@@ -285,34 +273,30 @@ const ListaContratos = () => {
         <span className="font-black text-green-600">S/ {row.totalPagado.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
     );
 
-    const estadoPagoTemplate = (row) => {
+    const progresoEstadoTemplate = (row) => {
+        let estadoBadge;
         if (row.estadoPago === 'PAGADO TOTAL') {
-            return (
-                <div className="flex justify-content-center">
-                    <span className="dt-tag-pagado-total">PAGADO TOTAL</span>
-                </div>
-            );
+            estadoBadge = <span className="dt-tag-pagado-total" style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem' }}>PAGADO TOTAL</span>;
+        } else if (row.estadoPago.includes('VENCIDO') || row.estadoPago.includes('DESTIEMPO')) {
+            estadoBadge = <span className="dt-tag-destiempo" style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem' }}><i className="pi pi-exclamation-triangle text-xs mr-1"></i> {row.estadoPago}</span>;
+        } else {
+            estadoBadge = <span className="dt-tag-bordered dt-tag-aldia" style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem' }}>AL DIA</span>;
         }
-        if (row.estadoPago.includes('VENCIDO') || row.estadoPago.includes('DESTIEMPO')) {
-            return (
-                <div className="flex justify-content-center">
-                    <span className="dt-tag-destiempo"><i className="pi pi-exclamation-triangle"></i> {row.estadoPago}</span>
-                </div>
-            );
-        }
+
+        const colorBarra = row.estadoPago.includes('VENCIDO') ? 'var(--red-500)' : 'var(--green-500)';
+
         return (
-            <div className="flex justify-content-center">
-                <span className="dt-tag-bordered dt-tag-aldia">AL DIA</span>
+            <div className="flex flex-column align-items-center gap-2" style={{ minWidth: '90px', margin: '0 auto' }}>
+                {estadoBadge}
+                <div className="w-full mt-1">
+                    <div className="flex justify-content-center align-items-center mb-1">
+                        <span className="text-xs font-bold text-600">{row.progreso}% Pagado</span>
+                    </div>
+                    <ProgressBar value={row.progreso} displayValueTemplate={() => ''} style={{ height: '6px', width: '100%', borderRadius: '4px' }} color={colorBarra}></ProgressBar>
+                </div>
             </div>
         );
     };
-
-    const progresoTemplate = (row) => (
-        <div className="flex flex-column align-items-center gap-1" style={{ width: '60px', margin: '0 auto' }}>
-            <span className="text-xs font-bold text-600">{row.progreso}%</span>
-            <ProgressBar value={row.progreso} displayValueTemplate={() => ''} style={{ height: '6px', width: '100%', borderRadius: '4px' }} color="var(--green-500)"></ProgressBar>
-        </div>
-    );
 
     const abrirVisorDocumento = (row) => {
         if (row.urlDocumentoFirmado) {
@@ -494,14 +478,11 @@ const ListaContratos = () => {
                     <Column header="1. CONTRATO" body={contratoTemplate} style={{ minWidth: '150px' }} />
                     <Column header="2. CLIENTE" body={clienteTemplate} style={{ minWidth: '220px' }} />
                     <Column header="3. INMUEBLE" body={inmuebleTemplate} style={{ minWidth: '250px' }} />
-                    <Column header="4. DOC. FIRMADO" body={docFirmadoTemplate} style={{ minWidth: '130px', textAlign: 'center' }} />
-                    <Column header="5. TIPO INICIAL" body={tipoInicialTemplate} style={{ minWidth: '130px', textAlign: 'center' }} />
-                    <Column header="6. ESTADO" body={estadoTemplate} style={{ minWidth: '110px', textAlign: 'center' }} />
-                    <Column header="7. PRECIO VENTA" body={precioVentaTemplate} style={{ minWidth: '130px', textAlign: 'center', fontWeight: 'bold' }} />
-                    <Column header="8. RECAUDADO" body={recaudadoTemplate} style={{ minWidth: '130px', textAlign: 'center', fontWeight: 'bold', backgroundColor: 'var(--green-50)' }} />
-                    <Column header="9. EST. PAGO" body={estadoPagoTemplate} style={{ minWidth: '130px', textAlign: 'center' }} />
-                    <Column header="10. PROGRESO" body={progresoTemplate} style={{ minWidth: '100px', textAlign: 'center' }} />
-                    <Column header="11. ACCIONES" body={accionesTemplate} style={{ minWidth: '130px', textAlign: 'center' }} />
+                    <Column header="4. ESTADO" body={estadoDocTemplate} style={{ minWidth: '120px', textAlign: 'center' }} />
+                    <Column header="5. PRECIO VENTA" body={precioVentaTemplate} style={{ minWidth: '130px', textAlign: 'center', fontWeight: 'bold' }} />
+                    <Column header="6. RECAUDADO" body={recaudadoTemplate} style={{ minWidth: '130px', textAlign: 'center', fontWeight: 'bold', backgroundColor: 'var(--green-50)' }} />
+                    <Column header="7. PROGRESO PAGO" body={progresoEstadoTemplate} style={{ minWidth: '140px', textAlign: 'center' }} />
+                    <Column header="8. ACCIONES" body={accionesTemplate} style={{ minWidth: '130px', textAlign: 'center' }} />
                 </DataTable>
             </div>
         </div>

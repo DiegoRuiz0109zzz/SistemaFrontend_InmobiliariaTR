@@ -11,6 +11,12 @@ export const PagoService = {
         return response.data;
     },
 
+    listarReportePagos: async (httpClient) => {
+        const client = resolveClient(httpClient);
+        const response = await client.get(`${RESOURCE}/reporte`);
+        return response.data;
+    },
+
     registrar: async (formData, httpClient) => {
         const client = resolveClient(httpClient);
         const response = await client.post(`${RESOURCE}/`, formData, {
@@ -32,6 +38,14 @@ export const PagoService = {
     anular: async (id, httpClient) => {
         const client = resolveClient(httpClient);
         await client.delete(`${RESOURCE}/${id}`);
+    },
+
+    descargarNotaVenta: async (id, httpClient) => {
+        const client = resolveClient(httpClient);
+        const response = await client.get(`${RESOURCE}/${id}/nota-venta`, {
+            responseType: 'blob'
+        });
+        return response.data;
     }
 };
 

@@ -23,6 +23,12 @@ export const ContratoService = {
         return response.data;
     },
 
+    obtenerAlertaSeparacion: async (id, httpClient) => {
+        const client = resolveClient(httpClient);
+        const response = await client.get(`${RESOURCE}/${id}/alerta-separacion`);
+        return response.data;
+    },
+
     crear: async (payload, httpClient) => {
         const client = resolveClient(httpClient);
         const response = await client.post(`${RESOURCE}/`, payload);

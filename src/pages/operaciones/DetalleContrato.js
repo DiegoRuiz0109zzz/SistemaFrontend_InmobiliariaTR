@@ -56,6 +56,13 @@ const DetalleContrato = () => {
     const [simulandoConversion, setSimulandoConversion] = useState(false);
     const [confirmandoConversion, setConfirmandoConversion] = useState(false);
     const [conversionPrompted, setConversionPrompted] = useState(false);
+    // Estados para alertas y edición de inicial
+    const [alertaSeparacion, setAlertaSeparacion] = useState(null);
+    const [dialogoEditarInicial, setDialogoEditarInicial] = useState(false);
+    const [nuevoMontoAdicional, setNuevoMontoAdicional] = useState(0);
+    const [nuevaFechaLimite, setNuevaFechaLimite] = useState(null);
+    const [guardandoInicial, setGuardandoInicial] = useState(false);
+
     const [conversionDismissed, setConversionDismissed] = useState(false);
 
     // Datos base para edición
@@ -70,6 +77,7 @@ const DetalleContrato = () => {
     const [montoAbonar, setMontoAbonar] = useState(0);
     const [metodoPago, setMetodoPago] = useState('Transferencia BCP');
     const [numOperacion, setNumOperacion] = useState('');
+    const [descripcionPago, setDescripcionPago] = useState('');
     const [voucherFileRegistro, setVoucherFileRegistro] = useState(null);
     const [registrandoPago, setRegistrandoPago] = useState(false);
 
@@ -77,6 +85,7 @@ const DetalleContrato = () => {
     const [pagoPendiente, setPagoPendiente] = useState(null);
     const [metodoPagoPendiente, setMetodoPagoPendiente] = useState('Transferencia BCP');
     const [numOperacionPendiente, setNumOperacionPendiente] = useState('');
+    const [descripcionPagoPendiente, setDescripcionPagoPendiente] = useState('');
     const [voucherFilePendiente, setVoucherFilePendiente] = useState(null);
 
     // Estados para Editar Contrato
@@ -394,6 +403,23 @@ const DetalleContrato = () => {
                 estadoContrato: data.estadoContrato || data.estado || 'ACTIVO',
                 cuotas: cuotasFormateadas
             });
+
+            // Llamar a alerta de separación
+            if ((data.estadoContrato || data.estado || 'ACTIVO') === 'SEPARADO') {
+                try {
+                    const alertaRes = await ContratoService.obtenerAlertaSeparacion(contratoId, axiosInstance);
+                    if (alertaRes && alertaRes.mensaje) {
+                        setAlertaSeparacion(alertaRes.mensaje);
+                    } else {
+                        setAlertaSeparacion(null);
+                    }
+                } catch (e) {
+                    console.error("Error obteniendo alerta", e);
+                }
+            } else {
+                setAlertaSeparacion(null);
+            }
+
         } catch (error) {
             console.error(error);
             toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar el contrato o sus cuotas.' });
@@ -424,6 +450,7 @@ const DetalleContrato = () => {
             const pagosFormateados = (pagosRaw || []).map(p => ({
                 ...p,
                 id: `REC-${p.id}`,
+                idOriginal: p.id,
                 fechaPago: p.fechaPago ? (() => {
                     const fecha = new Date(p.fechaPago);
                     return fecha.toLocaleDateString('es-PE');
@@ -641,6 +668,39 @@ const DetalleContrato = () => {
         });
     };
 
+    const abrirDialogoEditarInicial = () => {
+        setNuevoMontoAdicional(0);
+        const cuotaInicial = contrato?.cuotas?.find((c) => c.numero === 0 || c.tipoCuota === 'INICIAL' || c.tipo === 'INICIAL');
+        setNuevaFechaLimite(parseLocalYMD(cuotaInicial?.vencimientoRaw) || new Date());
+        setDialogoEditarInicial(true);
+    };
+
+    const guardarEdicionInicial = async () => {
+        if (!nuevaFechaLimite) {
+            toast.current?.show({ severity: 'warn', summary: 'Validación', detail: 'Debe seleccionar una fecha límite.' });
+            return;
+        }
+
+        setGuardandoInicial(true);
+        try {
+            const payload = {
+                fechaLimiteInicial: getLocalYMD(nuevaFechaLimite),
+                montoInicialAcordado: nuevoMontoAdicional > 0 ? nuevoMontoAdicional : null
+            };
+
+            await ContratoService.actualizar(contrato.id, payload, axiosInstance);
+            toast.current?.show({ severity: 'success', summary: 'Éxito', detail: 'Condiciones de inicial actualizadas.' });
+            setDialogoEditarInicial(false);
+            await cargarDetalleContrato(contrato.id);
+        } catch (error) {
+            console.error(error);
+            const detalle = error?.response?.data?.message || 'No se pudieron actualizar las condiciones.';
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: detalle });
+        } finally {
+            setGuardandoInicial(false);
+        }
+    };
+
     const confirmarConversion = async () => {
         if (!conversionCuotas || conversionCuotas <= 0) {
             toast.current?.show({ severity: 'warn', summary: 'Validación', detail: 'Ingrese un número de cuotas válido.' });
@@ -808,7 +868,8 @@ const DetalleContrato = () => {
             formData.append('cuotaId', cuotaPagar.id);
             formData.append('montoAbonado', montoAbonar);
             formData.append('metodoPago', metodoPago);
-            formData.append('numeroOperacion', numOperacion);
+            if (numOperacion) formData.append('numeroOperacion', numOperacion);
+            if (descripcionPago) formData.append('descripcion', descripcionPago);
             if (voucherFileRegistro) {
                 formData.append('voucher', voucherFileRegistro);
             }
@@ -824,6 +885,7 @@ const DetalleContrato = () => {
             setCuotaPagar(null);
             setMontoAbonar(0);
             setNumOperacion('');
+            setDescripcionPago('');
             setMetodoPago('Transferencia BCP');
             // Nota: La cuota se actualizará automáticamente al recargar el contrato
             setCuotaSeleccionada(null);
@@ -869,6 +931,7 @@ const DetalleContrato = () => {
         setPagoPendiente(pago);
         setMetodoPagoPendiente(pago.metodoPago || 'Transferencia BCP');
         setNumOperacionPendiente(pago.numeroOperacion || '');
+        setDescripcionPagoPendiente(pago.descripcion || '');
         setVoucherFilePendiente(null);
     };
 
@@ -876,7 +939,8 @@ const DetalleContrato = () => {
         try {
             const formData = new FormData();
             formData.append('metodoPago', metodoPagoPendiente);
-            formData.append('numeroOperacion', numOperacionPendiente);
+            if (numOperacionPendiente) formData.append('numeroOperacion', numOperacionPendiente);
+            if (descripcionPagoPendiente) formData.append('descripcion', descripcionPagoPendiente);
             if (voucherFilePendiente) {
                 formData.append('voucher', voucherFilePendiente);
             }
@@ -890,6 +954,17 @@ const DetalleContrato = () => {
             setCuotaSeleccionada(null);
         } catch (error) {
             toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo procesar el pago.' });
+        }
+    };
+
+    const handleDescargarNotaVenta = async (pagoId) => {
+        try {
+            toast.current?.show({ severity: 'info', summary: 'Descargando...', detail: 'Generando Nota de Venta' });
+            const blob = await PagoService.descargarNotaVenta(pagoId, axiosInstance);
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank');
+        } catch (error) {
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo generar la nota de venta.' });
         }
     };
 
@@ -1241,6 +1316,10 @@ const DetalleContrato = () => {
                             <label className="font-medium text-700 block mb-2">Número de Operación</label>
                             <InputText value={numOperacionPendiente} onChange={(e) => setNumOperacionPendiente(e.target.value)} placeholder="Ej: 998273" />
                         </div>
+                        <div className="field mb-3">
+                            <label className="font-medium text-700 block mb-2">Descripción / Observación (Opcional)</label>
+                            <InputTextarea value={descripcionPagoPendiente} onChange={(e) => setDescripcionPagoPendiente(e.target.value)} rows={2} autoResize className="w-full" placeholder="Ej: Validado con finanzas..." />
+                        </div>
                         <div className="field mb-4">
                             <label className="font-medium text-700 block mb-2">Comprobante / Voucher (Opcional)</label>
                             <div className="relative flex flex-column align-items-center justify-content-center p-4 border-2 border-dashed border-round-xl surface-border hover:surface-hover transition-colors cursor-pointer bg-blue-50">
@@ -1271,6 +1350,25 @@ const DetalleContrato = () => {
                         </div>
                     </div>
                 )}
+            </Dialog>
+
+            {/* MODAL: EDITAR INICIAL */}
+            <Dialog header={<><i className="pi pi-pencil text-warning mr-2"></i>Editar Condiciones de Inicial</>} visible={dialogoEditarInicial} style={{ width: '500px' }} modal onHide={() => setDialogoEditarInicial(false)}>
+                <div className="flex flex-column gap-3 mt-3">
+                    <div className="field">
+                        <label className="font-bold">Nueva Fecha Límite de Separación</label>
+                        <Calendar value={nuevaFechaLimite} onChange={(e) => setNuevaFechaLimite(e.value)} dateFormat="dd/mm/yy" showIcon className="w-full" />
+                    </div>
+                    <div className="field">
+                        <label className="font-bold">Abono Adicional (S/)</label>
+                        <InputNumber value={nuevoMontoAdicional} onValueChange={(e) => setNuevoMontoAdicional(e.value)} mode="currency" currency="PEN" className="w-full" />
+                        <small className="text-500">Monto nuevo que traerá el cliente para sumar a lo ya pagado (Deje en 0 si solo cambia la fecha).</small>
+                    </div>
+                </div>
+                <div className="flex justify-content-end gap-2 mt-4">
+                    <Button label="Cancelar" icon="pi pi-times" className="p-button-text p-button-secondary" onClick={() => setDialogoEditarInicial(false)} disabled={guardandoInicial} />
+                    <Button label="Guardar" icon="pi pi-check" className="p-button-success" onClick={guardarEdicionInicial} loading={guardandoInicial} />
+                </div>
             </Dialog>
 
             {/* MODAL: EDITAR CONTRATO */}
@@ -1766,22 +1864,43 @@ const DetalleContrato = () => {
                     <div className="grid relative z-1 mb-4">
                         <h4 className="col-12 m-0 font-medium font-bold text-orange-50">Separación registrada el {contrato.fechaEmision}</h4>
 
-                        <div className="col-12 md:col-4 flex flex-column justify-content-center">
+                        <div className="col-12 md:col-3 flex flex-column justify-content-center">
                             <span className="text-xs font-bold text-orange-200 uppercase tracking-widest mb-2 flex align-items-center gap-2">
-                                <i className="pi pi-tag"></i> Precio de Inicial
+                                <i className="pi pi-tag"></i> Precio de Venta
                             </span>
-                            <span className="text-4xl lg:text-5xl font-bold">
+                            <span className="text-3xl lg:text-4xl font-bold">
+                                S/ {contrato.finanzas.precioTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            </span>
+                        </div>
+
+                        <div className="col-12 md:col-3 flex flex-column justify-content-center md:border-left-1 border-white-alpha-20 md:pl-4">
+                            <span className="text-xs font-bold text-orange-200 uppercase tracking-widest mb-2 flex align-items-center gap-2">
+                                <i className="pi pi-wallet"></i> Financiamiento
+                            </span>
+                            <span className="text-3xl lg:text-4xl font-bold">
+                                S/ {contrato.finanzas.saldoFinanciar.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            </span>
+                        </div>
+
+                        <div className="col-12 md:col-3 flex flex-column justify-content-center md:border-left-1 border-white-alpha-20 md:pl-4">
+                            <span className="text-xs font-bold text-orange-200 uppercase tracking-widest mb-2 flex align-items-center gap-2">
+                                <i className="pi pi-percentage"></i> Precio de Inicial
+                            </span>
+                            <span className="text-3xl lg:text-4xl font-bold">
                                 S/ {contrato.finanzas.montoInicial.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                             </span>
                         </div>
 
-                        <div className="col-12 md:col-4 flex flex-column justify-content-center md:border-left-1 border-white-alpha-20 md:pl-5">
+                        <div className="col-12 md:col-3 flex flex-column justify-content-center md:border-left-1 border-white-alpha-20 md:pl-4">
                             <span className="text-xs font-bold text-orange-200 uppercase tracking-widest mb-2 flex align-items-center gap-2">
                                 <i className="pi pi-calendar"></i> Fecha limite separacion
                             </span>
-                            <span className="text-2xl lg:text-3xl font-bold">
-                                {cuotaInicial?.vencimiento || 'N/A'}
-                            </span>
+                            <div className="flex align-items-center gap-3">
+                                <span className="text-2xl lg:text-3xl font-bold">
+                                    {cuotaInicial?.vencimiento || 'N/A'}
+                                </span>
+                                <Button icon="pi pi-pencil" rounded text aria-label="Editar" onClick={abrirDialogoEditarInicial} className="p-0 text-white bg-white-alpha-10 hover:bg-white-alpha-20" />
+                            </div>
                         </div>
 
                     </div>
@@ -1894,6 +2013,13 @@ const DetalleContrato = () => {
                 </div>
             )}
 
+            {alertaSeparacion && (
+                <div className="bg-red-50 border-1 border-red-200 border-round-xl p-3 mb-4 shadow-sm flex align-items-center gap-3">
+                    <i className="pi pi-exclamation-triangle text-red-600 text-2xl"></i>
+                    <span className="text-red-800 font-bold text-lg">{alertaSeparacion}</span>
+                </div>
+            )}
+
             {/* 3. TABS DE PRIMEREACT (Cronograma vs Abonos) */}
             <TabView className="custom-tabview">
                 <TabPanel header="Estado de Cuenta" leftIcon="pi pi-wallet mr-2">
@@ -1985,6 +2111,11 @@ const DetalleContrato = () => {
                                                 <InputText value={numOperacion} onChange={(e) => setNumOperacion(e.target.value)} placeholder="Ej: 0948372" className="w-full" />
                                             </div>
 
+                                            <div className="field mb-3">
+                                                <label className="font-medium text-700 block mb-2">Descripción / Observación (Opcional)</label>
+                                                <InputTextarea value={descripcionPago} onChange={(e) => setDescripcionPago(e.target.value)} rows={2} autoResize className="w-full" placeholder="Ej: Pago realizado por el hermano..." />
+                                            </div>
+
                                             <div className="field mb-4">
                                                 <label className="font-medium text-700 block mb-2">Comprobante / Voucher (Opcional)</label>
                                                 <div className="relative flex flex-column align-items-center justify-content-center p-4 border-2 border-dashed border-round-xl surface-border hover:surface-hover transition-colors cursor-pointer bg-blue-50">
@@ -2033,14 +2164,24 @@ const DetalleContrato = () => {
                                                     <span className="text-300">|</span>
                                                     {estadoCuotaTemplate(cuotaSeleccionada)}
                                                 </div>
-                                                {(cuotaSeleccionada.montoTotal - cuotaSeleccionada.montoPagado) > 0 && (
-                                                    <Button
-                                                        label="Registrar Pago"
-                                                        icon="pi pi-credit-card"
-                                                        className="btn-primary-custom shadow-2 border-round-xl font-bold mt-3 w-full"
-                                                        onClick={() => abrirPanelPago(cuotaSeleccionada)}
-                                                    />
-                                                )}
+                                                <div className="flex justify-content-center gap-3 mt-3">
+                                                    {(cuotaSeleccionada.montoTotal - cuotaSeleccionada.montoPagado) > 0 && (
+                                                        <Button
+                                                            label="Registrar Pago"
+                                                            icon="pi pi-credit-card"
+                                                            className="btn-primary-custom shadow-2 border-round-xl font-bold w-full max-w-15rem"
+                                                            onClick={() => abrirPanelPago(cuotaSeleccionada)}
+                                                        />
+                                                    )}
+                                                    {(cuotaSeleccionada.numero === 0 || cuotaSeleccionada.tipo === 'INICIAL' || cuotaSeleccionada.tipoCuota === 'INICIAL') && esSeparacion && (
+                                                        <Button
+                                                            label="Editar Inicial"
+                                                            icon="pi pi-pencil"
+                                                            className="p-button-warning shadow-2 border-round-xl font-bold w-full max-w-15rem text-white"
+                                                            onClick={abrirDialogoEditarInicial}
+                                                        />
+                                                    )}
+                                                </div>
                                             </div>
 
                                             <h3 className="text-sm font-bold uppercase tracking-widest mb-3 pl-2 m-0">Historial de Recibos</h3>
@@ -2076,11 +2217,17 @@ const DetalleContrato = () => {
                                                                 <div className="flex align-items-center gap-2">
                                                                     <i className={`pi ${pago.fotoVoucherUrl ? 'pi-image text-blue-500' : 'pi-file text-400'} text-lg`}></i>
                                                                     <div className="flex flex-column">
-                                                                        <span className="font-bold text-700">{pago.id}</span>
+                                                                        <span className="font-bold text-700">{pago.numeroComprobante || pago.id}</span>
                                                                         {pago.numeroOperacion && <small className="text-500">Operación: {pago.numeroOperacion}</small>}
+                                                                        {pago.descripcion && <small className="text-500">Nota: {pago.descripcion}</small>}
                                                                     </div>
                                                                 </div>
-                                                                <span className="text-x font-bold text-600 surface-100 px-3 py-2 border-round-md">{pago.fechaPago}</span>
+                                                                <div className="flex align-items-center gap-2">
+                                                                    {pago.numeroComprobante && (
+                                                                        <Button icon="pi pi-file-pdf" className="p-button-rounded p-button-danger p-button-text" tooltip="Descargar Nota de Venta" onClick={(e) => { e.stopPropagation(); handleDescargarNotaVenta(pago.idOriginal || pago.id.replace('REC-','')); }} />
+                                                                    )}
+                                                                    <span className="text-x font-bold text-600 surface-100 px-3 py-2 border-round-md">{pago.fechaPago}</span>
+                                                                </div>
                                                             </div>
                                                             <div className="flex justify-content-between align-items-end">
                                                                 <div>

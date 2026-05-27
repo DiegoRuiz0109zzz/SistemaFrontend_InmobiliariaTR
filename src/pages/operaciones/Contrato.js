@@ -134,6 +134,8 @@ const Contrato = ({ embedded = false }) => {
                       : tipoInicial === 'PARCIAL' ? 'bg-orange-50 border-orange-300' 
                       : 'bg-green-50 border-green-300';
 
+    const isCotizacionConvertida = cotizacionSeleccionada?.estado === 'CONTRATO' || cotizacionSeleccionada?.estado === 'CONVERTIDO' || cotizacionSeleccionada?.estado === 'CONVERTIDA_A_CONTRATO' || cotizacionSeleccionada?.estado === 'ACTIVO';
+
     // ==========================================
     // EFECTOS INICIALES
     // ==========================================
@@ -1180,10 +1182,27 @@ const Contrato = ({ embedded = false }) => {
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="mt-4 flex flex-column md:flex-row justify-content-end gap-3 pt-4 border-top-1 border-blue-200">
-                                            <Button label="Modificar Parámetros" icon="pi pi-sliders-v" className="p-button-outlined p-button-secondary bg-white w-full md:w-auto p-button-lg" onClick={handleEnableEdit} />
-                                            <Button label="Generar Contrato Oficial" icon="pi pi-check-circle" className="btn-success-custom p-button-lg shadow-2 font-bold px-5 w-full md:w-auto" disabled={cronograma.length === 0} onClick={guardarContrato} />
-                                        </div>
+                                        {!isCotizacionConvertida ? (
+                                            <div className="mt-4 flex flex-column md:flex-row justify-content-end gap-3 pt-4 border-top-1 border-blue-200">
+                                                <Button 
+                                                    label="Modificar Parámetros" 
+                                                    icon="pi pi-sliders-v" 
+                                                    className="p-button-outlined p-button-secondary bg-white w-full md:w-auto p-button-lg" 
+                                                    onClick={handleEnableEdit} 
+                                                />
+                                                <Button 
+                                                    label="Generar Contrato Oficial" 
+                                                    icon="pi pi-check-circle" 
+                                                    className="btn-success-custom p-button-lg shadow-2 font-bold px-5 w-full md:w-auto" 
+                                                    disabled={cronograma.length === 0} 
+                                                    onClick={guardarContrato} 
+                                                />
+                                            </div>
+                                        ) : (
+                                            <div className="mt-4 pt-4 border-top-1 border-blue-200 text-center">
+                                                <Tag severity="info" value="Esta cotización ya fue convertida a contrato. Solo se muestra su detalle." className="text-sm px-3 py-2" />
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             ) : (

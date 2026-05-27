@@ -29,6 +29,7 @@ import Clientes from './pages/mantenimiento/Clientes';
 import Interesados from './pages/mantenimiento/Interesados';
 import Vendedores from './pages/mantenimiento/Vendedores';
 import Lotizacion from './pages/mantenimiento/Lotizacion';
+import Series from './pages/mantenimiento/Series';
 import NuevoRegistro from './pages/operaciones/NuevoRegistro';
 import ListaCotizaciones from './pages/operaciones/ListaCotizaciones';
 import Contrato from './pages/operaciones/Contrato';
@@ -61,6 +62,7 @@ function App() {
               <Route exact path="/interesados" element={<Interesados />} />
               <Route exact path="/vendedores" element={<Vendedores />} />
               <Route exact path="/lotizacion" element={<Lotizacion />} />
+              <Route exact path="/series" element={<Series />} />
               <Route exact path="/cotizacion" element={<NuevoRegistro />} />
               <Route exact path="/cotizacion/lista" element={<ListaCotizaciones />} />
               <Route exact path="/historial-comercial" element={<ListaContratos />} />

@@ -79,6 +79,7 @@ const Menu = () => {
             mantenimientoItems.push({ label: 'Interesados', icon: 'pi pi-fw pi-user-plus', to: 'interesados' });
             mantenimientoItems.push({ label: 'Vendedores', icon: 'pi pi-fw pi-id-card', to: 'vendedores' });
             mantenimientoItems.push({ label: 'Lotizacion', icon: 'pi pi-fw pi-sitemap', to: 'lotizacion' });
+            mantenimientoItems.push({ label: 'Series', icon: 'pi pi-fw pi-book', to: 'series' });
         }
 
         if (mantenimientoItems.length > 0) {

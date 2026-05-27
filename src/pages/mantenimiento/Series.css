@@ -1,0 +1,67 @@
+.series-page .content-card {
+    background: var(--surface-card);
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+}
+
+.series-page .action-buttons {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+.series-page .action-buttons .p-button {
+    width: 2.5rem;
+    height: 2.5rem;
+}
+
+.series-page .btn-edit {
+    background: transparent !important;
+    color: var(--primary-color) !important;
+    border: 1px solid var(--primary-color) !important;
+}
+
+.series-page .btn-edit:hover {
+    background: var(--primary-50) !important;
+}
+
+.series-page .btn-delete {
+    background: transparent !important;
+    color: var(--red-500) !important;
+    border: 1px solid var(--red-500) !important;
+}
+
+.series-page .btn-delete:hover {
+    background: rgba(239, 68, 68, 0.04) !important;
+}
+
+/* Badge estilos para activo/inactivo */
+.status-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    letter-spacing: 0.3px;
+}
+
+.status-badge.status-active {
+    background-color: var(--green-100);
+    color: var(--green-700);
+}
+
+.status-badge.status-inactive {
+    background-color: var(--red-100);
+    color: var(--red-700);
+}
+
+.dialog-content-specific {
+    padding-top: 1rem;
+}
+
+.dialog-footer-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 1rem;
+}
