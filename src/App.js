@@ -39,6 +39,8 @@ import ReporteComisiones from './pages/reportes/ReporteComisiones';
 import ReporteLotes from './pages/reportes/ReporteLotes';
 import ReporteMaestro from './pages/reportes/ReporteMaestro';
 import ReportePagos from './pages/reportes/ReportePagos';
+import ArqueoCaja from './pages/reportes/ArqueoCaja';
+import DepositosBancarios from './pages/reportes/DepositosBancarios';
 
 function App() {
   return (
@@ -56,6 +58,8 @@ function App() {
               <Route exact path="/reportes/comisiones" element={<ReporteComisiones />} />
               <Route exact path="/reportes/maestro" element={<ReporteMaestro />} />
               <Route exact path="/reportes/pagos" element={<ReportePagos />} />
+              <Route exact path="/reportes/arqueo-caja" element={<ArqueoCaja />} />
+              <Route exact path="/reportes/depositos-bancarios" element={<DepositosBancarios />} />
               <Route exact path="/temas" element={<Temas />} />
               <Route exact path="/empresas" element={<Empresas />} />
               <Route exact path="/clientes" element={<Clientes />} />

@@ -19,3 +19,4 @@ export { EstadoComision, EstadoComisionOptions } from './EstadoComision';
 export { RolComision, RolComisionOptions } from './RolComision';
 export { ActualizarPagoRequest } from './ActualizarPagoRequest';
 export { ComisionEntity } from './ComisionEntity';
+export { DepositoBancarioEntity } from './DepositoBancarioEntity';

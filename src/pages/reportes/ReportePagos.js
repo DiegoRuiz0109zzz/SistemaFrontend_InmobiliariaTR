@@ -108,14 +108,49 @@ const ReportePagos = () => {
         return <Tag value={st} severity={severity} className="font-bold px-2 py-1" />;
     };
 
-    const handleDescargarNotaVenta = async (pagoId) => {
+    const getEtiquetaComprobante = (tipo) => {
+        switch ((tipo || '').toUpperCase()) {
+            case 'RECIBO_INGRESO':
+                return 'Recibo de Ingreso';
+            case 'NOTA_ABONO':
+                return 'Nota de Abono';
+            case 'BOLETA':
+                return 'Boleta';
+            case 'FACTURA':
+                return 'Factura';
+            case 'NOTA_CREDITO':
+                return 'Nota de Credito';
+            case 'NOTA_DEBITO':
+                return 'Nota de Debito';
+            default:
+                return 'Comprobante';
+        }
+    };
+
+    const handleDescargarComprobante = async (pago) => {
         try {
-            toast.current?.show({ severity: 'info', summary: 'Descargando...', detail: 'Generando Nota de Venta' });
-            const blob = await PagoService.descargarNotaVenta(pagoId, axiosInstance);
+            const etiqueta = getEtiquetaComprobante(pago?.tipoComprobante);
+            toast.current?.show({ severity: 'info', summary: 'Descargando...', detail: `Generando ${etiqueta}` });
+
+            let blob = null;
+            if (pago?.numeroComprobante) {
+                if ((pago?.tipoComprobante || '').toUpperCase() === 'RECIBO_INGRESO') {
+                    blob = await PagoService.descargarReciboIngresoPdf(pago.numeroComprobante, axiosInstance);
+                } else {
+                    blob = await PagoService.descargarComprobantePdf(pago.numeroComprobante, axiosInstance);
+                }
+            } else if (pago?.id) {
+                blob = await PagoService.descargarNotaVenta(pago.id, axiosInstance);
+            }
+
+            if (!blob) {
+                throw new Error('No se pudo resolver el comprobante.');
+            }
+
             const url = URL.createObjectURL(blob);
             window.open(url, '_blank');
         } catch (error) {
-            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo generar la nota de venta.' });
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo generar el comprobante.' });
         }
     };
 
@@ -154,7 +189,12 @@ const ReportePagos = () => {
                     <Column header="Acciones" body={(r) => (
                         <div className="flex align-items-center justify-content-center">
                             {r.numeroComprobante && (
-                                <Button icon="pi pi-file-pdf" className="p-button-rounded p-button-danger p-button-text" tooltip="Descargar Nota de Venta" onClick={() => handleDescargarNotaVenta(r.id)} />
+                                <Button
+                                    icon="pi pi-file-pdf"
+                                    className="p-button-rounded p-button-danger p-button-text"
+                                    tooltip={`Descargar ${getEtiquetaComprobante(r.tipoComprobante)}`}
+                                    onClick={() => handleDescargarComprobante(r)}
+                                />
                             )}
                         </div>
                     )} align="center"></Column>

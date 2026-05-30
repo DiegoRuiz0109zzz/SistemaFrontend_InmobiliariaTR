@@ -23,6 +23,7 @@ import { InputText } from 'primereact/inputtext';
 import { Calendar } from 'primereact/calendar';
 import { Checkbox } from 'primereact/checkbox';
 import { InputTextarea } from 'primereact/inputtextarea';
+import { TipoComprobante, TipoComprobanteOptions } from '../../entity/TipoComprobante';
 
 import './DetalleContrato.css';
 
@@ -76,6 +77,7 @@ const DetalleContrato = () => {
     const [cuotaPagar, setCuotaPagar] = useState(null);
     const [montoAbonar, setMontoAbonar] = useState(0);
     const [metodoPago, setMetodoPago] = useState('Transferencia BCP');
+    const [tipoComprobante, setTipoComprobante] = useState(TipoComprobante.NOTA_ABONO);
     const [numOperacion, setNumOperacion] = useState('');
     const [descripcionPago, setDescripcionPago] = useState('');
     const [voucherFileRegistro, setVoucherFileRegistro] = useState(null);
@@ -87,6 +89,11 @@ const DetalleContrato = () => {
     const [numOperacionPendiente, setNumOperacionPendiente] = useState('');
     const [descripcionPagoPendiente, setDescripcionPagoPendiente] = useState('');
     const [voucherFilePendiente, setVoucherFilePendiente] = useState(null);
+
+    const [dialogoSubirReciboIngreso, setDialogoSubirReciboIngreso] = useState(false);
+    const [archivoReciboIngreso, setArchivoReciboIngreso] = useState(null);
+    const [reciboIngresoNumero, setReciboIngresoNumero] = useState('');
+    const [subiendoReciboIngreso, setSubiendoReciboIngreso] = useState(false);
 
     // Estados para Editar Contrato
     const [dialogoEditarContrato, setDialogoEditarContrato] = useState(false);
@@ -117,8 +124,38 @@ const DetalleContrato = () => {
         { label: 'Transferencia BCP', value: 'Transferencia BCP' },
         { label: 'Transferencia BBVA', value: 'Transferencia BBVA' },
         { label: 'Yape / Plin', value: 'Yape / Plin' },
-        { label: 'Efectivo (Caja)', value: 'Efectivo (Caja)' }
+        { label: 'Efectivo (Caja)', value: 'EFECTIVO' }
     ];
+
+    const esIngresoCaja = metodoPago === 'EFECTIVO' && (!numOperacion || !numOperacion.trim());
+
+    const tipoComprobanteOptions = useMemo(() => {
+        if (esIngresoCaja) {
+            return TipoComprobanteOptions.filter((item) => item.value === TipoComprobante.RECIBO_INGRESO);
+        }
+        return TipoComprobanteOptions.filter((item) => item.value !== TipoComprobante.RECIBO_INGRESO);
+    }, [esIngresoCaja]);
+
+    useEffect(() => {
+        if (esIngresoCaja && tipoComprobante !== TipoComprobante.RECIBO_INGRESO) {
+            setTipoComprobante(TipoComprobante.RECIBO_INGRESO);
+        }
+        if (!esIngresoCaja && tipoComprobante === TipoComprobante.RECIBO_INGRESO) {
+            setTipoComprobante(TipoComprobante.NOTA_ABONO);
+        }
+    }, [esIngresoCaja, tipoComprobante]);
+
+    useEffect(() => {
+        if (metodoPago === 'EFECTIVO') {
+            setNumOperacion('');
+        }
+    }, [metodoPago]);
+
+    useEffect(() => {
+        if (metodoPagoPendiente === 'EFECTIVO') {
+            setNumOperacionPendiente('');
+        }
+    }, [metodoPagoPendiente]);
 
     const buildVoucherUrl = (url) => url ? `http://localhost:8080/${url.replace(/^\//, '')}` : null;
     const isPdf = (url) => url && url.toLowerCase().endsWith('.pdf');
@@ -459,11 +496,19 @@ const DetalleContrato = () => {
                 numeroOperacion: p.numeroOperacion || p.numeroOperacionReferencia || p.numeroOperacion || '',
                 montoAbonado: p.montoAbonado || p.monto || 0,
                 metodoPago: p.metodoPago || p.metodo || 'No especificado',
-                fotoVoucherUrl: p.fotoVoucherUrl || null
+                fotoVoucherUrl: p.fotoVoucherUrl || null,
+                numeroComprobante: p.numeroComprobante || null,
+                tipoComprobante: p.tipoComprobante || null
             }));
 
             // Detectar si hay pagos pendientes
-            const pagoPendienteEnCuota = (pagosRaw || []).find(p => p.estado === 'POR_VALIDAR');
+            const pagoPendienteEnCuota = (pagosRaw || []).find((p) => {
+                const estado = (p?.estado || '').toUpperCase();
+                const metodo = (p?.metodoPago || p?.metodo || '').toUpperCase();
+                const tipo = (p?.tipoComprobante || '').toUpperCase();
+                const esCajaEfectivo = metodo === 'EFECTIVO' || tipo === 'RECIBO_INGRESO';
+                return estado === 'POR_VALIDAR' && !esCajaEfectivo;
+            });
 
             setCuotaSeleccionada(prev => ({ ...prev, pagos: pagosFormateados, pagoPendiente: pagoPendienteEnCuota }));
         } catch (error) {
@@ -479,7 +524,7 @@ const DetalleContrato = () => {
             const fileName = url.split('/').pop();
             const match = historiales.find(h => (h.rutaDocumentoPdf || '').endsWith(fileName));
             if (match) {
-                verHistorialPdf(match.id);
+                verHistorialPdf(match);
                 return;
             }
 
@@ -740,9 +785,39 @@ const DetalleContrato = () => {
         }
     };
 
-    const verHistorialPdf = async (historialId) => {
+    const verHistorialPdf = async (historialRef) => {
         try {
-            const blob = await ContratoHistorialService.descargarPdf(historialId, axiosInstance);
+            const historial = typeof historialRef === 'object'
+                ? historialRef
+                : historiales.find(h => h.id === historialRef) || { id: historialRef };
+
+            const rutaDocumentoPdf = historial?.rutaDocumentoPdf || '';
+            const esEndpointComprobante = rutaDocumentoPdf.startsWith('/api/pagos/comprobante/');
+            const esEndpointRecibo = rutaDocumentoPdf.startsWith('/api/pagos/recibo/');
+            const esEndpointNotaVenta = rutaDocumentoPdf.startsWith('/api/pagos/') && rutaDocumentoPdf.includes('/nota-venta');
+
+            let blob = null;
+            if (rutaDocumentoPdf && (esEndpointComprobante || esEndpointRecibo || esEndpointNotaVenta)) {
+                const client = axiosInstance || null;
+                if (!client) {
+                    window.open(rutaDocumentoPdf, '_blank');
+                    return;
+                }
+
+                const normalizedPath = rutaDocumentoPdf.startsWith('/api/')
+                    ? rutaDocumentoPdf.replace(/^\/api\//, '')
+                    : rutaDocumentoPdf;
+
+                const response = await client.get(normalizedPath, { responseType: 'blob' });
+                blob = response.data;
+            } else if (historial?.id) {
+                blob = await ContratoHistorialService.descargarPdf(historial.id, axiosInstance);
+            }
+
+            if (!blob) {
+                throw new Error('No se pudo resolver el PDF historico.');
+            }
+
             const url = URL.createObjectURL(blob);
             window.open(url, '_blank');
             // Optionally revoke URL after some time
@@ -868,6 +943,7 @@ const DetalleContrato = () => {
             formData.append('cuotaId', cuotaPagar.id);
             formData.append('montoAbonado', montoAbonar);
             formData.append('metodoPago', metodoPago);
+            formData.append('tipoComprobante', tipoComprobante);
             if (numOperacion) formData.append('numeroOperacion', numOperacion);
             if (descripcionPago) formData.append('descripcion', descripcionPago);
             if (voucherFileRegistro) {
@@ -879,7 +955,7 @@ const DetalleContrato = () => {
             // Recargar el contrato para actualizar los datos
             await cargarDetalleContrato(contrato.id);
 
-            toast.current?.show({ severity: 'success', summary: 'Pago Registrado', detail: `Se generó el recibo por S/ ${montoAbonar.toLocaleString('en-US', { minimumFractionDigits: 2 })}` });
+            toast.current?.show({ severity: 'success', summary: 'Pago Registrado', detail: `Se generó el comprobante por S/ ${montoAbonar.toLocaleString('en-US', { minimumFractionDigits: 2 })}` });
 
             // Limpiar formulario y volver a seleccionar la cuota actualizada
             setCuotaPagar(null);
@@ -887,6 +963,7 @@ const DetalleContrato = () => {
             setNumOperacion('');
             setDescripcionPago('');
             setMetodoPago('Transferencia BCP');
+            setTipoComprobante(TipoComprobante.NOTA_ABONO);
             // Nota: La cuota se actualizará automáticamente al recargar el contrato
             setCuotaSeleccionada(null);
         } catch (error) {
@@ -922,6 +999,82 @@ const DetalleContrato = () => {
         return diffDays > 0 ? diffDays : 0;
     };
 
+    const extraerNumeroRecibo = (rutaDocumentoPdf, descripcion) => {
+        if (rutaDocumentoPdf) {
+            const match = rutaDocumentoPdf.match(/recibo\/([^/]+)\/pdf/i);
+            if (match?.[1]) return match[1];
+        }
+
+        if (descripcion) {
+            const match = descripcion.match(/recibo\s+([A-Z0-9-]+)/i);
+            if (match?.[1]) return match[1];
+        }
+
+        return '';
+    };
+
+    const extraerNumeroComprobante = (rutaDocumentoPdf, descripcion) => {
+        if (rutaDocumentoPdf) {
+            const match = rutaDocumentoPdf.match(/comprobante\/([^/]+)\/pdf/i);
+            if (match?.[1]) return match[1];
+        }
+
+        if (descripcion) {
+            const match = descripcion.match(/comprobante\s+([A-Z0-9-]+)/i);
+            if (match?.[1]) return match[1];
+        }
+
+        return '';
+    };
+
+    const getNumeroHistorial = (registro) => {
+        const numeroRecibo = extraerNumeroRecibo(registro?.rutaDocumentoPdf, registro?.descripcion);
+        if (numeroRecibo) return numeroRecibo;
+
+        const numeroComprobante = extraerNumeroComprobante(registro?.rutaDocumentoPdf, registro?.descripcion);
+        if (numeroComprobante) return numeroComprobante;
+
+        return '-';
+    };
+
+    const historialesOrdenados = useMemo(() => {
+        return [...(historiales || [])].sort((a, b) => {
+            const fechaA = a?.fechaRegistro ? new Date(a.fechaRegistro).getTime() : 0;
+            const fechaB = b?.fechaRegistro ? new Date(b.fechaRegistro).getTime() : 0;
+            return fechaB - fechaA;
+        });
+    }, [historiales]);
+
+    const abrirDialogoReciboIngreso = (historial) => {
+        const numero = extraerNumeroRecibo(historial?.rutaDocumentoPdf, historial?.descripcion);
+        if (!numero) {
+            toast.current?.show({ severity: 'warn', summary: 'Recibo', detail: 'No se pudo identificar el numero de recibo.' });
+            return;
+        }
+        setReciboIngresoNumero(numero);
+        setArchivoReciboIngreso(null);
+        setDialogoSubirReciboIngreso(true);
+    };
+
+    const subirReciboIngreso = async () => {
+        if (!reciboIngresoNumero || !archivoReciboIngreso) {
+            toast.current?.show({ severity: 'warn', summary: 'Validacion', detail: 'Seleccione un archivo valido.' });
+            return;
+        }
+
+        setSubiendoReciboIngreso(true);
+        try {
+            await PagoService.subirReciboFirmado(reciboIngresoNumero, archivoReciboIngreso, axiosInstance);
+            toast.current?.show({ severity: 'success', summary: 'Listo', detail: 'Recibo firmado subido correctamente.' });
+            setDialogoSubirReciboIngreso(false);
+            await cargarDetalleContrato(contrato.id);
+        } catch (error) {
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo subir el recibo firmado.' });
+        } finally {
+            setSubiendoReciboIngreso(false);
+        }
+    };
+
     const isPendiente = (estado) => {
         if (!estado) return false;
         return estado.toUpperCase() === 'POR_VALIDAR';
@@ -946,7 +1099,7 @@ const DetalleContrato = () => {
             }
 
             await PagoService.procesarPendiente(pagoPendiente.id, formData, axiosInstance);
-            toast.current?.show({ severity: 'success', summary: 'Pago Procesado', detail: 'El recibo ha sido validado correctamente.' });
+            toast.current?.show({ severity: 'success', summary: 'Pago Procesado', detail: 'El pago fue aplicado correctamente.' });
 
             // Recargar el contrato y limpiar estados
             await cargarDetalleContrato(contrato.id);
@@ -957,14 +1110,50 @@ const DetalleContrato = () => {
         }
     };
 
-    const handleDescargarNotaVenta = async (pagoId) => {
+    const getEtiquetaComprobante = (tipo) => {
+        switch ((tipo || '').toUpperCase()) {
+            case 'RECIBO_INGRESO':
+                return 'Recibo de Ingreso';
+            case 'NOTA_ABONO':
+                return 'Nota de Abono';
+            case 'BOLETA':
+                return 'Boleta';
+            case 'FACTURA':
+                return 'Factura';
+            case 'NOTA_CREDITO':
+                return 'Nota de Credito';
+            case 'NOTA_DEBITO':
+                return 'Nota de Debito';
+            default:
+                return 'Comprobante';
+        }
+    };
+
+    const handleDescargarComprobante = async (pago) => {
         try {
-            toast.current?.show({ severity: 'info', summary: 'Descargando...', detail: 'Generando Nota de Venta' });
-            const blob = await PagoService.descargarNotaVenta(pagoId, axiosInstance);
+            const etiqueta = getEtiquetaComprobante(pago?.tipoComprobante);
+            toast.current?.show({ severity: 'info', summary: 'Descargando...', detail: `Generando ${etiqueta}` });
+
+            let blob = null;
+            if (pago?.numeroComprobante) {
+                if ((pago?.tipoComprobante || '').toUpperCase() === 'RECIBO_INGRESO') {
+                    blob = await PagoService.descargarReciboIngresoPdf(pago.numeroComprobante, axiosInstance);
+                } else {
+                    blob = await PagoService.descargarComprobantePdf(pago.numeroComprobante, axiosInstance);
+                }
+            } else if (pago?.idOriginal || pago?.id) {
+                const pagoId = pago.idOriginal || String(pago.id).replace('REC-', '');
+                blob = await PagoService.descargarNotaVenta(pagoId, axiosInstance);
+            }
+
+            if (!blob) {
+                throw new Error('No se pudo resolver el comprobante.');
+            }
+
             const url = URL.createObjectURL(blob);
             window.open(url, '_blank');
         } catch (error) {
-            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo generar la nota de venta.' });
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo generar el comprobante.' });
         }
     };
 
@@ -1300,6 +1489,43 @@ const DetalleContrato = () => {
                 </div>
             </Dialog>
 
+            <Dialog
+                header={`Subir Recibo de Ingreso: ${reciboIngresoNumero || ''}`}
+                visible={dialogoSubirReciboIngreso}
+                style={{ width: '420px' }}
+                modal
+                onHide={() => setDialogoSubirReciboIngreso(false)}
+            >
+                <div className="flex flex-column gap-3">
+                    <p className="text-sm text-600 m-0">Adjunta la foto o PDF firmado por el cliente.</p>
+                    <div className="relative flex flex-column align-items-center justify-content-center p-4 border-2 border-dashed border-round-xl surface-border hover:surface-hover transition-colors cursor-pointer bg-blue-50">
+                        <input
+                            type="file"
+                            className="opacity-0 absolute top-0 left-0 w-full h-full cursor-pointer z-10"
+                            accept="image/*,application/pdf"
+                            onChange={(e) => setArchivoReciboIngreso(e.target.files[0])}
+                        />
+                        {archivoReciboIngreso ? (
+                            <div className="text-center flex flex-column align-items-center">
+                                <i className="pi pi-file-check text-3xl text-green-500 mb-2"></i>
+                                <span className="font-bold text-700 text-sm">{archivoReciboIngreso.name}</span>
+                                <span className="text-xs text-500">{(archivoReciboIngreso.size / (1024 * 1024)).toFixed(2)} MB</span>
+                            </div>
+                        ) : (
+                            <div className="text-center flex flex-column align-items-center">
+                                <i className="pi pi-cloud-upload text-2xl text-blue-500 mb-2"></i>
+                                <span className="font-bold text-700 text-sm">Haz clic o arrastra</span>
+                                <span className="text-xs text-500 mt-1">JPG, PNG, PDF</span>
+                            </div>
+                        )}
+                    </div>
+                    <div className="flex justify-content-end gap-2">
+                        <Button label="Cancelar" className="p-button-text" onClick={() => setDialogoSubirReciboIngreso(false)} />
+                        <Button label="Subir" icon="pi pi-upload" className='btn-primary-custom shadow-2 border-round-xl font-bold text-white' loading={subiendoReciboIngreso} onClick={subirReciboIngreso} />
+                    </div>
+                </div>
+            </Dialog>
+
             {/* MODAL: PROCESAR PAGO PENDIENTE */}
             <Dialog header="Procesar Pago Pendiente" visible={!!pagoPendiente} style={{ width: '400px' }} onHide={() => setPagoPendiente(null)}>
                 {pagoPendiente && (
@@ -1312,10 +1538,18 @@ const DetalleContrato = () => {
                             <label className="font-medium text-700 block mb-2">Método de Pago</label>
                             <Dropdown value={metodoPagoPendiente} options={metodosPago} onChange={(e) => setMetodoPagoPendiente(e.value)} placeholder='Selecione metodo de pago' />
                         </div>
-                        <div className="field mb-3">
-                            <label className="font-medium text-700 block mb-2">Número de Operación</label>
-                            <InputText value={numOperacionPendiente} onChange={(e) => setNumOperacionPendiente(e.target.value)} placeholder="Ej: 998273" />
-                        </div>
+                        {metodoPagoPendiente === 'EFECTIVO' ? (
+                            <Tag
+                                severity="warning"
+                                value="Pago en efectivo: se genera Recibo de Ingreso"
+                                className="w-full justify-content-center"
+                            />
+                        ) : (
+                            <div className="field mb-3">
+                                <label className="font-medium text-700 block mb-2">Número de Operación</label>
+                                <InputText value={numOperacionPendiente} onChange={(e) => setNumOperacionPendiente(e.target.value)} placeholder="Ej: 998273" />
+                            </div>
+                        )}
                         <div className="field mb-3">
                             <label className="font-medium text-700 block mb-2">Descripción / Observación (Opcional)</label>
                             <InputTextarea value={descripcionPagoPendiente} onChange={(e) => setDescripcionPagoPendiente(e.target.value)} rows={2} autoResize className="w-full" placeholder="Ej: Validado con finanzas..." />
@@ -1367,7 +1601,7 @@ const DetalleContrato = () => {
                 </div>
                 <div className="flex justify-content-end gap-2 mt-4">
                     <Button label="Cancelar" icon="pi pi-times" className="p-button-text p-button-secondary" onClick={() => setDialogoEditarInicial(false)} disabled={guardandoInicial} />
-                    <Button label="Guardar" icon="pi pi-check" className="p-button-success" onClick={guardarEdicionInicial} loading={guardandoInicial} />
+                    <Button label="Guardar" icon="pi pi-check" className="p-button-success shadow-2 border-round-xl font-bold text-white" onClick={guardarEdicionInicial} loading={guardandoInicial} />
                 </div>
             </Dialog>
 
@@ -1753,7 +1987,7 @@ const DetalleContrato = () => {
                         <>
                             <Button label="Ver Documento" icon="pi pi-file-pdf" className="p-button-success border-round-xl font-bold shadow-2 text-white" onClick={() => {
                                 const h = historiales.find(hh => hh.rutaDocumentoPdf && contrato.urlDocumentoFirmado && hh.rutaDocumentoPdf.endsWith(contrato.urlDocumentoFirmado.split('/').pop()));
-                                if (h) verHistorialPdf(h.id);
+                                if (h) verHistorialPdf(h);
                                 else window.open(buildVoucherUrl(contrato.urlDocumentoFirmado), '_blank');
                             }} />
                             <Button label="Reemplazar" icon="pi pi-upload" className="p-button-warning border-round-xl font-bold shadow-2 text-white" style={{ background: '#f59e0b', borderColor: '#f59e0b' }} onClick={() => setDialogoSubirPdf(true)} />
@@ -2107,9 +2341,31 @@ const DetalleContrato = () => {
                                             </div>
 
                                             <div className="field mb-3">
-                                                <label className="font-medium text-700 block mb-2">Número de Operación</label>
-                                                <InputText value={numOperacion} onChange={(e) => setNumOperacion(e.target.value)} placeholder="Ej: 0948372" className="w-full" />
+                                                <label className="font-medium text-700 block mb-2">Tipo de Comprobante</label>
+                                                <Dropdown
+                                                    value={tipoComprobante}
+                                                    options={tipoComprobanteOptions}
+                                                    onChange={(e) => setTipoComprobante(e.value)}
+                                                    className="w-full"
+                                                    disabled={esIngresoCaja}
+                                                />
+                                                {esIngresoCaja && (
+                                                    <small className="text-500">Al pagar en caja sin operación, el sistema emite un Recibo de Ingreso.</small>
+                                                )}
                                             </div>
+
+                                            {metodoPago === 'EFECTIVO' ? (
+                                                <Tag
+                                                    severity="warning"
+                                                    value="Este pago ingresara a Caja Fisica por validar"
+                                                    className="w-full justify-content-center"
+                                                />
+                                            ) : (
+                                                <div className="field mb-3">
+                                                    <label className="font-medium text-700 block mb-2">Número de Operación</label>
+                                                    <InputText value={numOperacion} onChange={(e) => setNumOperacion(e.target.value)} placeholder="Ej: 0948372" className="w-full" />
+                                                </div>
+                                            )}
 
                                             <div className="field mb-3">
                                                 <label className="font-medium text-700 block mb-2">Descripción / Observación (Opcional)</label>
@@ -2193,7 +2449,6 @@ const DetalleContrato = () => {
                                                         <i className="pi pi-exclamation-circle text-yellow-600 text-lg"></i>
                                                         <div className="flex flex-column">
                                                             <span className="text-lg font-bold text-yellow-700">Pago Pendiente de Validación</span>
-                                                            {/* <span className="text-xs text-yellow-600 ">ID: {cuotaSeleccionada.pagoPendiente.id}</span> */}
                                                         </div>
                                                     </div>
                                                     <Button
@@ -2224,7 +2479,12 @@ const DetalleContrato = () => {
                                                                 </div>
                                                                 <div className="flex align-items-center gap-2">
                                                                     {pago.numeroComprobante && (
-                                                                        <Button icon="pi pi-file-pdf" className="p-button-rounded p-button-danger p-button-text" tooltip="Descargar Nota de Venta" onClick={(e) => { e.stopPropagation(); handleDescargarNotaVenta(pago.idOriginal || pago.id.replace('REC-','')); }} />
+                                                                        <Button
+                                                                            icon="pi pi-file-pdf"
+                                                                            className="p-button-rounded p-button-danger p-button-text"
+                                                                            tooltip={`Descargar ${getEtiquetaComprobante(pago.tipoComprobante)}`}
+                                                                            onClick={(e) => { e.stopPropagation(); handleDescargarComprobante(pago); }}
+                                                                        />
                                                                     )}
                                                                     <span className="text-x font-bold text-600 surface-100 px-3 py-2 border-round-md">{pago.fechaPago}</span>
                                                                 </div>
@@ -2233,6 +2493,9 @@ const DetalleContrato = () => {
                                                                 <div>
                                                                     <span className="text-m text-500 mb-1 block">Método de pago</span>
                                                                     <span className="text-x font-bold text-700 flex align-items-center gap-2"><i className="pi pi-wallet text-blue-500"></i> {pago.metodoPago}</span>
+                                                                    {(pago.estado || '').toUpperCase() === 'POR_VALIDAR' && (
+                                                                        <Tag severity="warning" value="Pendiente de arqueo" className="mt-2" />
+                                                                    )}
                                                                 </div>
                                                                 <span className="font-bold text-green-600 text-xl">S/ {pago.montoAbonado.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                                                             </div>
@@ -2265,16 +2528,24 @@ const DetalleContrato = () => {
                             <h3 className="m-0 flex align-items-center text-800 text-xl"><i className="pi pi-history mr-2 text-primary"></i> Registro Histórico</h3>
                             <Button label="Vista Previa (Borrador)" icon="pi pi-eye" className="p-button-outlined p-button-secondary font-bold border-round-xl" onClick={handleVistaPrevia} />
                         </div>
-                        <DataTable value={historiales} emptyMessage="No hay historial registrado." className="p-datatable-sm" paginator rows={10}>
-                            <Column field="id" header="ID" style={{ width: '5%' }}></Column>
+                        <DataTable value={historialesOrdenados} emptyMessage="No hay historial registrado." className="p-datatable-sm" paginator rows={10}>
+                            <Column header="N°" body={(_, options) => options.rowIndex + 1} style={{ width: '5%' }}></Column>
                             <Column field="tipoRegistro" header="Tipo" body={(r) => r.tipoRegistro ? r.tipoRegistro.replace(/_/g, ' ') : '-'} style={{ width: '12%' }}></Column>
                             <Column field="descripcion" header="Descripción del Cambio" style={{ width: '35%' }}></Column>
                             <Column field="observacion" header="Nota Adicional" body={(r) => r.observacion || '-'} style={{ width: '25%' }}></Column>
                             <Column field="fechaRegistro" header="Fecha" body={(r) => (r.fechaRegistro ? new Date(r.fechaRegistro).toLocaleDateString('es-PE') : '')} style={{ width: '15%' }}></Column>
                             <Column body={(r) => (
                                 <div className="flex gap-2 justify-content-center">
+                                    {r.tipoRegistro === 'INGRESO_CAJA' && (
+                                        <Button
+                                            icon="pi pi-upload"
+                                            className="p-button-rounded p-button-warning p-button-text"
+                                            title="Subir Recibo de Ingreso"
+                                            onClick={() => abrirDialogoReciboIngreso(r)}
+                                        />
+                                    )}
                                     {r.rutaDocumentoPdf && (
-                                        <Button icon="pi pi-file-pdf" className="p-button-rounded p-button-danger p-button-text" title="Ver PDF Histórico" onClick={() => verHistorialPdf(r.id)} />
+                                        <Button icon="pi pi-file-pdf" className="p-button-rounded p-button-danger p-button-text" title="Ver PDF Histórico" onClick={() => verHistorialPdf(r)} />
                                     )}
                                 </div>
                             )} style={{ width: '8%', textAlign: 'center' }}></Column>

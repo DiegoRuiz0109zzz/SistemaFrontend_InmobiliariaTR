@@ -1,5 +1,5 @@
 export const TipoComprobante = {
-    NOTA_VENTA: 'NOTA_VENTA',
+    NOTA_ABONO: 'NOTA_ABONO',
     BOLETA: 'BOLETA',
     FACTURA: 'FACTURA',
     NOTA_CREDITO: 'NOTA_CREDITO',
@@ -8,7 +8,7 @@ export const TipoComprobante = {
 };
 
 export const TipoComprobanteOptions = [
-    { label: 'Nota de Venta', value: TipoComprobante.NOTA_VENTA },
+    { label: 'Nota de Abono', value: TipoComprobante.NOTA_ABONO },
     { label: 'Boleta', value: TipoComprobante.BOLETA },
     { label: 'Factura', value: TipoComprobante.FACTURA },
     { label: 'Nota de Crédito', value: TipoComprobante.NOTA_CREDITO },

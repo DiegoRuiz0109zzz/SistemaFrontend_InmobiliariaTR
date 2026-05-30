@@ -96,7 +96,9 @@ const Menu = () => {
                 { label: 'Reporte Maestro', icon: 'pi pi-fw pi-table', to: 'reportes/maestro' },
                 { label: 'Reporte de Lotes', icon: 'pi pi-fw pi-map', to: 'reportes/lotes' },
                 { label: 'Reporte de Comisiones', icon: 'pi pi-fw pi-percentage', to: 'reportes/comisiones' },
-                { label: 'Pagos Efectuados', icon: 'pi pi-fw pi-money-bill', to: 'reportes/pagos' }
+                { label: 'Pagos Efectuados', icon: 'pi pi-fw pi-money-bill', to: 'reportes/pagos' },
+                { label: 'Arqueo de Caja', icon: 'pi pi-fw pi-wallet', to: 'reportes/arqueo-caja' },
+                { label: 'Depositos Bancarios', icon: 'pi pi-fw pi-briefcase', to: 'reportes/depositos-bancarios' }
             ]
         });
 

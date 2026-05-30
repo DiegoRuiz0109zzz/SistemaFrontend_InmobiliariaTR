@@ -46,6 +46,47 @@ export const PagoService = {
             responseType: 'blob'
         });
         return response.data;
+    },
+
+    descargarComprobantePdf: async (numeroComprobante, httpClient) => {
+        const client = resolveClient(httpClient);
+        const response = await client.get(`${RESOURCE}/comprobante/${numeroComprobante}/pdf`, {
+            responseType: 'blob'
+        });
+        return response.data;
+    },
+
+    descargarReciboIngresoPdf: async (numeroComprobante, httpClient) => {
+        const client = resolveClient(httpClient);
+        const response = await client.get(`${RESOURCE}/recibo/${numeroComprobante}/pdf`, {
+            responseType: 'blob'
+        });
+        return response.data;
+    },
+
+    conciliarCaja: async (numeroRecibo, formData, httpClient) => {
+        const client = resolveClient(httpClient);
+        const response = await client.post(`${RESOURCE}/conciliar/${numeroRecibo}`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        return response.data;
+    },
+
+    subirReciboFirmado: async (numeroRecibo, archivoFirmado, httpClient) => {
+        const client = resolveClient(httpClient);
+        const formData = new FormData();
+        formData.append('archivo', archivoFirmado);
+
+        const response = await client.post(`${RESOURCE}/recibo/${numeroRecibo}/firmado`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        return response.data;
+    },
+
+    obtenerReporteCaja: async (httpClient) => {
+        const client = resolveClient(httpClient);
+        const response = await client.get(`${RESOURCE}/reporte-caja`);
+        return response.data;
     }
 };
 
