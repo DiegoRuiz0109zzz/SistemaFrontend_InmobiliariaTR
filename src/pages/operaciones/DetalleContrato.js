@@ -116,6 +116,8 @@ const DetalleContrato = () => {
     });
     const [expandirCambioLote, setExpandirCambioLote] = useState(false);
     const [guardandoEdicion, setGuardandoEdicion] = useState(false);
+    const [descargandoActaTitular, setDescargandoActaTitular] = useState(false);
+    const [descargandoActaLote, setDescargandoActaLote] = useState(false);
 
     // Estado para mostrar panel de medidas si falta completarlas
     const [mostrarPanelMedidas, setMostrarPanelMedidas] = useState(false);
@@ -548,6 +550,21 @@ const DetalleContrato = () => {
         }
     };
 
+    const abrirPdfBlob = (blob, fileName) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const win = window.open(url, '_blank');
+        if (!win) {
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = fileName || 'documento.pdf';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        }
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+    };
+
     const abrirEditorContrato = () => {
         if (!contrato) return;
 
@@ -619,6 +636,44 @@ const DetalleContrato = () => {
             toast.current?.show({ severity: 'error', summary: 'Error', detail: detalle });
         } finally {
             setGuardandoEdicion(false);
+        }
+    };
+
+    const descargarActaTraspasoTitular = async () => {
+        if (!contrato?.id || !clienteEditId || !contrato?.cliente?.id) return;
+        setDescargandoActaTitular(true);
+        try {
+            const blob = await ContratoService.descargarActaTraspasoTitular(
+                contrato.id,
+                contrato.cliente.id,
+                clienteEditId,
+                axiosInstance
+            );
+            abrirPdfBlob(blob, `Acta_Traspaso_Titular_${contrato.id}.pdf`);
+        } catch (error) {
+            const detalle = error?.response?.data?.message || 'No se pudo generar el acta de traspaso.';
+            toast.current?.show({ severity: 'error', summary: 'Acta de Traspaso', detail: detalle });
+        } finally {
+            setDescargandoActaTitular(false);
+        }
+    };
+
+    const descargarActaCambioLote = async () => {
+        if (!contrato?.id || !loteEditId || !contrato?.lote?.id) return;
+        setDescargandoActaLote(true);
+        try {
+            const blob = await ContratoService.descargarActaCambioLote(
+                contrato.id,
+                contrato.lote.id,
+                loteEditId,
+                axiosInstance
+            );
+            abrirPdfBlob(blob, `Acta_Cambio_Lote_${contrato.id}.pdf`);
+        } catch (error) {
+            const detalle = error?.response?.data?.message || 'No se pudo generar el acta de cambio de lote.';
+            toast.current?.show({ severity: 'error', summary: 'Acta de Cambio', detail: detalle });
+        } finally {
+            setDescargandoActaLote(false);
         }
     };
 
@@ -795,9 +850,11 @@ const DetalleContrato = () => {
             const esEndpointComprobante = rutaDocumentoPdf.startsWith('/api/pagos/comprobante/');
             const esEndpointRecibo = rutaDocumentoPdf.startsWith('/api/pagos/recibo/');
             const esEndpointNotaVenta = rutaDocumentoPdf.startsWith('/api/pagos/') && rutaDocumentoPdf.includes('/nota-venta');
+            const esEndpointActaContrato = rutaDocumentoPdf.startsWith('/api/contratos/')
+                && (rutaDocumentoPdf.includes('/acta-traspaso-titular') || rutaDocumentoPdf.includes('/acta-cambio-lote'));
 
             let blob = null;
-            if (rutaDocumentoPdf && (esEndpointComprobante || esEndpointRecibo || esEndpointNotaVenta)) {
+            if (rutaDocumentoPdf && (esEndpointComprobante || esEndpointRecibo || esEndpointNotaVenta || esEndpointActaContrato)) {
                 const client = axiosInstance || null;
                 if (!client) {
                     window.open(rutaDocumentoPdf, '_blank');
@@ -1810,9 +1867,31 @@ const DetalleContrato = () => {
                     </div>
                 </div>
 
-                <div className="flex justify-content-end gap-2 mt-4">
-                    <Button label="Cancelar" icon="pi pi-times" className="p-button-outlined p-button-danger border-round-xl font-bold" onClick={cerrarEditorContrato} disabled={guardandoEdicion} />
-                    <Button label="Guardar Cambios" icon="pi pi-save" className={`btn-primary-custom border-round-xl font-bold shadow-2 p-button-success text-white`} onClick={guardarEdiciones} loading={guardandoEdicion} />
+                <div className="flex flex-column md:flex-row justify-content-between align-items-center gap-2 mt-4">
+                    <div className="flex flex-column md:flex-row gap-2">
+                        {contrato?.cliente?.id && clienteEditId && clienteEditId !== contrato.cliente.id && (
+                            <Button
+                                label="Descargar Acta Traspaso"
+                                icon="pi pi-file-pdf"
+                                className="p-button-info border-round-xl font-bold text-white"
+                                onClick={descargarActaTraspasoTitular}
+                                loading={descargandoActaTitular}
+                            />
+                        )}
+                        {contrato?.lote?.id && loteEditId && loteEditId !== contrato.lote.id && (
+                            <Button
+                                label="Descargar Acta Cambio Lote"
+                                icon="pi pi-file-pdf"
+                                className="p-button-help border-round-xl font-bold text-white"
+                                onClick={descargarActaCambioLote}
+                                loading={descargandoActaLote}
+                            />
+                        )}
+                    </div>
+                    <div className="flex justify-content-end gap-2">
+                        <Button label="Cancelar" icon="pi pi-times" className="p-button-outlined p-button-danger border-round-xl font-bold" onClick={cerrarEditorContrato} disabled={guardandoEdicion} />
+                        <Button label="Guardar Cambios" icon="pi pi-save" className={`btn-primary-custom border-round-xl font-bold shadow-2 p-button-success text-white`} onClick={guardarEdiciones} loading={guardandoEdicion} />
+                    </div>
                 </div>
             </Dialog>
 
@@ -2305,6 +2384,12 @@ const DetalleContrato = () => {
                                 </div>
 
                                 <div className="p-4 flex-1 overflow-y-auto">
+                                    {esSeparacion && !contrato?.urlDocumentoFirmado && (
+                                        <div className="bg-orange-50 border-1 border-orange-200 border-round p-3 mb-3 text-sm text-orange-900 flex align-items-start gap-2">
+                                            <i className="pi pi-exclamation-triangle text-orange-600 mt-1"></i>
+                                            <span>No se puede crear un cronograma si no se sube el documento requerido: contrato separado.</span>
+                                        </div>
+                                    )}
                                     {cuotaPagar ? (
                                         // PANEL DE REGISTRO DE PAGO
                                         <div className="fade-in">

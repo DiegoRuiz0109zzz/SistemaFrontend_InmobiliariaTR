@@ -57,6 +57,13 @@ export const ContratoService = {
         });
         return response.data;
     },
+    descargarDocumentoFirmado: async (id, httpClient) => {
+        const client = resolveClient(httpClient);
+        const response = await client.get(`${RESOURCE}/${id}/documento-firmado`, {
+            responseType: 'blob'
+        });
+        return response.data;
+    },
 
     registrarHitoOficial: async (id, httpClient) => {
         const client = resolveClient(httpClient);
@@ -70,8 +77,23 @@ export const ContratoService = {
             responseType: 'blob'
         });
         return response.data;
-    }
-    ,
+    },
+    descargarActaTraspasoTitular: async (id, anteriorClienteId, nuevoClienteId, httpClient) => {
+        const client = resolveClient(httpClient);
+        const response = await client.get(`${RESOURCE}/${id}/acta-traspaso-titular`, {
+            params: { anteriorClienteId, nuevoClienteId },
+            responseType: 'blob'
+        });
+        return response.data;
+    },
+    descargarActaCambioLote: async (id, loteOrigenId, loteDestinoId, httpClient) => {
+        const client = resolveClient(httpClient);
+        const response = await client.get(`${RESOURCE}/${id}/acta-cambio-lote`, {
+            params: { loteOrigenId, loteDestinoId },
+            responseType: 'blob'
+        });
+        return response.data;
+    },
     obtenerVistaPreviaUrl: (id) => {
         // Devuelve URL completa para abrir la vista previa en nueva pestaña
         return `${window.location.origin}/api/${RESOURCE}/${id}/vista-previa`;

@@ -91,6 +91,22 @@
     background: var(--theme-primary-soft);
 }
 
+.reporte-comisiones-page .p-datatable .p-datatable-tbody>tr.row-contrato-duplicado {
+    background: #e0f2ff !important;
+}
+
+.reporte-comisiones-page .p-datatable .p-datatable-tbody>tr.row-contrato-duplicado>td {
+    background: #e0f2ff !important;
+}
+
+.reporte-comisiones-page .p-datatable .p-datatable-tbody>tr.row-contrato-duplicado:hover {
+    background: #cfe9ff !important;
+}
+
+.reporte-comisiones-page .p-datatable .p-datatable-tbody>tr.row-contrato-duplicado:hover>td {
+    background: #cfe9ff !important;
+}
+
 /* Botones de acciones */
 .usuario-page .action-buttons {
     display: flex;

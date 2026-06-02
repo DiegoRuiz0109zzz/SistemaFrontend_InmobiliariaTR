@@ -25,6 +25,16 @@ const ListaContratos = () => {
     const [loading, setLoading] = useState(true);
     const [documentoVisible, setDocumentoVisible] = useState(false);
     const [documentoUrl, setDocumentoUrl] = useState(null);
+    const [documentoIsPdf, setDocumentoIsPdf] = useState(false);
+
+    const cerrarDocumentoDialog = () => {
+        if (documentoUrl) {
+            URL.revokeObjectURL(documentoUrl);
+        }
+        setDocumentoUrl(null);
+        setDocumentoIsPdf(false);
+        setDocumentoVisible(false);
+    };
 
     const dt = useRef(null);
 
@@ -33,6 +43,7 @@ const ListaContratos = () => {
             dt.current.exportCSV();
         }
     };
+
 
     // Filter states
     const [globalFilter, setGlobalFilter] = useState('');
@@ -133,6 +144,10 @@ const ListaContratos = () => {
 
                 if (estadoLoteValue === 'VENDIDO') estadoLoteValue = 'ACTIVO';
 
+                const documentoFirmadoUrl = typeof item.urlDocumentoFirmado === 'string'
+                    ? item.urlDocumentoFirmado.trim()
+                    : '';
+
                 return {
                     ...item,
                     id: item.id,
@@ -146,7 +161,7 @@ const ListaContratos = () => {
                     fechaEmisionFmt: item.fechaRegistro ? new Date(item.fechaRegistro).toISOString().split('T')[0] : 'N/A',
                     progreso: progresoReal,
                     estadoPago,
-                    tieneDocumento: !!item.archivoPdf || !!item.documentoFirmado,
+                    tieneDocumento: Boolean(documentoFirmadoUrl),
                     tipoInicialFmt,
                     tieneEspeciales: !!item.cuotasEspeciales && item.cuotasEspeciales > 0
                 };
@@ -298,16 +313,24 @@ const ListaContratos = () => {
         );
     };
 
-    const abrirVisorDocumento = (row) => {
-        if (row.urlDocumentoFirmado) {
-            setDocumentoUrl(`http://localhost:8080/${row.urlDocumentoFirmado.replace(/^\//, '')}`);
+    const abrirVisorDocumento = async (row) => {
+        if (!row.tieneDocumento) {
+            toast.current.show({ severity: 'warn', summary: 'Atención', detail: 'No hay documento firmado asociado al contrato.' });
+            return;
+        }
+
+        try {
+            const blob = await ContratoService.descargarDocumentoFirmado(row.id, axiosInstance);
+            const url = URL.createObjectURL(blob);
+            setDocumentoUrl(url);
+            setDocumentoIsPdf((blob?.type || '').toLowerCase().includes('pdf'));
             setDocumentoVisible(true);
-        } else {
-            toast.current.show({ severity: 'warn', summary: 'Atención', detail: 'Falta subir documento' });
+        } catch (error) {
+            toast.current.show({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar el documento.' });
         }
     };
 
-    const isPdf = (url) => url && url.toLowerCase().endsWith('.pdf');
+    const isPdf = () => documentoIsPdf;
 
     const accionesTemplate = (row) => (
         <div className="flex align-items-center justify-content-center gap-4 dt-actions-group">
@@ -322,10 +345,10 @@ const ListaContratos = () => {
         <div className="listacontratos-premium">
             <Toast ref={toast} />
 
-            <Dialog header={<><i className="pi pi-file-pdf text-blue-500 mr-2"></i>Documento Firmado</>} visible={documentoVisible} style={{ width: 'min(900px, 95vw)', height: '80vh' }} onHide={() => setDocumentoVisible(false)} modal>
+            <Dialog header={<><i className="pi pi-file-pdf text-blue-500 mr-2"></i>Documento Firmado</>} visible={documentoVisible} style={{ width: 'min(900px, 95vw)', height: '80vh' }} onHide={cerrarDocumentoDialog} modal>
                 {documentoUrl && (
                     <div className="flex justify-content-center align-items-center h-full border-round overflow-hidden">
-                        {isPdf(documentoUrl) ? (
+                        {isPdf() ? (
                             <iframe src={documentoUrl} title="Documento" className="w-full h-full border-none" style={{ minHeight: '65vh' }} />
                         ) : (
                             <img src={documentoUrl} alt="Documento" style={{ maxWidth: '100%', maxHeight: '65vh', objectFit: 'contain' }} />

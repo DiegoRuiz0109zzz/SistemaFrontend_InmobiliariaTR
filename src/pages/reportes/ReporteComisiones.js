@@ -52,10 +52,8 @@ const ReporteComisiones = () => {
                 }
 
                 const ubz = c.contrato?.lote?.manzana?.etapa?.urbanizacion?.nombre || '';
-                const etapa = c.contrato?.lote?.manzana?.etapa?.numero || '';
-                const mz = c.contrato?.lote?.manzana?.letra || '';
                 const numLote = c.contrato?.lote?.numero || '';
-                const loteDesc = c.contrato?.lote ? `${ubz} - Et. ${etapa} - Mz. ${mz} - Lt. ${numLote}` : '-';
+                const loteDesc = c.contrato?.lote ? `${ubz} - Lt. ${numLote}`.trim() : '-';
 
                 return {
                     ...c,
@@ -68,11 +66,22 @@ const ReporteComisiones = () => {
                 };
             });
 
-            // Ordenar por contratoCodigo para agrupar filas del mismo contrato (Vendedor y Jefe)
+            const contratoCounts = mappedData.reduce((acc, item) => {
+                if (!item.contratoCodigo) return acc;
+                acc[item.contratoCodigo] = (acc[item.contratoCodigo] || 0) + 1;
+                return acc;
+            }, {});
+
+            mappedData = mappedData.map(item => ({
+                ...item,
+                contratoDuplicado: (contratoCounts[item.contratoCodigo] || 0) > 1
+            }));
+
+            // Ordenar por fecha de generacion descendente
             mappedData.sort((a, b) => {
-                if (a.contratoCodigo < b.contratoCodigo) return -1;
-                if (a.contratoCodigo > b.contratoCodigo) return 1;
-                return 0;
+                const fechaA = a?.fechaGeneracion ? new Date(a.fechaGeneracion).getTime() : 0;
+                const fechaB = b?.fechaGeneracion ? new Date(b.fechaGeneracion).getTime() : 0;
+                return fechaB - fechaA;
             });
 
             setComisiones(mappedData);
@@ -230,31 +239,42 @@ const ReporteComisiones = () => {
                             globalFilter={globalFilter}
                             globalFilterFields={['contratoCodigo', 'beneficiarioNombre', 'rolBeneficiario', 'estadoPago', 'clienteNombre', 'loteDescripcion']}
                             emptyMessage="No se encontraron comisiones."
-                            rowGroupMode="rowspan"
-                            groupRowsBy={['fechaGeneracion', 'contratoCodigo', 'loteDescripcion', 'fechaIngreso', 'clienteNombre', 'totalAbonado', 'precioOficinaLote', 'precioVentaContrato', 'diferenciaPrecio']}
-                            sortField="contratoCodigo"
-                            sortOrder={1}
+                            sortField="fechaGeneracion"
+                            sortOrder={-1}
                             exportFilename="Reporte_Comisiones"
+                            rowGroupMode="rowspan"
+                            groupRowsBy="contratoCodigo"
+                            rowClassName={(rowData) => (rowData.contratoDuplicado ? 'row-contrato-duplicado' : '')}
                         >
                             <Column field="fechaGeneracion" header="Mes de Activación" body={(row) => formatMonthYear(row.fechaGeneracion)} style={{ minWidth: '140px' }} />
                             <Column field="contratoCodigo" header="Contrato" style={{ minWidth: '100px', fontWeight: 'bold' }} />
-                            <Column field="loteDescripcion" header="Lote (UBZ, Etapa, Mz)" style={{ minWidth: '240px' }} />
-                            <Column field="fechaIngreso" header="F. Ingreso" body={(row) => formatDate(row.fechaIngreso)} style={{ minWidth: '100px' }} />
+                            <Column field="loteDescripcion" header="Lote" style={{ minWidth: '180px' }} />
                             <Column field="clienteNombre" header="Cliente" style={{ minWidth: '200px' }} />
-                            <Column field="totalAbonado" header="Total Abonado" body={(row) => formatCurrency(row.totalAbonado)} style={{ minWidth: '120px' }} />
+                            <Column field="totalAbonado" header="Total Abonado" body={(row) => <span className="font-bold text-orange-600">{formatCurrency(row.totalAbonado)}</span>} style={{ minWidth: '130px' }} />
                             <Column field="precioOficinaLote" header="Precio Lote" body={(row) => formatCurrency(row.precioOficinaLote)} style={{ minWidth: '120px' }} />
                             <Column field="precioVentaContrato" header="Precio Total" body={(row) => formatCurrency(row.precioVentaContrato)} style={{ minWidth: '120px' }} />
-                            <Column field="diferenciaPrecio" header="Diferencia" body={(row) => formatCurrency(row.diferenciaPrecio)} style={{ minWidth: '120px' }} />
+                            <Column field="diferenciaPrecio" header="Diferencia" body={(row) => <span className="font-bold text-green-600">{formatCurrency(row.diferenciaPrecio)}</span>} style={{ minWidth: '120px' }} />
                             
-                            <Column field="rolBeneficiario" header="Rol" style={{ minWidth: '120px' }} />
+                            <Column
+                                field="rolBeneficiario"
+                                header="Rol"
+                                body={(row) => (
+                                    <span
+                                        className={row.rolBeneficiario === 'JEFE_VENTAS' ? 'font-bold' : ''}
+                                        style={row.rolBeneficiario === 'JEFE_VENTAS' ? { backgroundColor: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '10px' } : undefined}
+                                    >
+                                        {row.rolBeneficiario}
+                                    </span>
+                                )}
+                                style={{ minWidth: '120px' }}
+                            />
                             <Column field="beneficiarioNombre" header="Vendedor/Jefe" style={{ minWidth: '200px' }} />
                             
-                            <Column field="montoBase" header="Comisión Básica" body={(row) => formatCurrency(row.montoBase)} style={{ minWidth: '130px' }} />
-                            <Column field="montoBonoDiferencia" header="Bono Global" body={(row) => formatCurrency(row.montoBonoDiferencia)} style={{ minWidth: '120px' }} />
-                            <Column header="Bono 35%" body={() => '-'} style={{ minWidth: '90px', textAlign: 'center' }} />
-                            <Column header="Bono 15%" body={() => '-'} style={{ minWidth: '90px', textAlign: 'center' }} />
-                            <Column field="totalComision" header="Precio" body={(row) => formatCurrency(row.totalComision)} style={{ minWidth: '120px' }} />
-                            <Column field="totalComision" header="Total" body={(row) => formatCurrency(row.totalComision)} style={{ minWidth: '120px' }} className="font-bold text-primary" />
+                            <Column field="montoBase" header="Comision Base" body={(row) => formatCurrency(row.montoBase)} style={{ minWidth: '130px' }} />
+                            <Column field="montoBonoGlobal" header="Bono Global" body={(row) => formatCurrency(row.montoBonoGlobal)} style={{ minWidth: '120px' }} />
+                            <Column header="Bono 35%" body={(row) => row.porcentajeBonoDiferencia === 35 ? formatCurrency(row.montoBonoDiferencia) : '-'} style={{ minWidth: '110px', textAlign: 'center' }} />
+                            <Column header="Bono 15%" body={(row) => row.porcentajeBonoDiferencia === 15 ? formatCurrency(row.montoBonoDiferencia) : '-'} style={{ minWidth: '110px', textAlign: 'center' }} />
+                            <Column field="totalComision" header="Total Comision" body={(row) => formatCurrency(row.totalComision)} style={{ minWidth: '140px' }} className="font-bold text-primary" />
                             <Column field="estadoPago" header="Estado y Obs." body={estadoObsBodyTemplate} style={{ minWidth: '200px' }} />
                             <Column header="Acciones" body={actionBodyTemplate} align="center" style={{ minWidth: '80px' }} />
                         </DataTable>
