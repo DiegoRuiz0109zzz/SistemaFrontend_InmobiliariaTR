@@ -11,6 +11,20 @@ export const PagoService = {
         return response.data;
     },
 
+    listarPagosPaginados: async (page = 0, size = 10, filtros = {}, httpClient) => {
+        const client = resolveClient(httpClient);
+        let url = `${RESOURCE}/?page=${page}&size=${size}`;
+        
+        if (filtros.metodoPago) url += `&metodoPago=${encodeURIComponent(filtros.metodoPago)}`;
+        if (filtros.tipoComprobante) url += `&tipoComprobante=${encodeURIComponent(filtros.tipoComprobante)}`;
+        if (filtros.estado) url += `&estado=${encodeURIComponent(filtros.estado)}`;
+        if (filtros.fechaDesde) url += `&fechaDesde=${encodeURIComponent(filtros.fechaDesde)}`;
+        if (filtros.fechaHasta) url += `&fechaHasta=${encodeURIComponent(filtros.fechaHasta)}`;
+        
+        const response = await client.get(url);
+        return response.data;
+    },
+
     listarReportePagos: async (httpClient) => {
         const client = resolveClient(httpClient);
         const response = await client.get(`${RESOURCE}/reporte`);

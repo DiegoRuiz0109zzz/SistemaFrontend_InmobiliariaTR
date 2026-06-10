@@ -80,6 +80,12 @@
     /* Added padding to sidebar/bottom */
 }
 
+.usuario-page .p-datatable .p-datatable-header {
+    background: transparent;
+    border: none;
+    padding: 0;
+}
+
 .usuario-page .p-datatable .p-datatable-thead>tr>th {
     background: var(--bg-page);
     color: var(--text-primary);

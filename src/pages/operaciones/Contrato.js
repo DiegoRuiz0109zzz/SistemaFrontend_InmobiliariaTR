@@ -42,11 +42,12 @@ const Contrato = ({ embedded = false }) => {
     const [cotizacionSeleccionada, setCotizacionSeleccionada] = useState(null);
     const [cliente, setCliente] = useState(null);
     const [clientes, setClientes] = useState([]);
+    const [interesados, setInteresados] = useState([]);
     const [coCompradorSeleccionado, setCoCompradorSeleccionado] = useState(null);
     const [departamentos, setDepartamentos] = useState([]);
     const [provincias, setProvincias] = useState([]);
     const [distritos, setDistritos] = useState([]);
-    
+
     // Modales de Edición (Cliente / Co-Comprador)
     const [dialogVisible, setDialogVisible] = useState(false);
     const [editModalType, setEditModalType] = useState('CLIENTE');
@@ -61,7 +62,7 @@ const Contrato = ({ embedded = false }) => {
         { label: 'Viudo(a)', value: 'Viudo(a)' },
         { label: 'Conviviente', value: 'Conviviente' }
     ];
-    
+
     // Selectores
     const [lotes, setLotes] = useState([]);
     const [loteSeleccionado, setLoteSeleccionado] = useState(null);
@@ -72,7 +73,7 @@ const Contrato = ({ embedded = false }) => {
     const [vendedorSeleccionado, setVendedorSeleccionado] = useState(null);
     const [pendingLoteId, setPendingLoteId] = useState(null);
     const [pendingVendedorId, setPendingVendedorId] = useState(null);
-    
+
     // Candado de Edición
     const [isEditFinanciamiento, setIsEditFinanciamiento] = useState(false);
 
@@ -81,10 +82,10 @@ const Contrato = ({ embedded = false }) => {
     const [inicialAcordada, setInicialAcordada] = useState(500);
     const [abonoReal, setAbonoReal] = useState(0);
     const [fechaLimiteInicial, setFechaLimiteInicial] = useState(new Date(new Date().setDate(new Date().getDate() + 15)));
-    
+
     const [cuotas, setCuotas] = useState(36);
     const [fechaInicio, setFechaInicio] = useState(new Date(new Date().setMonth(new Date().getMonth() + 1)));
-    
+
     const [isFlexible, setIsFlexible] = useState(false);
     const [cuotasEspeciales, setCuotasEspeciales] = useState(3);
     const [montoEspecial, setMontoEspecial] = useState(1000);
@@ -130,9 +131,9 @@ const Contrato = ({ embedded = false }) => {
         return total / cuotasMensuales.length;
     }, [cronograma]);
 
-    const bgCuotaCero = tipoInicial === 'CERO' ? 'bg-blue-50 border-blue-200' 
-                      : tipoInicial === 'PARCIAL' ? 'bg-orange-50 border-orange-300' 
-                      : 'bg-green-50 border-green-300';
+    const bgCuotaCero = tipoInicial === 'CERO' ? 'bg-blue-50 border-blue-200'
+        : tipoInicial === 'PARCIAL' ? 'bg-orange-50 border-orange-300'
+            : 'bg-green-50 border-green-300';
 
     const isCotizacionConvertida = cotizacionSeleccionada?.estado === 'CONTRATO' || cotizacionSeleccionada?.estado === 'CONVERTIDO' || cotizacionSeleccionada?.estado === 'CONVERTIDA_A_CONTRATO' || cotizacionSeleccionada?.estado === 'ACTIVO';
 
@@ -215,7 +216,7 @@ const Contrato = ({ embedded = false }) => {
         const titularId = cliente?.id;
         const titularDocumento = (cliente?.numeroDocumento || '').trim();
 
-        return (clientes || [])
+        return (interesados || [])
             .filter((item) => item?.id && item.id !== titularId)
             .filter((item) => (item?.numeroDocumento || '').trim() !== titularDocumento)
             .map((item) => ({
@@ -223,7 +224,7 @@ const Contrato = ({ embedded = false }) => {
                 nombreCompleto: `${item.nombres || ''} ${item.apellidos || ''}`.trim(),
                 detalleDocumento: `${item.tipoDocumento || 'DNI'}: ${item.numeroDocumento || 'N/A'}`
             }));
-    }, [clientes, cliente]);
+    }, [interesados, cliente]);
 
     useEffect(() => {
         if (pendingLoteId && lotesOptions.length > 0) {
@@ -300,10 +301,14 @@ const Contrato = ({ embedded = false }) => {
 
     const cargarDatosBase = async () => {
         try {
-            const [resClientes, resLotes, resVendedores] = await Promise.all([
-                ClienteService.listar(axiosInstance), LoteService.listar(axiosInstance), VendedorService.listar(axiosInstance)
+            const [resClientes, resInteresados, resLotes, resVendedores] = await Promise.all([
+                ClienteService.listar(axiosInstance),
+                InteresadoService.listar(axiosInstance),
+                LoteService.listar(axiosInstance),
+                VendedorService.listar(axiosInstance)
             ]);
             setClientes(resClientes || []);
+            setInteresados(resInteresados || []);
             setLotes(resLotes || []);
             setVendedores(resVendedores || []);
             await cargarDepartamentos();
@@ -355,7 +360,7 @@ const Contrato = ({ embedded = false }) => {
         if (seleccionada.coComprador) {
             setCoCompradorSeleccionado(seleccionada.coComprador);
         } else if (seleccionada.coCompradorId) {
-            const coComEncontrado = clientes.find((item) => item.id === seleccionada.coCompradorId);
+            const coComEncontrado = interesados.find((item) => item.id === seleccionada.coCompradorId);
             if (coComEncontrado) {
                 setCoCompradorSeleccionado(coComEncontrado);
             } else {
@@ -434,7 +439,7 @@ const Contrato = ({ embedded = false }) => {
         try {
             setCotizacionOrigenId(null);
             setIsEditFinanciamiento(false);
-            
+
             const listadoClientes = Array.isArray(clientes) ? clientes : [];
             const clienteExistente = listadoClientes.find((item) => item.numeroDocumento === documento);
 
@@ -547,7 +552,7 @@ const Contrato = ({ embedded = false }) => {
             icon: 'pi pi-exclamation-triangle',
             acceptLabel: 'Sí, quitar',
             rejectLabel: 'No',
-            acceptClassName: 'p-button-danger',
+            acceptClassName: 'p-button-danger shadow-2 border-round-xl font-bold text-white',
             accept: () => setCoCompradorSeleccionado(null)
         });
     };
@@ -565,7 +570,7 @@ const Contrato = ({ embedded = false }) => {
         setEditModalType(type);
         const sourceData = type === 'CLIENTE' ? cliente : coCompradorSeleccionado;
         setModalData({ ...sourceData });
-        
+
         if (sourceData?.departamento) {
             try {
                 const resProv = await UbigeoService.listarProvincias(sourceData.departamento, axiosInstance);
@@ -574,14 +579,14 @@ const Contrato = ({ embedded = false }) => {
                     const resDist = await UbigeoService.listarDistritos(sourceData.departamento, sourceData.provincia, axiosInstance);
                     setDistritosModal(mapDistritoOptions(resDist));
                 }
-            } catch(e) {}
+            } catch (e) { }
         } else {
             setProvinciasModal([]);
             setDistritosModal([]);
         }
         setDialogVisible(true);
     };
-    
+
     const onDepartamentoModalChange = async (value) => {
         setModalData((prev) => ({ ...prev, departamento: value, provincia: '', distrito: '', ubigeo: '' }));
         if (!value) { setProvinciasModal([]); setDistritosModal([]); return; }
@@ -610,6 +615,31 @@ const Contrato = ({ embedded = false }) => {
         if (modalData.tipoDocumento && modalData.tipoDocumento !== 'DNI') return;
         const doc = (modalData.numeroDocumento || '').trim();
         if (doc.length !== 8) return;
+
+        if (editModalType === 'COCOMPRADOR') {
+            const listadoInteresados = Array.isArray(interesados) ? interesados : [];
+            const interesadoExistente = listadoInteresados.find((item) => (item?.numeroDocumento || '').trim() === doc);
+            if (interesadoExistente) {
+                setModalData((prev) => ({
+                    ...prev,
+                    id: interesadoExistente.id,
+                    tipoDocumento: interesadoExistente.tipoDocumento || prev.tipoDocumento || 'DNI',
+                    numeroDocumento: interesadoExistente.numeroDocumento || doc,
+                    nombres: interesadoExistente.nombres || '',
+                    apellidos: interesadoExistente.apellidos || '',
+                    telefono: interesadoExistente.telefono || '',
+                    email: interesadoExistente.email || '',
+                    estadoCivil: interesadoExistente.estadoCivil || '',
+                    departamento: interesadoExistente.departamento || '',
+                    provincia: interesadoExistente.provincia || '',
+                    distrito: interesadoExistente.distrito || '',
+                    ubigeo: interesadoExistente.ubigeo || '',
+                    direccion: interesadoExistente.direccion || ''
+                }));
+                toast.current?.show({ severity: 'info', summary: 'Interesado', detail: 'El interesado ya está registrado.' });
+                return;
+            }
+        }
         try {
             const res = await ReniecService.consultarDNI(doc, axiosInstance);
             if (res?.success) {
@@ -654,7 +684,7 @@ const Contrato = ({ embedded = false }) => {
         let nCant = pCuotas;
         let nSaldo = saldo;
         if (pFlex) { nSaldo = saldo - (eCant * eMto); nCant = pCuotas - eCant; }
-        
+
         let base = nCant > 0 ? nSaldo / nCant : 0;
         // Normalizar fechaInicio a una Date local (evita shifts por parseo ISO/UTC)
         let bd;
@@ -671,15 +701,15 @@ const Contrato = ({ embedded = false }) => {
             if (i === pCuotas - 1 && nCant > 0) m = saldo - (eCant * eMto) - (Math.round(base * 100) / 100) * (nCant - 1);
             let dt = new Date(bd.getFullYear(), bd.getMonth() + i, 1);
             dt.setDate(Math.min(dia, new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate()));
-            
-            nc.push({ 
-                numero: i + 1, 
-                tipoCuota: (pFlex && i < eCant) ? 'ESPECIAL' : 'MENSUAL', 
-                montoTotal: Math.round(m * 100) / 100, 
-                montoPagado: 0, 
-                saldoPendiente: Math.round(m * 100) / 100, 
-                fecha: getLocalYMD(dt), 
-                estado: 'PENDIENTE' 
+
+            nc.push({
+                numero: i + 1,
+                tipoCuota: (pFlex && i < eCant) ? 'ESPECIAL' : 'MENSUAL',
+                montoTotal: Math.round(m * 100) / 100,
+                montoPagado: 0,
+                saldoPendiente: Math.round(m * 100) / 100,
+                fecha: getLocalYMD(dt),
+                estado: 'PENDIENTE'
             });
         }
 
@@ -847,7 +877,7 @@ const Contrato = ({ embedded = false }) => {
             if (coCompradorSeleccionado) {
                 // Verificar si es un Cliente existente o si vino como Interesado
                 const coCompradorCliente = clientes.find(c => c.numeroDocumento === coCompradorSeleccionado.numeroDocumento);
-                
+
                 if (coCompradorCliente) {
                     idCoCompradorFinal = coCompradorCliente.id;
                 } else {
@@ -891,7 +921,7 @@ const Contrato = ({ embedded = false }) => {
 
             const response = await ContratoService.crear(contratoPayload, axiosInstance);
             toast.current.show({ severity: 'success', summary: '¡Éxito!', detail: 'Contrato emitido correctamente.' });
-            
+
             const idGenerado = response?.id || response?.data?.id;
 
             if (idGenerado) {
@@ -903,11 +933,11 @@ const Contrato = ({ embedded = false }) => {
                     toast.current.show({ severity: 'warn', summary: 'Aviso', detail: 'El contrato se guardó, pero hubo un error abriendo la vista previa.' });
                 }
             }
-            
+
             setTimeout(() => {
-                if(idGenerado) navigate(`/detalle_contrato/${idGenerado}`);
+                if (idGenerado) navigate(`/detalle_contrato/${idGenerado}`);
             }, 1500);
-            
+
             setCronograma([]);
         } catch (error) {
             toast.current.show({ severity: 'error', summary: 'Error', detail: 'Fallo al guardar contrato.' });
@@ -952,12 +982,12 @@ const Contrato = ({ embedded = false }) => {
         if (rowData.numero === 0) {
             return (
                 <div className="flex flex-column text-right">
-                    <span className="font-bold text-blue-700">S/ {rowData.montoTotal.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>
+                    <span className="font-bold text-blue-700">S/ {rowData.montoTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                     {rowData.saldoPendiente > 0 && <span className="text-xs text-orange-600">Debe: S/ {rowData.saldoPendiente.toLocaleString()}</span>}
                 </div>
             );
         }
-        return <span className="font-bold">S/ {rowData.montoTotal.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>;
+        return <span className="font-bold">S/ {rowData.montoTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>;
     };
 
     const tipoTemplate = (rowData) => {
@@ -975,7 +1005,7 @@ const Contrato = ({ embedded = false }) => {
     // ==========================================
     const renderContenido = () => (
         <div className="grid mt-3 align-items-stretch">
-            
+
             {/* ====== PANEL IZQUIERDO: CONTEXTO ====== */}
             <div className="col-12 xl:col-5 flex">
                 <div className="custom-card mb-4 w-full flex flex-column">
@@ -983,13 +1013,13 @@ const Contrato = ({ embedded = false }) => {
                         <i className="pi pi-search text-primary"></i>
                         <span className="font-bold text-lg ml-2">Buscador y Contexto</span>
                     </div>
-                    
+
                     <div className="p-fluid mt-3 flex-grow-1 flex flex-column justify-content-between">
                         <div>
                             {/* Buscador */}
-                            <label className="font-medium text-sm mb-2 block">Documento del interesado o N° cotización</label>
+                            <label className="font-medium text-sm mb-2 block">Documento del interesado</label>
                             <div className="p-inputgroup mb-4">
-                                <InputText value={criterioBusqueda} onChange={(e) => setCriterioBusqueda(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && buscarCotizaciones()} placeholder="Ej: 72384732 o COT-102" />
+                                <InputText value={criterioBusqueda} onChange={(e) => setCriterioBusqueda(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && buscarCotizaciones()} placeholder="Ej: 72384732" />
                                 <Button icon="pi pi-search" onClick={buscarCotizaciones} className="btn-primary-custom" />
                                 <Button icon="pi pi-times" className="p-button-outlined" onClick={limpiarResultados} />
                             </div>
@@ -1038,7 +1068,7 @@ const Contrato = ({ embedded = false }) => {
                                 <i className={`pi ${!isEditFinanciamiento ? 'pi-file-check' : 'pi-wallet'} text-primary`}></i>
                                 <span className="font-bold text-lg ml-2">{!isEditFinanciamiento ? 'Resumen de Contrato' : 'Configuración de Financiamiento'}</span>
                             </div>
-                            
+
                         </div>
 
                         <div className="p-fluid grid mt-3">
@@ -1117,7 +1147,7 @@ const Contrato = ({ embedded = false }) => {
                                                 <span className="text-xs text-green-600 uppercase font-bold block mb-1">Promedio por Cuota ({cuotas})</span>
                                                 <span className="text-3xl font-bold text-green-700">S/ {cuotaPromedio.toLocaleString('en-US', { minimumFractionDigits: 2 })} <span className="text-sm font-bold text-600">/ mes</span></span>
                                             </div>
-                                            
+
                                             {/* Details row */}
                                             <div className="col-12 md:col-3 mb-2">
                                                 <div className="p-3 border-round border-1 surface-border bg-white shadow-1 h-full text-center">
@@ -1184,18 +1214,18 @@ const Contrato = ({ embedded = false }) => {
                                         </div>
                                         {!isCotizacionConvertida ? (
                                             <div className="mt-4 flex flex-column md:flex-row justify-content-end gap-3 pt-4 border-top-1 border-blue-200">
-                                                <Button 
-                                                    label="Modificar Parámetros" 
-                                                    icon="pi pi-sliders-v" 
-                                                    className="p-button-outlined p-button-secondary bg-white w-full md:w-auto p-button-lg" 
-                                                    onClick={handleEnableEdit} 
+                                                <Button
+                                                    label="Modificar Parámetros"
+                                                    icon="pi pi-sliders-v"
+                                                    className="p-button-outlined p-button-secondary bg-white w-full md:w-auto p-button-lg"
+                                                    onClick={handleEnableEdit}
                                                 />
-                                                <Button 
-                                                    label="Generar Contrato Oficial" 
-                                                    icon="pi pi-check-circle" 
-                                                    className="btn-success-custom p-button-lg shadow-2 font-bold px-5 w-full md:w-auto" 
-                                                    disabled={cronograma.length === 0} 
-                                                    onClick={guardarContrato} 
+                                                <Button
+                                                    label="Generar Contrato"
+                                                    icon="pi pi-check-circle"
+                                                    className="btn-success-custom p-button-lg shadow-2 font-bold px-5 w-full md:w-auto"
+                                                    disabled={cronograma.length === 0}
+                                                    onClick={guardarContrato}
                                                 />
                                             </div>
                                         ) : (
@@ -1223,7 +1253,7 @@ const Contrato = ({ embedded = false }) => {
                                                         <span className="text-sm text-600"><i className="pi pi-id-card mr-1"></i>{`${cliente.tipoDocumento || 'DNI'}: ${cliente.numeroDocumento || ''}`}</span>
                                                     </div>
                                                 </div>
-                                                
+
                                                 {/* Co-comprador */}
                                                 <div className="col-12 md:col-6">
                                                     {coCompradorSeleccionado ? (
@@ -1250,8 +1280,16 @@ const Contrato = ({ embedded = false }) => {
                                                                 onChange={(e) => setCoCompradorSeleccionado(e.value)}
                                                                 optionLabel="nombreCompleto"
                                                                 placeholder="Seleccione o busque"
-                                                                showClear filter filterBy="nombreCompleto,numeroDocumento"
+                                                                showClear
+                                                                filter
+                                                                filterBy="nombreCompleto,numeroDocumento"
                                                                 className="w-full p-inputtext-sm"
+                                                                itemTemplate={(option) => (
+                                                                    <div className="flex flex-column">
+                                                                        <span className="font-medium">{option.nombreCompleto || 'Sin nombre'}</span>
+                                                                        <small className="text-500">{option.detalleDocumento}</small>
+                                                                    </div>
+                                                                )}
                                                             />
                                                         </div>
                                                     )}
@@ -1296,8 +1334,8 @@ const Contrato = ({ embedded = false }) => {
                                                             <div className="p-3 text-center text-500 font-italic">No hay lotes disponibles en esta manzana.</div>
                                                         ) : (
                                                             lotesFiltradosOptions.map((loteOpt) => (
-                                                                <div 
-                                                                    key={loteOpt.id} 
+                                                                <div
+                                                                    key={loteOpt.id}
                                                                     className={`lote-item-card ${loteSeleccionado?.id === loteOpt.id ? 'selected' : ''}`}
                                                                     onClick={() => onLoteChange({ value: loteOpt })}
                                                                 >
@@ -1323,11 +1361,11 @@ const Contrato = ({ embedded = false }) => {
                                             </div>
                                             <div className="col-12 md:col-6">
                                                 <label className="text-xs text-500 uppercase font-bold block mb-2">Vendedor Asignado</label>
-                                                <Dropdown 
-                                                    value={vendedorSeleccionado} 
-                                                    options={vendedoresOptions} 
-                                                    onChange={(e) => setVendedorSeleccionado(e.value)} 
-                                                    optionLabel="nombreCompleto" 
+                                                <Dropdown
+                                                    value={vendedorSeleccionado}
+                                                    options={vendedoresOptions}
+                                                    onChange={(e) => setVendedorSeleccionado(e.value)}
+                                                    optionLabel="nombreCompleto"
                                                     placeholder="Seleccione Vendedor"
                                                     className="w-full"
                                                 />
@@ -1451,7 +1489,7 @@ const Contrato = ({ embedded = false }) => {
 
                                     <div className="col-12 mt-4 flex justify-content-between fade-in">
                                         <Button label="Cerrar Edición" icon="pi pi-times" className="p-button-text p-button-secondary" onClick={() => setIsEditFinanciamiento(false)} />
-                                        <Button label="Generar / Actualizar Cronograma" icon="pi pi-calculator" className="btn-primary-custom" onClick={simular} />
+                                        <Button label="Generar Cronograma" icon="pi pi-calculator" className="btn-primary-custom" onClick={simular} />
                                     </div>
                                 </>
                             )}
@@ -1468,10 +1506,10 @@ const Contrato = ({ embedded = false }) => {
                             <div>
                                 <i className="pi pi-check-square text-green-500 text-xl"></i>
                                 <span className="font-bold text-xl ml-2 text-800">Proyección Oficial</span>
-                                
+
                             </div>
                             {cronograma.length > 0 && (
-                                <Button label="Emitir Contrato Oficial" icon="pi pi-file-edit" className="btn-success-custom p-button-lg shadow-3 border-round-xl font-bold" onClick={guardarContrato} />
+                                <Button label="Emitir Contrato" icon="pi pi-file-edit" className="btn-success-custom p-button-lg shadow-3 border-round-xl font-bold" onClick={guardarContrato} />
                             )}
                         </div>
 
@@ -1519,19 +1557,19 @@ const Contrato = ({ embedded = false }) => {
                                     </div> */}
                                 </div>
 
-                            <div className="bg-white border-round shadow-1 overflow-hidden">
-                                <DataTable value={cronograma} scrollable scrollHeight="500px" className="p-datatable-sm custom-table" 
-                                    rowClassName={(data) => ({ 
-                                        'bg-blue-50 font-bold': data.numero === 0,
-                                        'bg-orange-50 font-bold': data.tipoCuota === 'ESPECIAL'
-                                    })}>
-                                    <Column field="numero" header="N°" style={{ width: '8%' }} body={(r) => r.numero === 0 ? '0' : r.numero}></Column>
-                                    <Column field="tipoCuota" header="Tipo" style={{ width: '20%' }} body={tipoTemplate}></Column>
-                                    <Column field="fecha" header="Vencimiento" style={{ width: '25%' }} body={(row) => <><i className="pi pi-calendar mr-2 text-400"></i>{formatFechaLarga(row.fecha)}</>}></Column>
-                                    <Column header="Monto (S/)" body={montoTemplate} style={{ width: '25%', textAlign: 'right' }}></Column>
-                                    <Column header="Estado" body={estadoTemplate} style={{ width: '22%', textAlign: 'center' }}></Column>
-                                </DataTable>
-                            </div>
+                                <div className="bg-white border-round shadow-1 overflow-hidden">
+                                    <DataTable value={cronograma} scrollable scrollHeight="500px" className="p-datatable-sm custom-table"
+                                        rowClassName={(data) => ({
+                                            'bg-blue-50 font-bold': data.numero === 0,
+                                            'bg-orange-50 font-bold': data.tipoCuota === 'ESPECIAL'
+                                        })}>
+                                        <Column field="numero" header="N°" style={{ width: '8%' }} body={(r) => r.numero === 0 ? '0' : r.numero}></Column>
+                                        <Column field="tipoCuota" header="Tipo" style={{ width: '20%' }} body={tipoTemplate}></Column>
+                                        <Column field="fecha" header="Vencimiento" style={{ width: '25%' }} body={(row) => <><i className="pi pi-calendar mr-2 text-400"></i>{formatFechaLarga(row.fecha)}</>}></Column>
+                                        <Column header="Monto (S/)" body={montoTemplate} style={{ width: '25%', textAlign: 'right' }}></Column>
+                                        <Column header="Estado" body={estadoTemplate} style={{ width: '22%', textAlign: 'center' }}></Column>
+                                    </DataTable>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -1545,28 +1583,50 @@ const Contrato = ({ embedded = false }) => {
             <Toast ref={toast} />
             <ConfirmDialog />
             {!embedded && (
-                <PageHeader title="Cierre de Venta" description="Ajuste el financiamiento y genere el contrato oficial." icon="pi pi-check-square" />
+                <PageHeader
+                    title="Cierre de Venta"
+                    description="Ajuste el financiamiento y genere el contrato oficial."
+                    icon="pi pi-check-square"
+                />
             )}
-            {embedded ? renderContenido() : <div className="main-content">{renderContenido()}</div>}
-            
+            {embedded ? (
+                renderContenido()
+            ) : (
+                <div className="main-content">{renderContenido()}</div>
+            )}
+
             <Dialog
                 visible={dialogVisible}
-                style={{ width: '800px', maxWidth: '95vw' }}
+                style={{ width: "800px", maxWidth: "95vw" }}
                 header={
                     <DialogHeader
-                        title={editModalType === 'CLIENTE' ? 'Editar Titular' : 'Editar Co-comprador'}
+                        title={
+                            editModalType === "CLIENTE"
+                                ? "Editar Titular"
+                                : "Editar Co-comprador"
+                        }
                         subtitle="Modifique los datos de contacto y ubicación"
-                        icon={editModalType === 'CLIENTE' ? 'pi pi-user' : 'pi pi-users'}
+                        icon={editModalType === "CLIENTE" ? "pi pi-user" : "pi pi-users"}
                     />
                 }
                 modal
                 className="p-fluid custom-profile-dialog"
-                footer={(
+                footer={
                     <div className="dialog-footer-buttons">
-                        <Button label="Cancelar" icon="pi pi-times" className="p-button-text p-button-secondary" onClick={() => setDialogVisible(false)} />
-                        <Button label="Actualizar" icon="pi pi-check" onClick={guardarModal} autoFocus />
+                        <Button
+                            label="Cancelar"
+                            icon="pi pi-times"
+                            className="p-button-text p-button-secondary"
+                            onClick={() => setDialogVisible(false)}
+                        />
+                        <Button
+                            label="Actualizar"
+                            icon="pi pi-check"
+                            onClick={guardarModal}
+                            autoFocus
+                        />
                     </div>
-                )}
+                }
                 onHide={() => setDialogVisible(false)}
             >
                 <div className="formgrid grid dialog-content-specific pt-2">
@@ -1574,9 +1634,19 @@ const Contrato = ({ embedded = false }) => {
                     <div className="field col-12 md:col-6">
                         <label>Tipo Documento</label>
                         <Dropdown
-                            value={modalData.tipoDocumento || 'DNI'}
-                            options={[{ label: 'DNI', value: 'DNI' }, { label: 'Carnet de Extranjeria', value: 'CE' }, { label: 'RUC', value: 'RUC' }]}
-                            onChange={(e) => setModalData((prev) => ({ ...prev, tipoDocumento: e.value, numeroDocumento: '' }))}
+                            value={modalData.tipoDocumento || "DNI"}
+                            options={[
+                                { label: "DNI", value: "DNI" },
+                                { label: "Carnet de Extranjeria", value: "CE" },
+                                { label: "RUC", value: "RUC" },
+                            ]}
+                            onChange={(e) =>
+                                setModalData((prev) => ({
+                                    ...prev,
+                                    tipoDocumento: e.value,
+                                    numeroDocumento: "",
+                                }))
+                            }
                             placeholder="Seleccione tipo"
                             className="w-full"
                         />
@@ -1587,17 +1657,34 @@ const Contrato = ({ embedded = false }) => {
                         <label>Documento</label>
                         <div className="p-inputgroup">
                             <InputText
-                                value={modalData.numeroDocumento || ''}
+                                value={modalData.numeroDocumento || ""}
                                 onChange={(e) => {
-                                    const val = e.target.value || '';
-                                    const filtered = filtrarDocumento(val, modalData.tipoDocumento || 'DNI');
-                                    setModalData((prev) => ({ ...prev, numeroDocumento: filtered }));
+                                    const val = e.target.value || "";
+                                    const filtered = filtrarDocumento(
+                                        val,
+                                        modalData.tipoDocumento || "DNI",
+                                    );
+                                    setModalData((prev) => ({
+                                        ...prev,
+                                        numeroDocumento: filtered,
+                                    }));
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                        e.preventDefault();
+                                        buscarDniModal();
+                                    }
                                 }}
                                 keyfilter="pint"
                                 maxLength={maxLengthDocumento(modalData.tipoDocumento)}
                                 placeholder={placeholderDocumento(modalData.tipoDocumento)}
                             />
-                            <Button icon="pi pi-search" className="p-button-outlined" type="button" onClick={buscarDniModal} />
+                            <Button
+                                icon="pi pi-search"
+                                className="p-button-outlined"
+                                type="button"
+                                onClick={buscarDniModal}
+                            />
                         </div>
                     </div>
 
@@ -1605,8 +1692,10 @@ const Contrato = ({ embedded = false }) => {
                     <div className="field col-12 md:col-6">
                         <label>Nombres</label>
                         <InputText
-                            value={modalData.nombres || ''}
-                            onChange={(e) => setModalData((prev) => ({ ...prev, nombres: e.target.value }))}
+                            value={modalData.nombres || ""}
+                            onChange={(e) =>
+                                setModalData((prev) => ({ ...prev, nombres: e.target.value }))
+                            }
                             placeholder="Ingrese nombres"
                         />
                     </div>
@@ -1615,8 +1704,13 @@ const Contrato = ({ embedded = false }) => {
                     <div className="field col-12 md:col-6">
                         <label>Apellidos</label>
                         <InputText
-                            value={modalData.apellidos || ''}
-                            onChange={(e) => setModalData((prev) => ({ ...prev, apellidos: e.target.value }))}
+                            value={modalData.apellidos || ""}
+                            onChange={(e) =>
+                                setModalData((prev) => ({
+                                    ...prev,
+                                    apellidos: e.target.value,
+                                }))
+                            }
                             placeholder="Ingrese apellidos"
                         />
                     </div>
@@ -1625,8 +1719,10 @@ const Contrato = ({ embedded = false }) => {
                     <div className="field col-12 md:col-6">
                         <label>Correo Electrónico</label>
                         <InputText
-                            value={modalData.email || ''}
-                            onChange={(e) => setModalData((prev) => ({ ...prev, email: e.target.value }))}
+                            value={modalData.email || ""}
+                            onChange={(e) =>
+                                setModalData((prev) => ({ ...prev, email: e.target.value }))
+                            }
                             placeholder="ejemplo@correo.com"
                         />
                     </div>
@@ -1635,8 +1731,13 @@ const Contrato = ({ embedded = false }) => {
                     <div className="field col-12 md:col-6">
                         <label>Teléfono</label>
                         <InputText
-                            value={modalData.telefono || ''}
-                            onChange={(e) => setModalData((prev) => ({ ...prev, telefono: e.target.value }))}
+                            value={modalData.telefono || ""}
+                            onChange={(e) =>
+                                setModalData((prev) => ({
+                                    ...prev,
+                                    telefono: e.target.value,
+                                }))
+                            }
                             placeholder="Ingrese teléfono"
                         />
                     </div>
@@ -1644,9 +1745,11 @@ const Contrato = ({ embedded = false }) => {
                     <div className="field col-12 md:col-6">
                         <label>Estado Civil</label>
                         <Dropdown
-                            value={modalData.estadoCivil || ''}
+                            value={modalData.estadoCivil || ""}
                             options={estadoCivilOptions}
-                            onChange={(e) => setModalData((prev) => ({ ...prev, estadoCivil: e.value }))}
+                            onChange={(e) =>
+                                setModalData((prev) => ({ ...prev, estadoCivil: e.value }))
+                            }
                             placeholder="Seleccione estado civil"
                             className="w-full"
                             showClear
@@ -1656,8 +1759,13 @@ const Contrato = ({ embedded = false }) => {
                     <div className="field col-12 md:col-6">
                         <label>Dirección</label>
                         <InputText
-                            value={modalData.direccion || ''}
-                            onChange={(e) => setModalData((prev) => ({ ...prev, direccion: e.target.value }))}
+                            value={modalData.direccion || ""}
+                            onChange={(e) =>
+                                setModalData((prev) => ({
+                                    ...prev,
+                                    direccion: e.target.value,
+                                }))
+                            }
                             placeholder="Ingrese dirección"
                         />
                     </div>
@@ -1666,7 +1774,7 @@ const Contrato = ({ embedded = false }) => {
                     <div className="field col-12 md:col-4">
                         <label>Departamento</label>
                         <Dropdown
-                            value={modalData.departamento || ''}
+                            value={modalData.departamento || ""}
                             options={departamentos}
                             onChange={(e) => onDepartamentoModalChange(e.value)}
                             placeholder="Seleccione dep."
@@ -1680,7 +1788,7 @@ const Contrato = ({ embedded = false }) => {
                     <div className="field col-12 md:col-4">
                         <label>Provincia</label>
                         <Dropdown
-                            value={modalData.provincia || ''}
+                            value={modalData.provincia || ""}
                             options={provinciasModal}
                             onChange={(e) => onProvinciaModalChange(e.value)}
                             placeholder="Seleccione prov."
@@ -1695,7 +1803,7 @@ const Contrato = ({ embedded = false }) => {
                     <div className="field col-12 md:col-4">
                         <label>Distrito</label>
                         <Dropdown
-                            value={modalData.distrito || ''}
+                            value={modalData.distrito || ""}
                             options={distritosModal}
                             onChange={(e) => onDistritoModalChange(e.value)}
                             placeholder="Seleccione dist."

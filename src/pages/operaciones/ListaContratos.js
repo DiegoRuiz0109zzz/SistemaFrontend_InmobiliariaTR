@@ -49,11 +49,22 @@ const ListaContratos = () => {
     const [globalFilter, setGlobalFilter] = useState('');
     const [estadoContratoFilter, setEstadoContratoFilter] = useState('Todos');
     const [estadoPagosFilter, setEstadoPagosFilter] = useState('Todas las Deudas');
-    const [proyectoFilter, setProyectoFilter] = useState('Todas las Ubicaciones');
     const [documentoFilter, setDocumentoFilter] = useState('Todos');
-    const [inicialFilter, setInicialFilter] = useState('Todas');
-    const [especialesFilter, setEspecialesFilter] = useState('Todas');
-    const [fechaEmisionFilter, setFechaEmisionFilter] = useState(null);
+    const [fechaRangoFilter, setFechaRangoFilter] = useState(null);
+    const [etapaFilter, setEtapaFilter] = useState('Todas las Etapas');
+    const [manzanaFilter, setManzanaFilter] = useState('Todas las Manzanas');
+    const [loteFilter, setLoteFilter] = useState('Todos los Lotes');
+
+    const limpiarFiltros = () => {
+        setGlobalFilter('');
+        setEstadoContratoFilter('Todos');
+        setEstadoPagosFilter('Todas las Deudas');
+        setDocumentoFilter('Todos');
+        setFechaRangoFilter(null);
+        setEtapaFilter('Todas las Etapas');
+        setManzanaFilter('Todas las Manzanas');
+        setLoteFilter('Todos los Lotes');
+    };
 
     useEffect(() => {
         cargarContratos();
@@ -134,15 +145,15 @@ const ListaContratos = () => {
                 let tipoInicialFmt = item.tipoInicial || 'TOTAL';
                 if (tipoInicialFmt.toUpperCase() === 'PARCIAL') tipoInicialFmt = 'PARCIAL';
 
-                let estadoLoteValue = item.lote?.estadoVenta;
+                let estadoLoteValue = (item.estadoContrato || '').toUpperCase();
                 
-                if (tipoInicialFmt === 'PARCIAL') {
-                    estadoLoteValue = 'SEPARADO';
-                } else if (!estadoLoteValue) {
-                    estadoLoteValue = totalPagadoReal < (item.montoInicialAcordado || 0) ? 'SEPARADO' : 'VENDIDO';
+                if (!estadoLoteValue) {
+                    estadoLoteValue = tipoInicialFmt === 'PARCIAL' ? 'SEPARADO' : 'ACTIVO';
                 }
 
-                if (estadoLoteValue === 'VENDIDO') estadoLoteValue = 'ACTIVO';
+                if (estadoLoteValue === 'VENDIDO' || estadoLoteValue === 'CONVERTIDA_A_CONTRATO' || estadoLoteValue === 'CONVERTIDO' || estadoLoteValue === 'CONTRATO') {
+                    estadoLoteValue = 'ACTIVO';
+                }
 
                 const documentoFirmadoUrl = typeof item.urlDocumentoFirmado === 'string'
                     ? item.urlDocumentoFirmado.trim()
@@ -181,17 +192,36 @@ const ListaContratos = () => {
     const estadoContratoOptions = [{ label: 'Todos', value: 'Todos' }, { label: 'Activo', value: 'ACTIVO' }, { label: 'Separado', value: 'SEPARADO' }];
     const estadoPagosOptions = [{ label: 'Todas las Deudas', value: 'Todas las Deudas' }, { label: 'Al Día', value: 'AL DIA' }, { label: 'Atrasado', value: 'ATRASADO' }, { label: 'Cancelado', value: 'CANCELADO' }];
     const documentoOptions = [{ label: 'Todos', value: 'Todos' }, { label: 'Firmado', value: 'FIRMADO' }, { label: 'Sin Firmar', value: 'SIN_FIRMAR' }];
-    const inicialOptions = [{ label: 'Todas', value: 'Todas' }, { label: 'Total', value: 'TOTAL' }, { label: 'Parcial', value: 'PARCIAL' }];
-    const especialesOptions = [{ label: 'Todas', value: 'Todas' }, { label: 'Con Especiales', value: 'CON_ESPECIAL' }, { label: 'Sin Especiales', value: 'SIN_ESPECIAL' }];
 
-    const proyectoOptions = useMemo(() => {
-        const urbs = new Set();
+    const etapaOptions = useMemo(() => {
+        const etapas = new Set();
         contratos.forEach(c => {
-            const u = c.lote?.manzana?.etapa?.urbanizacion?.nombre;
-            if (u) urbs.add(u);
+            const u = c.lote?.manzana?.etapa?.nombre;
+            if (u) etapas.add(u);
         });
-        return [{ label: 'Todas las Ubicaciones', value: 'Todas las Ubicaciones' }, ...Array.from(urbs).map(u => ({ label: `Urb. ${u}`, value: u }))];
+        return [{ label: 'Todas las Etapas', value: 'Todas las Etapas' }, ...Array.from(etapas).map(u => ({ label: `Etapa ${u}`, value: u }))];
     }, [contratos]);
+
+    const manzanaOptions = useMemo(() => {
+        const mzs = new Set();
+        contratos.forEach(c => {
+            if (etapaFilter !== 'Todas las Etapas' && c.lote?.manzana?.etapa?.nombre !== etapaFilter) return;
+            const m = c.lote?.manzana?.nombre;
+            if (m) mzs.add(m);
+        });
+        return [{ label: 'Todas las Manzanas', value: 'Todas las Manzanas' }, ...Array.from(mzs).map(m => ({ label: `Mz ${m}`, value: m }))];
+    }, [contratos, etapaFilter]);
+
+    const loteOptions = useMemo(() => {
+        const lts = new Set();
+        contratos.forEach(c => {
+            if (etapaFilter !== 'Todas las Etapas' && c.lote?.manzana?.etapa?.nombre !== etapaFilter) return;
+            if (manzanaFilter !== 'Todas las Manzanas' && c.lote?.manzana?.nombre !== manzanaFilter) return;
+            const l = c.lote?.numero;
+            if (l) lts.add(l);
+        });
+        return [{ label: 'Todos los Lotes', value: 'Todos los Lotes' }, ...Array.from(lts).map(l => ({ label: `Lote ${l}`, value: l }))];
+    }, [contratos, etapaFilter, manzanaFilter]);
 
     // Apply Filters
     const filteredContratos = useMemo(() => {
@@ -206,19 +236,32 @@ const ListaContratos = () => {
             }
             if (estadoContratoFilter !== 'Todos' && item.estadoLote !== estadoContratoFilter) match = false;
             if (estadoPagosFilter !== 'Todas las Deudas' && item.estadoPago !== estadoPagosFilter) match = false;
-            if (proyectoFilter !== 'Todas las Ubicaciones' && item.lote?.manzana?.etapa?.urbanizacion?.nombre !== proyectoFilter) match = false;
             if (documentoFilter === 'FIRMADO' && !item.tieneDocumento) match = false;
             if (documentoFilter === 'SIN_FIRMAR' && item.tieneDocumento) match = false;
-            if (inicialFilter !== 'Todas' && item.tipoInicialFmt !== inicialFilter) match = false;
-            if (especialesFilter === 'CON_ESPECIAL' && !item.tieneEspeciales) match = false;
-            if (especialesFilter === 'SIN_ESPECIAL' && item.tieneEspeciales) match = false;
-            if (fechaEmisionFilter) {
+            
+            if (etapaFilter !== 'Todas las Etapas' && item.lote?.manzana?.etapa?.nombre !== etapaFilter) match = false;
+            if (manzanaFilter !== 'Todas las Manzanas' && item.lote?.manzana?.nombre !== manzanaFilter) match = false;
+            if (loteFilter !== 'Todos los Lotes' && item.lote?.numero !== loteFilter) match = false;
+
+            if (fechaRangoFilter && fechaRangoFilter[0]) {
                 const itemDate = new Date(item.fechaEmision);
-                if (itemDate.toDateString() !== fechaEmisionFilter.toDateString()) match = false;
+                itemDate.setHours(0, 0, 0, 0);
+                
+                const start = new Date(fechaRangoFilter[0]);
+                start.setHours(0, 0, 0, 0);
+                
+                let end = null;
+                if (fechaRangoFilter[1]) {
+                    end = new Date(fechaRangoFilter[1]);
+                    end.setHours(23, 59, 59, 999);
+                }
+
+                if (itemDate < start) match = false;
+                if (end && itemDate > end) match = false;
             }
             return match;
         });
-    }, [contratos, globalFilter, estadoContratoFilter, estadoPagosFilter, proyectoFilter, documentoFilter, inicialFilter, especialesFilter, fechaEmisionFilter]);
+    }, [contratos, globalFilter, estadoContratoFilter, estadoPagosFilter, etapaFilter, manzanaFilter, loteFilter, documentoFilter, fechaRangoFilter]);
 
     // KPIs
     const kpis = useMemo(() => {
@@ -438,12 +481,15 @@ const ListaContratos = () => {
             {/* Filter Panel */}
             <div className="surface-0 p-4 border-round-2xl shadow-1 mb-4">
                 <div className="flex flex-column md:flex-row justify-content-between align-items-center mb-3">
-                    <h3 className="m-0 text-lg font-bold text-700 flex align-items-center gap-2">
-                        <i className="pi pi-filter text-blue-500"></i> Filtros de Búsqueda
-                    </h3>
-                    <span className="p-input-icon-left w-full md:w-25rem shadow-1 border-round-xl">
-                        <i className="pi pi-search" />
-                        <InputText value={globalFilter} onChange={(e) => setGlobalFilter(e.target.value)} placeholder="Buscar cliente, DNI o N° contrato..." className="w-full bg-white border-1 surface-border border-round-xl p-3" />
+                    <div className="flex align-items-center gap-3">
+                        <h3 className="m-0 text-lg font-bold text-700 flex align-items-center gap-2">
+                            <i className="pi pi-filter text-blue-500"></i> Filtros de Búsqueda
+                        </h3>
+                        <Button label="Limpiar" icon="pi pi-filter-slash" className="p-button-text p-button-secondary p-button-sm font-bold" onClick={limpiarFiltros} tooltip="Restablecer filtros" />
+                    </div>
+                    <span className="p-input-icon-left w-full md:w-25rem shadow-1 border-round-xl mt-3 md:mt-0">
+                        <i className="pi pi-search ml-2" />
+                        <InputText value={globalFilter} onChange={(e) => setGlobalFilter(e.target.value)} placeholder="Buscar cliente, DNI o N° contrato..." className="w-full bg-white border-1 surface-border border-round-xl p-3 pl-5" />
                     </span>
                 </div>
 
@@ -457,27 +503,27 @@ const ListaContratos = () => {
                         <Dropdown value={estadoPagosFilter} options={estadoPagosOptions} onChange={(e) => setEstadoPagosFilter(e.value)} className="w-full bg-white border-1 surface-border shadow-1 border-round-lg font-bold" />
                     </div>
                     <div className="col">
-                        <label className="block text-xs font-bold text-600 mb-2 uppercase">Proyecto y Lote</label>
-                        <Dropdown value={proyectoFilter} options={proyectoOptions} onChange={(e) => setProyectoFilter(e.value)} className="w-full bg-white border-1 surface-border shadow-1 border-round-lg font-bold" />
-                    </div>
-                    <div className="col">
                         <label className="block text-xs font-bold text-600 mb-2 uppercase">Documento</label>
                         <Dropdown value={documentoFilter} options={documentoOptions} onChange={(e) => setDocumentoFilter(e.value)} className="w-full bg-white border-1 surface-border shadow-1 border-round-lg font-bold" />
+                    </div>
+                    <div className="col">
+                        <label className="block text-xs font-bold text-600 mb-2 uppercase">Fecha Emisión</label>
+                        <Calendar value={fechaRangoFilter} onChange={(e) => setFechaRangoFilter(e.value)} placeholder="Desde - Hasta" selectionMode="range" dateFormat="dd/mm/yy" className="w-full shadow-1 border-round-lg calendar-custom font-bold" showIcon />
                     </div>
                 </div>
 
                 <div className="grid grid-nogutter gap-3 mt-3 filter-grid">
                     <div className="col">
-                        <label className="block text-xs font-bold text-600 mb-2 uppercase">Inicial</label>
-                        <Dropdown value={inicialFilter} options={inicialOptions} onChange={(e) => setInicialFilter(e.value)} className="w-full bg-white border-1 surface-border shadow-1 border-round-lg font-bold" />
+                        <label className="block text-xs font-bold text-600 mb-2 uppercase">Etapa</label>
+                        <Dropdown value={etapaFilter} options={etapaOptions} onChange={(e) => { setEtapaFilter(e.value); setManzanaFilter('Todas las Manzanas'); setLoteFilter('Todos los Lotes'); }} className="w-full bg-white border-1 surface-border shadow-1 border-round-lg font-bold" filter />
                     </div>
                     <div className="col">
-                        <label className="block text-xs font-bold text-600 mb-2 uppercase">Especiales</label>
-                        <Dropdown value={especialesFilter} options={especialesOptions} onChange={(e) => setEspecialesFilter(e.value)} className="w-full bg-white border-1 surface-border shadow-1 border-round-lg font-bold" />
+                        <label className="block text-xs font-bold text-600 mb-2 uppercase">Manzana</label>
+                        <Dropdown value={manzanaFilter} options={manzanaOptions} onChange={(e) => { setManzanaFilter(e.value); setLoteFilter('Todos los Lotes'); }} className="w-full bg-white border-1 surface-border shadow-1 border-round-lg font-bold" filter />
                     </div>
                     <div className="col">
-                        <label className="block text-xs font-bold text-600 mb-2 uppercase">Fecha Emisión</label>
-                        <Calendar value={fechaEmisionFilter} onChange={(e) => setFechaEmisionFilter(e.value)} placeholder="dd/mm/aaaa" dateFormat="dd/mm/yy" className="w-full shadow-1 border-round-lg calendar-custom font-bold" showIcon />
+                        <label className="block text-xs font-bold text-600 mb-2 uppercase">Lote</label>
+                        <Dropdown value={loteFilter} options={loteOptions} onChange={(e) => setLoteFilter(e.value)} className="w-full bg-white border-1 surface-border shadow-1 border-round-lg font-bold" filter />
                     </div>
                     <div className="col"></div>
                 </div>

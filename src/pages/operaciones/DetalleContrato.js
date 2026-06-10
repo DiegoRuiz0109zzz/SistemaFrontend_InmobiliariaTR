@@ -678,6 +678,12 @@ const DetalleContrato = () => {
     };
 
     const abrirConversionModal = () => {
+        const estadoActual = (contrato?.estadoContrato || '').toUpperCase();
+        if (estadoActual === 'SEPARADO' && !contrato?.urlDocumentoFirmado) {
+            toast.current?.show({ severity: 'warn', summary: 'Validación', detail: 'Falta subir contrato separado y no esta, no se puede generar el cronograma' });
+            return;
+        }
+
         setConversionCronograma([]);
         setConversionDescripcion('');
         setConversionDismissed(false);
@@ -1247,7 +1253,7 @@ const DetalleContrato = () => {
 
         const fechaVencimientoString = rowData?.vencimientoRaw || rowData?.vencimiento;
         if (!fechaVencimientoString) return <Tag value={estadoFormateado} />;
-        
+
         let fecha;
         if (fechaVencimientoString.includes('/')) {
             const [dia, mes, anio] = fechaVencimientoString.split('/');
@@ -1299,7 +1305,7 @@ const DetalleContrato = () => {
 
     const retrasoTemplate = (rowData) => {
         const estadoOriginal = (rowData?.estado || '').toUpperCase();
-        
+
         if (estadoOriginal === 'PAGADO_DESTIEMPO') {
             const pagoAtrasado = historialPagos.find(p => p.cuotaId === rowData?.id && p.pagoADestiempo);
             const diasRetraso = pagoAtrasado ? pagoAtrasado.diasRetraso : (rowData?.diasRetraso || 0);
@@ -1308,7 +1314,7 @@ const DetalleContrato = () => {
 
         const fechaVencimientoString = rowData?.vencimientoRaw || rowData?.vencimiento;
         if (!fechaVencimientoString) return <span className="text-400 text-sm">-</span>;
-        
+
         let fecha;
         if (fechaVencimientoString.includes('/')) {
             const [dia, mes, anio] = fechaVencimientoString.split('/');
@@ -1359,8 +1365,7 @@ const DetalleContrato = () => {
             acceptLabel: 'Si',
             rejectLabel: 'No',
             accept: () => {
-                setConversionDismissed(false);
-                setMostrarConversionModal(true);
+                abrirConversionModal();
             },
             reject: () => {
                 setConversionDismissed(true);
@@ -1409,7 +1414,7 @@ const DetalleContrato = () => {
             </Dialog>
 
             <Dialog header={<><i className="pi pi-check-circle text-green-500 mr-2"></i>Proyeccion financiera</>} visible={mostrarConversionModal} style={{ width: 'min(1400px, 95vw)' }} modal onHide={() => { setMostrarConversionModal(false); setConversionDismissed(true); }}>
-                <div className="grid p-fluid">
+                <div className="detallecontrato-page grid p-fluid">
                     <div className="col-12 lg:col-5">
                         <div className="surface-0 border-1 surface-border border-round-xl p-4 h-full">
                             <div className="flex align-items-center gap-2 mb-3">
@@ -1645,7 +1650,7 @@ const DetalleContrato = () => {
 
             {/* MODAL: EDITAR INICIAL */}
             <Dialog header={<><i className="pi pi-pencil text-warning mr-2"></i>Editar Condiciones de Inicial</>} visible={dialogoEditarInicial} style={{ width: '500px' }} modal onHide={() => setDialogoEditarInicial(false)}>
-                <div className="flex flex-column gap-3 mt-3">
+                <div className="detallecontrato-page flex flex-column gap-3 mt-3">
                     <div className="field">
                         <label className="font-bold">Nueva Fecha Límite de Separación</label>
                         <Calendar value={nuevaFechaLimite} onChange={(e) => setNuevaFechaLimite(e.value)} dateFormat="dd/mm/yy" showIcon className="w-full" />
@@ -2384,12 +2389,7 @@ const DetalleContrato = () => {
                                 </div>
 
                                 <div className="p-4 flex-1 overflow-y-auto">
-                                    {esSeparacion && !contrato?.urlDocumentoFirmado && (
-                                        <div className="bg-orange-50 border-1 border-orange-200 border-round p-3 mb-3 text-sm text-orange-900 flex align-items-start gap-2">
-                                            <i className="pi pi-exclamation-triangle text-orange-600 mt-1"></i>
-                                            <span>No se puede crear un cronograma si no se sube el documento requerido: contrato separado.</span>
-                                        </div>
-                                    )}
+
                                     {cuotaPagar ? (
                                         // PANEL DE REGISTRO DE PAGO
                                         <div className="fade-in">
@@ -2619,9 +2619,21 @@ const DetalleContrato = () => {
                             <Column field="descripcion" header="Descripción del Cambio" style={{ width: '35%' }}></Column>
                             <Column field="observacion" header="Nota Adicional" body={(r) => r.observacion || '-'} style={{ width: '25%' }}></Column>
                             <Column field="fechaRegistro" header="Fecha" body={(r) => (r.fechaRegistro ? new Date(r.fechaRegistro).toLocaleDateString('es-PE') : '')} style={{ width: '15%' }}></Column>
-                            <Column body={(r) => (
+                            <Column body={(r) => {
+                                let yaSubido = false;
+                                if (r.tipoRegistro === 'INGRESO_CAJA') {
+                                    const numRecibo = extraerNumeroRecibo(r.rutaDocumentoPdf, r.descripcion);
+                                    if (numRecibo) {
+                                        const todosLosPagos = (contrato?.cuotas || []).flatMap(c => c.pagos || []);
+                                        const pagoAsoc = todosLosPagos.find(p => p.numeroComprobante === numRecibo || p.id === numRecibo || p.id?.toString() === numRecibo);
+                                        if (pagoAsoc && pagoAsoc.fotoVoucherUrl) {
+                                            yaSubido = true;
+                                        }
+                                    }
+                                }
+                                return (
                                 <div className="flex gap-2 justify-content-center">
-                                    {r.tipoRegistro === 'INGRESO_CAJA' && (
+                                    {r.tipoRegistro === 'INGRESO_CAJA' && !yaSubido && (
                                         <Button
                                             icon="pi pi-upload"
                                             className="p-button-rounded p-button-warning p-button-text"
@@ -2633,7 +2645,7 @@ const DetalleContrato = () => {
                                         <Button icon="pi pi-file-pdf" className="p-button-rounded p-button-danger p-button-text" title="Ver PDF Histórico" onClick={() => verHistorialPdf(r)} />
                                     )}
                                 </div>
-                            )} style={{ width: '8%', textAlign: 'center' }}></Column>
+                            )}} style={{ width: '8%', textAlign: 'center' }}></Column>
                         </DataTable>
                     </div>
                 </TabPanel>

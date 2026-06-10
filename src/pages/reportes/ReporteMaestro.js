@@ -5,10 +5,10 @@ import { Toast } from 'primereact/toast';
 import { Button } from 'primereact/button';
 import { Tag } from 'primereact/tag';
 import { Dropdown } from 'primereact/dropdown';
+import { InputText } from 'primereact/inputtext';
 import { FilterMatchMode } from 'primereact/api';
 
 import PageHeader from '../../components/ui/PageHeader';
-import ActionToolbar from '../../components/ui/ActionToolbar';
 import { useAuth } from '../../context/AuthContext';
 import { ContratoService } from '../../service/ContratoService';
 import '../Usuario.css';
@@ -16,12 +16,12 @@ import '../Usuario.css';
 const ReporteMaestro = () => {
     const { axiosInstance } = useAuth();
     const [reportes, setReportes] = useState([]);
+    const [filteredReportes, setFilteredReportes] = useState(null);
     const [loading, setLoading] = useState(false);
     const [globalFilter, setGlobalFilter] = useState('');
 
     const [filters, setFilters] = useState({
         global: { value: null, matchMode: FilterMatchMode.CONTAINS },
-        urbanizacion: { value: null, matchMode: FilterMatchMode.EQUALS },
         etapa: { value: null, matchMode: FilterMatchMode.EQUALS },
         manzana: { value: null, matchMode: FilterMatchMode.EQUALS },
         numeroLote: { value: null, matchMode: FilterMatchMode.EQUALS },
@@ -29,28 +29,17 @@ const ReporteMaestro = () => {
         estadoContrato: { value: null, matchMode: FilterMatchMode.EQUALS }
     });
 
-    const urbanizacionesList = useMemo(() => {
-        return [...new Set(reportes.map(r => r.urbanizacion).filter(u => u && u !== 'N/A'))].map(u => ({ label: u, value: u }));
-    }, [reportes]);
-
     const etapasList = useMemo(() => {
-        let list = reportes;
-        if (filters.urbanizacion.value) {
-            list = list.filter(r => r.urbanizacion === filters.urbanizacion.value);
-        }
-        return [...new Set(list.map(r => r.etapa).filter(e => e && e !== 'N/A'))].map(e => ({ label: String(e), value: String(e) }));
-    }, [reportes, filters.urbanizacion.value]);
+        return [...new Set(reportes.map(r => r.etapa).filter(e => e && e !== 'N/A'))].map(e => ({ label: String(e), value: String(e) }));
+    }, [reportes]);
 
     const manzanasList = useMemo(() => {
         let list = reportes;
-        if (filters.urbanizacion.value) {
-            list = list.filter(r => r.urbanizacion === filters.urbanizacion.value);
-        }
         if (filters.etapa.value) {
             list = list.filter(r => r.etapa === filters.etapa.value);
         }
         return [...new Set(list.map(r => r.manzana).filter(m => m && m !== 'N/A'))].map(m => ({ label: String(m), value: String(m) }));
-    }, [reportes, filters.urbanizacion.value, filters.etapa.value]);
+    }, [reportes, filters.etapa.value]);
 
     const lotesList = useMemo(() => {
         return [...new Set(reportes.map(r => r.numeroLote).filter(l => l && l !== 'N/A'))].map(l => ({ label: l, value: l }));
@@ -70,15 +59,12 @@ const ReporteMaestro = () => {
     const onFilterChange = (field, value) => {
         let _filters = { ...filters };
         _filters[field].value = value;
-        
-        // Cascada: si cambia urbanización, limpiar etapa y manzana
-        if (field === 'urbanizacion') {
-            _filters['etapa'].value = null;
-            _filters['manzana'].value = null;
-        } else if (field === 'etapa') {
+
+        // Cascada: si cambia etapa, limpiar manzana
+        if (field === 'etapa') {
             _filters['manzana'].value = null;
         }
-        
+
         setFilters(_filters);
     };
 
@@ -110,15 +96,18 @@ const ReporteMaestro = () => {
             const dataEnriquecida = response.data.map(item => {
                 const c = contratosMap[item.idContrato] || {};
                 const lote = c.lote || {};
+                const clienteInfo = c.cliente || {};
                 const mz = lote.manzana?.nombre || lote.manzana?.letra || 'N/A';
                 const etapa = lote.manzana?.etapa?.nombre || lote.manzana?.etapa?.numero?.toString() || 'N/A';
                 const urb = lote.manzana?.etapa?.urbanizacion?.nombre || 'N/A';
+                const dni = clienteInfo.numeroDocumento || 'N/A';
 
                 return {
                     ...item,
                     urbanizacion: item.urbanizacion && item.urbanizacion !== 'N/A' ? item.urbanizacion : urb,
                     etapa: item.etapa && item.etapa !== 'N/A' ? item.etapa : etapa,
-                    manzana: item.manzana && item.manzana !== 'N/A' ? item.manzana : mz
+                    manzana: item.manzana && item.manzana !== 'N/A' ? item.manzana : mz,
+                    documentoCliente: dni
                 };
             });
 
@@ -142,6 +131,18 @@ const ReporteMaestro = () => {
 
     const exportCSV = () => {
         dt.current?.exportCSV();
+    };
+
+    const limpiarFiltros = () => {
+        setFilters({
+            global: { value: null, matchMode: FilterMatchMode.CONTAINS },
+            etapa: { value: null, matchMode: FilterMatchMode.EQUALS },
+            manzana: { value: null, matchMode: FilterMatchMode.EQUALS },
+            numeroLote: { value: null, matchMode: FilterMatchMode.EQUALS },
+            nombreVendedor: { value: null, matchMode: FilterMatchMode.EQUALS },
+            estadoContrato: { value: null, matchMode: FilterMatchMode.EQUALS }
+        });
+        setGlobalFilter('');
     };
 
     // Formatter functions
@@ -201,6 +202,13 @@ const ReporteMaestro = () => {
         return <span className="flex align-items-center justify-content-center">{rowData.cuotasVencidas}</span>;
     };
 
+    const clienteTemplate = (row) => (
+        <div className="flex flex-column">
+            <span className="font-bold text-800 text-sm">{row.nombreCliente}</span>
+            <span className="text-xs text-500 flex align-items-center gap-1 mt-1"><i className="pi pi-id-card text-400" style={{ fontSize: '0.7rem' }}></i> Doc: {row.documentoCliente}</span>
+        </div>
+    );
+
     const loteDetalleTemplate = (row) => {
         const mz = row.manzana === 'N/A' ? '-' : row.manzana;
         const loteNum = row.numeroLote === 'N/A' ? '-' : row.numeroLote;
@@ -221,6 +229,118 @@ const ReporteMaestro = () => {
         );
     };
 
+    const cantidadRegistros = filteredReportes !== null ? filteredReportes.length : reportes.length;
+
+    const renderHeader = () => {
+        return (
+            <div className="flex flex-column gap-3">
+                <div style={{ padding: '0.5rem 0 1rem 0' }}>
+                    <h3 className="text-lg font-bold mb-4 mt-0" style={{ color: 'var(--text-primary)' }}>Filtros de Búsqueda</h3>
+                    <div className="formgrid grid mb-3">
+                        <div className="field col-12 md:col-4">
+                            <label className="font-bold text-sm block mb-2 text-700">Etapa</label>
+                            <Dropdown
+                                value={filters.etapa.value}
+                                options={etapasList}
+                                onChange={(e) => onFilterChange('etapa', e.value)}
+                                placeholder="Seleccione etapa"
+                                showClear
+                                className="w-full"
+                            />
+                        </div>
+                        <div className="field col-12 md:col-4">
+                            <label className="font-bold text-sm block mb-2 text-700">Manzana</label>
+                            <Dropdown
+                                value={filters.manzana.value}
+                                options={manzanasList}
+                                onChange={(e) => onFilterChange('manzana', e.value)}
+                                placeholder="Seleccione manzana"
+                                showClear
+                                className="w-full"
+                            />
+                        </div>
+                        <div className="field col-12 md:col-4">
+                            <label className="font-bold text-sm block mb-2 text-700">Lote</label>
+                            <Dropdown
+                                value={filters.numeroLote.value}
+                                options={lotesList}
+                                onChange={(e) => onFilterChange('numeroLote', e.value)}
+                                placeholder="Seleccione lote"
+                                showClear
+                                filter
+                                className="w-full"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="formgrid grid">
+                        <div className="field col-12 md:col-6">
+                            <label className="font-bold text-sm block mb-2 text-700">Vendedor / Jefe de Ventas</label>
+                            <Dropdown
+                                value={filters.nombreVendedor.value}
+                                options={vendedoresList}
+                                onChange={(e) => onFilterChange('nombreVendedor', e.value)}
+                                placeholder="Seleccione vendedor"
+                                showClear
+                                filter
+                                className="w-full"
+                            />
+                        </div>
+                        <div className="field col-12 md:col-6">
+                            <label className="font-bold text-sm block mb-2 text-700">Estado Contrato</label>
+                            <Dropdown
+                                value={filters.estadoContrato.value}
+                                options={estadosList}
+                                onChange={(e) => onFilterChange('estadoContrato', e.value)}
+                                placeholder="Seleccione estado"
+                                showClear
+                                className="w-full"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div className="flex align-items-center gap-3">
+                        <div className="bg-primary-reverse text-primary border-round px-4 py-2 flex align-items-center gap-2">
+                            <i className="pi pi-check-square text-xl" />
+                            <div>
+                                <span className="block text-sm">Total Mostrados</span>
+                                <span className="block font-bold text-xl">{cantidadRegistros} contratos</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex align-items-center gap-2 flex-wrap">
+                        <div className="p-input-icon-left" style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+                            <i className="pi pi-search" style={{ position: 'absolute', left: '0.85rem', zIndex: 1, color: 'var(--theme-primary)', pointerEvents: 'none' }} />
+                            <InputText
+                                value={globalFilter}
+                                onChange={(e) => onGlobalFilterChange(e.target.value)}
+                                placeholder="Buscar en todos los campos..."
+                                style={{ borderRadius: '8px', minWidth: '300px', paddingLeft: '2.5rem' }}
+                            />
+                        </div>
+                        <Button
+                            icon="pi pi-filter-slash"
+                            className="p-button-outlined p-button-secondary"
+                            tooltip="Limpiar todos los filtros"
+                            tooltipOptions={{ position: 'bottom' }}
+                            onClick={limpiarFiltros}
+                            style={{ borderRadius: '8px' }}
+                        />
+                        <Button
+                            icon="pi pi-download"
+                            className="btn-export"
+                            tooltip="Exportar a CSV"
+                            tooltipOptions={{ position: 'bottom' }}
+                            onClick={exportCSV}
+                        />
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="usuario-page reporte-maestro-page">
             <div className="container">
@@ -233,101 +353,10 @@ const ReporteMaestro = () => {
                 <div className="main-content">
                     <div className="content-card">
                         <Toast ref={toast} />
-
-
-
-                        <div className="p-4 mb-4 border-round-xl border-1 surface-border bg-white mt-3">
-                            <h3 className="text-lg font-bold mb-4 mt-0" style={{ color: 'var(--text-primary)' }}>Filtros de Búsqueda</h3>
-                            <div className="formgrid grid">
-                                <div className="field col-12 md:col-3">
-                                    <label className="font-bold text-sm block mb-2 text-700">Urbanización</label>
-                                    <Dropdown 
-                                        value={filters.urbanizacion.value} 
-                                        options={urbanizacionesList} 
-                                        onChange={(e) => onFilterChange('urbanizacion', e.value)} 
-                                        placeholder="Seleccione urbanización" 
-                                        showClear 
-                                        className="w-full"
-                                    />
-                                </div>
-                                <div className="field col-12 md:col-3">
-                                    <label className="font-bold text-sm block mb-2 text-700">Etapa</label>
-                                    <Dropdown 
-                                        value={filters.etapa.value} 
-                                        options={etapasList} 
-                                        onChange={(e) => onFilterChange('etapa', e.value)} 
-                                        placeholder="Seleccione etapa" 
-                                        showClear 
-                                        className="w-full"
-                                    />
-                                </div>
-                                <div className="field col-12 md:col-3">
-                                    <label className="font-bold text-sm block mb-2 text-700">Manzana</label>
-                                    <Dropdown 
-                                        value={filters.manzana.value} 
-                                        options={manzanasList} 
-                                        onChange={(e) => onFilterChange('manzana', e.value)} 
-                                        placeholder="Seleccione manzana" 
-                                        showClear 
-                                        className="w-full"
-                                    />
-                                </div>
-                                <div className="field col-12 md:col-3">
-                                    <label className="font-bold text-sm block mb-2 text-700">Lote</label>
-                                    <Dropdown 
-                                        value={filters.numeroLote.value} 
-                                        options={lotesList} 
-                                        onChange={(e) => onFilterChange('numeroLote', e.value)} 
-                                        placeholder="Seleccione lote" 
-                                        showClear 
-                                        filter
-                                        className="w-full"
-                                    />
-                                </div>
-                                <div className="field col-12 md:col-6">
-                                    <label className="font-bold text-sm block mb-2 text-700">Vendedor / Jefe de Ventas</label>
-                                    <Dropdown 
-                                        value={filters.nombreVendedor.value} 
-                                        options={vendedoresList} 
-                                        onChange={(e) => onFilterChange('nombreVendedor', e.value)} 
-                                        placeholder="Seleccione vendedor" 
-                                        showClear 
-                                        filter
-                                        className="w-full"
-                                    />
-                                </div>
-                                <div className="field col-12 md:col-6">
-                                    <label className="font-bold text-sm block mb-2 text-700">Estado Contrato</label>
-                                    <Dropdown 
-                                        value={filters.estadoContrato.value} 
-                                        options={estadosList} 
-                                        onChange={(e) => onFilterChange('estadoContrato', e.value)} 
-                                        placeholder="Seleccione estado" 
-                                        showClear 
-                                        className="w-full"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        <ActionToolbar
-                            onSearch={onGlobalFilterChange}
-                            searchValue={globalFilter}
-                            searchPlaceholder="Buscar en todos los campos..."
-                            extraActions={
-                                <Button
-                                    icon="pi pi-download"
-                                    tooltip="Exportar a CSV"
-                                    tooltipOptions={{ position: 'bottom' }}
-                                    className="btn-export"
-                                    onClick={exportCSV}
-                                />
-                            }
-                        />
-
                         <DataTable
                             ref={dt}
                             value={reportes}
+                            onValueChange={(e) => setFilteredReportes(e)}
                             dataKey="idContrato"
                             paginator
                             rows={10}
@@ -335,10 +364,11 @@ const ReporteMaestro = () => {
                             loading={loading}
                             filters={filters}
                             globalFilterFields={[
-                                'nroContrato', 'nombreVendedor', 'nombreCliente',
+                                'nroContrato', 'nombreVendedor', 'nombreCliente', 'documentoCliente',
                                 'numeroLote', 'urbanizacion', 'etapa', 'manzana', 'estadoContrato'
                             ]}
                             emptyMessage="No se encontraron registros en el reporte maestro."
+                            header={renderHeader()}
                             sortField="nroContrato"
                             sortOrder={-1}
                             exportFilename="Reporte_Maestro"
@@ -346,7 +376,7 @@ const ReporteMaestro = () => {
                             <Column header="N°" body={indexBodyTemplate} style={{ width: '60px', textAlign: 'center' }} />
                             <Column field="nroContrato" header="Nro Contrato" sortable style={{ minWidth: '110px', fontWeight: 'bold' }} />
                             <Column field="fechaContrato" header="Fecha Contrato" body={(row) => formatDate(row.fechaContrato)} sortable style={{ minWidth: '120px' }} />
-                            <Column field="nombreCliente" header="Cliente" sortable style={{ minWidth: '180px' }} />
+                            <Column field="nombreCliente" header="Cliente" body={clienteTemplate} sortable style={{ minWidth: '180px' }} />
                             <Column field="nombreVendedor" header="Vendedor" sortable style={{ minWidth: '180px' }} />
                             <Column field="numeroLote" header="Lote" body={loteDetalleTemplate} sortable style={{ minWidth: '180px' }} />
                             <Column field="urbanizacion" header="Urbanización" hidden={true} />

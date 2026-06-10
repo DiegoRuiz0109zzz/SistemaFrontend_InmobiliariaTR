@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { InputText } from 'primereact/inputtext';
 import { Dropdown } from 'primereact/dropdown';
 import { Button } from 'primereact/button';
-import { TabView, TabPanel } from 'primereact/tabview';
 import { Toast } from 'primereact/toast';
 import PageHeader from '../components/ui/PageHeader';
 import { useAuth } from '../context/AuthContext';
@@ -309,167 +308,145 @@ const Empresas = () => {
                 />
 
                 <div className="main-content">
-                    <TabView className="empresa-tabview">
-                        <TabPanel header="Datos Generales" leftIcon="pi pi-list mr-2">
-                            <div className="empresa-shell content-card">
-                                <div className="empresa-grid">
-                                    <div className="empresa-left-column">
-                                        <div className="content-card empresa-card-left">
-                                            <h2 className="empresa-section-title">
-                                                <i className="pi pi-id-card"></i>
-                                                Informacion Principal
-                                            </h2>
+                    <div className="empresa-shell content-card">
+                        <div className="empresa-grid">
+                            <div className="empresa-left-column">
+                                <div className="content-card empresa-card-left">
+                                    <h2 className="empresa-section-title">
+                                        <i className="pi pi-id-card"></i>
+                                        Informacion Principal
+                                    </h2>
 
-                                            <div className="formgrid grid">
-                                                <div className="field col-12 md:col-6">
-                                                    <label className="empresa-label" htmlFor="ruc">RUC *</label>
-                                                    <div className="p-inputgroup">
-                                                        <InputText
-                                                            id="ruc"
-                                                            value={empresa.ruc}
-                                                            onChange={(e) => onInputChange('ruc', e.target.value.replace(/\D/g, '').slice(0, 11))}
-                                                            placeholder="Ingrese RUC de 11 digitos"
-                                                            className="w-full"
-                                                            disabled={isFormDisabled}
-                                                        />
-                                                        <Button icon="pi pi-search" className="p-button-outlined" type="button" onClick={buscarRuc} disabled={isFormDisabled} />
-                                                    </div>
-                                                    <small className="empresa-hint">Busque el comprobante de 11 digitos</small>
-                                                </div>
+                                    <div className="formgrid grid">
+                                        <div className="field col-12 md:col-6">
+                                            <label className="empresa-label" htmlFor="ruc">RUC *</label>
+                                            <div className="p-inputgroup">
+                                                <InputText
+                                                    id="ruc"
+                                                    value={empresa.ruc}
+                                                    onChange={(e) => onInputChange('ruc', e.target.value.replace(/\D/g, '').slice(0, 11))}
+                                                    placeholder="Ingrese RUC de 11 digitos"
+                                                    className="w-full"
+                                                    disabled={isFormDisabled}
+                                                />
+                                                <Button icon="pi pi-search" className="p-button-outlined" type="button" onClick={buscarRuc} disabled={isFormDisabled} />
+                                            </div>
+                                            <small className="empresa-hint">Busque el comprobante de 11 digitos</small>
+                                        </div>
 
-                                                <div className="field col-12 md:col-6">
-                                                    <label className="empresa-label" htmlFor="razonSocial">Razon Social *</label>
-                                                    <InputText id="razonSocial" value={empresa.razonSocial} onChange={(e) => onInputChange('razonSocial', e.target.value)} placeholder="Razon social registrada" className="w-full" disabled={isFormDisabled} />
-                                                </div>
+                                        <div className="field col-12 md:col-6">
+                                            <label className="empresa-label" htmlFor="razonSocial">Razon Social *</label>
+                                            <InputText id="razonSocial" value={empresa.razonSocial} onChange={(e) => onInputChange('razonSocial', e.target.value)} placeholder="Razon social registrada" className="w-full" disabled={isFormDisabled} />
+                                        </div>
 
-                                                <div className="field col-12 md:col-6">
-                                                    <label className="empresa-label" htmlFor="nombreComercial">Nombre Comercial</label>
-                                                    <InputText id="nombreComercial" value={empresa.nombreComercial} onChange={(e) => onInputChange('nombreComercial', e.target.value)} placeholder="Nombre comercial" className="w-full" disabled={isFormDisabled} />
-                                                </div>
+                                        <div className="field col-12 md:col-6">
+                                            <label className="empresa-label" htmlFor="nombreComercial">Nombre Comercial</label>
+                                            <InputText id="nombreComercial" value={empresa.nombreComercial} onChange={(e) => onInputChange('nombreComercial', e.target.value)} placeholder="Nombre comercial" className="w-full" disabled={isFormDisabled} />
+                                        </div>
 
-                                                <div className="field col-12 md:col-6">
-                                                    <label className="empresa-label" htmlFor="ubigeo">Ubigeo</label>
-                                                    <div className="p-inputgroup">
-                                                        <InputText id="ubigeo" value={empresa.ubigeo} onChange={(e) => onInputChange('ubigeo', e.target.value)} placeholder="Codigo de ubigeo" readOnly className="w-full" disabled={isFormDisabled} />
-                                                        <Button icon="pi pi-search" className="p-button-outlined" type="button" disabled={isFormDisabled} />
-                                                    </div>
-                                                </div>
-
-                                                <div className="field col-12 md:col-4">
-                                                    <label className="empresa-label" htmlFor="departamento">Departamento</label>
-                                                    <Dropdown
-                                                        id="departamento"
-                                                        value={empresa.departamento}
-                                                        options={departamentos}
-                                                        onChange={(e) => onDepartamentoChange(e.value)}
-                                                        placeholder="Seleccione un departamento"
-                                                        className="w-full"
-                                                        showClear
-                                                        disabled={isFormDisabled}
-                                                    />
-                                                </div>
-
-                                                <div className="field col-12 md:col-4">
-                                                    <label className="empresa-label" htmlFor="provincia">Provincia</label>
-                                                    <Dropdown
-                                                        id="provincia"
-                                                        value={empresa.provincia}
-                                                        options={provincias}
-                                                        onChange={(e) => onProvinciaChange(e.value)}
-                                                        placeholder="Seleccione una provincia"
-                                                        className="w-full"
-                                                        showClear
-                                                        disabled={isFormDisabled || !empresa.departamento}
-                                                    />
-                                                </div>
-
-                                                <div className="field col-12 md:col-4">
-                                                    <label className="empresa-label" htmlFor="distrito">Distrito</label>
-                                                    <Dropdown
-                                                        id="distrito"
-                                                        value={empresa.distrito}
-                                                        options={distritos}
-                                                        onChange={(e) => onDistritoChange(e.value)}
-                                                        placeholder="Seleccione un distrito"
-                                                        className="w-full"
-                                                        showClear
-                                                        disabled={isFormDisabled || !empresa.provincia}
-                                                    />
-                                                </div>
-
-                                                <div className="field col-12">
-                                                    <label className="empresa-label" htmlFor="direccionFiscal">Direccion Fiscal</label>
-                                                    <InputText id="direccionFiscal" value={empresa.direccion} onChange={(e) => onInputChange('direccion', e.target.value)} placeholder="Direccion fiscal de la empresa" className="w-full" disabled={isFormDisabled} />
-                                                </div>
+                                        <div className="field col-12 md:col-6">
+                                            <label className="empresa-label" htmlFor="ubigeo">Ubigeo</label>
+                                            <div className="p-inputgroup">
+                                                <InputText id="ubigeo" value={empresa.ubigeo} onChange={(e) => onInputChange('ubigeo', e.target.value)} placeholder="Codigo de ubigeo" readOnly className="w-full" disabled={isFormDisabled} />
+                                                <Button icon="pi pi-search" className="p-button-outlined" type="button" disabled={isFormDisabled} />
                                             </div>
                                         </div>
 
-                                        <div className="content-card empresa-card-left empresa-contact-card">
-                                            <h2 className="empresa-section-title">
-                                                <i className="pi pi-phone"></i>
-                                                Contacto
-                                            </h2>
+                                        <div className="field col-12 md:col-4">
+                                            <label className="empresa-label" htmlFor="departamento">Departamento</label>
+                                            <Dropdown
+                                                id="departamento"
+                                                value={empresa.departamento}
+                                                options={departamentos}
+                                                onChange={(e) => onDepartamentoChange(e.value)}
+                                                placeholder="Seleccione un departamento"
+                                                className="w-full"
+                                                showClear
+                                                disabled={isFormDisabled}
+                                            />
+                                        </div>
 
-                                            <div className="formgrid grid">
-                                                <div className="field col-12 md:col-6">
-                                                    <label className="empresa-label" htmlFor="telefono">Telefono</label>
-                                                    <InputText id="telefono" value={empresa.telefono} onChange={(e) => onInputChange('telefono', e.target.value)} placeholder="Telefono" className="w-full" disabled={isFormDisabled} />
-                                                </div>
+                                        <div className="field col-12 md:col-4">
+                                            <label className="empresa-label" htmlFor="provincia">Provincia</label>
+                                            <Dropdown
+                                                id="provincia"
+                                                value={empresa.provincia}
+                                                options={provincias}
+                                                onChange={(e) => onProvinciaChange(e.value)}
+                                                placeholder="Seleccione una provincia"
+                                                className="w-full"
+                                                showClear
+                                                disabled={isFormDisabled || !empresa.departamento}
+                                            />
+                                        </div>
 
-                                                <div className="field col-12 md:col-6">
-                                                    <label className="empresa-label" htmlFor="email">Correo Electronico</label>
-                                                    <InputText id="email" value={empresa.email} onChange={(e) => onInputChange('email', e.target.value)} placeholder="Correo corporativo" className="w-full" disabled={isFormDisabled} />
-                                                </div>
-                                            </div>
+                                        <div className="field col-12 md:col-4">
+                                            <label className="empresa-label" htmlFor="distrito">Distrito</label>
+                                            <Dropdown
+                                                id="distrito"
+                                                value={empresa.distrito}
+                                                options={distritos}
+                                                onChange={(e) => onDistritoChange(e.value)}
+                                                placeholder="Seleccione un distrito"
+                                                className="w-full"
+                                                showClear
+                                                disabled={isFormDisabled || !empresa.provincia}
+                                            />
+                                        </div>
+
+                                        <div className="field col-12">
+                                            <label className="empresa-label" htmlFor="direccionFiscal">Direccion Fiscal</label>
+                                            <InputText id="direccionFiscal" value={empresa.direccion} onChange={(e) => onInputChange('direccion', e.target.value)} placeholder="Direccion fiscal de la empresa" className="w-full" disabled={isFormDisabled} />
                                         </div>
                                     </div>
-
                                 </div>
 
-                                <div className="empresa-footer-actions">
-                                    <div className="empresa-actions">
-                                        <Button label="Nuevo" icon="pi pi-plus" className="p-button-outlined" onClick={limpiarFormulario} />
-                                        <Button label="Eliminar" icon="pi pi-trash" className="p-button-danger p-button-outlined" onClick={eliminarEmpresa} disabled={!empresa.id} />
+                                <div className="content-card empresa-card-left empresa-contact-card">
+                                    <h2 className="empresa-section-title">
+                                        <i className="pi pi-phone"></i>
+                                        Contacto
+                                    </h2>
+
+                                    <div className="formgrid grid">
+                                        <div className="field col-12 md:col-6">
+                                            <label className="empresa-label" htmlFor="telefono">Telefono</label>
+                                            <InputText id="telefono" value={empresa.telefono} onChange={(e) => onInputChange('telefono', e.target.value)} placeholder="Telefono" className="w-full" disabled={isFormDisabled} />
+                                        </div>
+
+                                        <div className="field col-12 md:col-6">
+                                            <label className="empresa-label" htmlFor="email">Correo Electronico</label>
+                                            <InputText id="email" value={empresa.email} onChange={(e) => onInputChange('email', e.target.value)} placeholder="Correo corporativo" className="w-full" disabled={isFormDisabled} />
+                                        </div>
                                     </div>
-                                    {!isEditing && empresa.id ? (
-                                        <Button
-                                            label="Modificar Empresa"
-                                            icon="pi pi-pencil"
-                                            className="btn-primary-custom p-button-outlined"
-                                            onClick={() => setIsEditing(true)}
-                                            type="button"
-                                        />
-                                    ) : (
-                                        <Button
-                                            label={empresa.id ? 'Guardar Cambios' : 'Guardar Empresa'}
-                                            icon="pi pi-save"
-                                            className="btn-primary-custom"
-                                            onClick={guardarEmpresa}
-                                            loading={saving}
-                                        />
-                                    )}
                                 </div>
                             </div>
-                        </TabPanel>
 
-                        <TabPanel header="Configuración Financiera" leftIcon="pi pi-wallet mr-2">
-                            <div className="content-card empresa-config-card">
-                                <h2 className="empresa-section-title">Configuracion Financiera</h2>
-                                <p className="empresa-config-text">
-                                    Esta pestana queda lista para integrar cuentas bancarias, tipos de moneda, impuestos y reglas financieras.
-                                </p>
-                            </div>
-                        </TabPanel>
+                        </div>
 
-                        <TabPanel header="Tienda (E-commerce)" leftIcon="pi pi-shopping-bag mr-2">
-                            <div className="content-card empresa-config-card">
-                                <h2 className="empresa-section-title">Tienda (E-commerce)</h2>
-                                <p className="empresa-config-text">
-                                    Esta pestana queda disponible para conectar la configuracion de la tienda virtual y publicaciones.
-                                </p>
+                        <div className="empresa-footer-actions">
+                            <div className="empresa-actions">
+                                
+                                <Button label="Eliminar" icon="pi pi-trash" className="p-button-danger p-button-outlined" onClick={eliminarEmpresa} disabled={!empresa.id} />
                             </div>
-                        </TabPanel>
-                    </TabView>
+                            {!isEditing && empresa.id ? (
+                                <Button
+                                    label="Modificar Empresa"
+                                    icon="pi pi-pencil"
+                                    className="btn-primary-custom p-button-outlined"
+                                    onClick={() => setIsEditing(true)}
+                                    type="button"
+                                />
+                            ) : (
+                                <Button
+                                    label={empresa.id ? 'Guardar Cambios' : 'Guardar Empresa'}
+                                    icon="pi pi-save"
+                                    className="btn-primary-custom"
+                                    onClick={guardarEmpresa}
+                                    loading={saving}
+                                />
+                            )}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
