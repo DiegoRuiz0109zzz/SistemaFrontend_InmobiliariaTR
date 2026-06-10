@@ -24,6 +24,7 @@ import { Calendar } from 'primereact/calendar';
 import { Checkbox } from 'primereact/checkbox';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { TipoComprobante, TipoComprobanteOptions } from '../../entity/TipoComprobante';
+import { environment } from '../util/baseUrl';
 
 import './DetalleContrato.css';
 
@@ -159,7 +160,11 @@ const DetalleContrato = () => {
         }
     }, [metodoPagoPendiente]);
 
-    const buildVoucherUrl = (url) => url ? `http://localhost:8080/${url.replace(/^\//, '')}` : null;
+    const buildVoucherUrl = (url) => {
+        if (!url) return null;
+        const baseHost = environment.baseUrl.replace(/\/api\/?$/, '/');
+        return `${baseHost}${url.replace(/^\//, '')}`;
+    };
     const isPdf = (url) => url && url.toLowerCase().endsWith('.pdf');
 
     // Parsear fecha sin que se vea afectada por zona horaria
