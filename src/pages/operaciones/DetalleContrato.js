@@ -523,9 +523,10 @@ const DetalleContrato = () => {
         }
     };
 
-    const viewVoucher = (url) => {
+    const viewVoucher = async (url) => {
         if (!url) return;
         const full = buildVoucherUrl(url);
+        
         if (isPdf(full)) {
             // Try to find matching historial entry and use descargarPdf; otherwise try to fetch the blob directly
             const fileName = url.split('/').pop();
@@ -534,24 +535,27 @@ const DetalleContrato = () => {
                 verHistorialPdf(match);
                 return;
             }
+        }
 
-            // Fallback: try to GET the file as blob via axiosInstance, then open in new tab
-            (async () => {
-                try {
-                    const client = axiosInstance || null;
-                    if (client) {
-                        const resp = await client.get(full, { responseType: 'blob' });
-                        const blobUrl = URL.createObjectURL(resp.data);
-                        window.open(blobUrl, '_blank');
-                        return;
-                    }
-                } catch (e) {
-                    // final fallback: open constructed URL in new tab
-                    window.open(full, '_blank');
-                }
-            })();
-        } else {
-            setVoucherViewer(full);
+        try {
+            toast.current?.show({ severity: 'info', summary: 'Cargando', detail: 'Obteniendo archivo...' });
+            const resp = await axiosInstance.get(full, { responseType: 'blob' });
+            const blobUrl = URL.createObjectURL(resp.data);
+            
+            if (isPdf(full)) {
+                window.open(blobUrl, '_blank');
+            } else {
+                setVoucherViewer(blobUrl);
+            }
+        } catch (e) {
+            console.error("Error obteniendo voucher:", e);
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar el archivo. Verifica permisos o la ruta.' });
+            // Fallback
+            if (isPdf(full)) {
+                window.open(full, '_blank');
+            } else {
+                setVoucherViewer(full);
+            }
         }
     };
 
