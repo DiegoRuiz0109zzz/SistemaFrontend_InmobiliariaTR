@@ -80,6 +80,12 @@
     /* Added padding to sidebar/bottom */
 }
 
+.usuario-page .p-datatable .p-datatable-header {
+    background: transparent;
+    border: none;
+    padding: 0;
+}
+
 .usuario-page .p-datatable .p-datatable-thead>tr>th {
     background: var(--bg-page);
     color: var(--text-primary);
@@ -89,6 +95,22 @@
 
 .usuario-page .p-datatable .p-datatable-tbody>tr:hover {
     background: var(--theme-primary-soft);
+}
+
+.reporte-comisiones-page .p-datatable .p-datatable-tbody>tr.row-contrato-duplicado {
+    background: #e0f2ff !important;
+}
+
+.reporte-comisiones-page .p-datatable .p-datatable-tbody>tr.row-contrato-duplicado>td {
+    background: #e0f2ff !important;
+}
+
+.reporte-comisiones-page .p-datatable .p-datatable-tbody>tr.row-contrato-duplicado:hover {
+    background: #cfe9ff !important;
+}
+
+.reporte-comisiones-page .p-datatable .p-datatable-tbody>tr.row-contrato-duplicado:hover>td {
+    background: #cfe9ff !important;
 }
 
 /* Botones de acciones */

@@ -24,6 +24,14 @@ const ListaCotizaciones = () => {
     const [globalFilter, setGlobalFilter] = useState('');
     const [loading, setLoading] = useState(true);
 
+    const dt = useRef(null);
+
+    const exportCSV = () => {
+        if (dt.current) {
+            dt.current.exportCSV();
+        }
+    };
+
     // Estado para el Modal de Detalle
     const [cotizacionDetalle, setCotizacionDetalle] = useState(null);
 
@@ -76,7 +84,10 @@ const ListaCotizaciones = () => {
                         placeholder="Buscar por DNI, Cliente o Lote..." 
                     />
                 </div>
-                <Button label="Actualizar" icon="pi pi-refresh" className="btn-primary-custom p-button-sm shadow-2 border-round-xl" onClick={cargarHistorial} />
+                <div className="flex gap-2">
+                    <Button label="Actualizar" icon="pi pi-refresh" className="btn-primary-custom p-button-sm shadow-2 border-round-xl" onClick={cargarHistorial} />
+                    <Button label="Exportar" icon="pi pi-download" className="p-button-outlined p-button-secondary p-button-sm border-round-xl font-bold bg-white" onClick={exportCSV} />
+                </div>
             </div>
         );
     };
@@ -164,6 +175,7 @@ const ListaCotizaciones = () => {
             <div className="main-content">
                 <div className="card surface-card border-round shadow-1 p-0 overflow-hidden mt-3">
                     <DataTable
+                        ref={dt}
                         value={historialCotizaciones}
                         paginator
                         rows={10}
@@ -172,6 +184,7 @@ const ListaCotizaciones = () => {
                         globalFilterFields={['interesado.numeroDocumento', 'interesado.nombres', 'interesado.apellidos', 'lote.descripcion', 'id']}
                         loading={loading}
                         emptyMessage="No se encontraron cotizaciones."
+                        exportFilename="Cotizaciones"
                         className="p-datatable-sm custom-master-table"
                         stripedRows
                     >

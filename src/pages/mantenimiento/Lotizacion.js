@@ -27,6 +27,7 @@ import './Lotizacion.css';
 const Lotizacion = () => {
     const { axiosInstance } = useAuth();
     const toast = useRef(null);
+    const dtLote = useRef(null);
 
     const emptyUrbanizacion = { ...UrbanizacionEntity };
     const emptyEtapa = { ...EtapaEntity, urbanizacion: null };
@@ -832,6 +833,48 @@ const Lotizacion = () => {
         </div>
     );
 
+    const exportCSVLote = () => {
+        if (!lotes || lotes.length === 0) {
+            toast.current?.show({ severity: 'warn', summary: 'Exportar', detail: 'No hay datos para exportar.', life: 3000 });
+            return;
+        }
+
+        const headers = ['ID', 'Numero', 'Urbanizacion', 'Etapa', 'Manzana', 'Area', 'Precio m2', 'Costo', 'Precio venta', 'Estado'];
+        const csvRows = [headers.join(',')];
+
+        lotes.forEach(l => {
+            const row = [
+                l.id || '',
+                l.numero || '',
+                l.manzana?.etapa?.urbanizacion?.nombre || '',
+                l.manzana?.etapa?.nombre || '',
+                l.manzana?.nombre || '',
+                l.area || '',
+                l.precioMetroCuadrado || '',
+                l.precioCosto || '',
+                l.precioVenta || '',
+                l.estadoVenta || ''
+            ];
+            const escapedRow = row.map(val => {
+                let str = String(val);
+                if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                    str = '"' + str.replace(/"/g, '""') + '"';
+                }
+                return str;
+            });
+            csvRows.push(escapedRow.join(','));
+        });
+
+        const blob = new Blob(["\uFEFF" + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'Lotes.csv');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     const indexBodyTemplate = (_, options) => (options.rowIndex ?? 0) + 1;
     const urbanizacionIndexBodyTemplate = (_, options) => urbanizacionPage * urbanizacionRows + (options.rowIndex ?? 0) + 1;
     const etapaIndexBodyTemplate = (_, options) => etapaPage * etapaRows + (options.rowIndex ?? 0) + 1;
@@ -1360,9 +1403,18 @@ const Lotizacion = () => {
                                                     style={{ borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-page)', color: 'var(--text-primary)' }}
                                                 />
                                             </span>
+                                            <Button
+                                                icon="pi pi-download"
+                                                tooltip="Exportar a CSV"
+                                                tooltipOptions={{ position: 'bottom' }}
+                                                className="btn-export p-button-outlined p-button-secondary ml-2"
+                                                onClick={exportCSVLote}
+                                                style={{ borderRadius: '8px' }}
+                                            />
                                         </div>
                                     </div>
                                     <DataTable
+                                        ref={dtLote}
                                         value={loteRecords}
                                         dataKey="id"
                                         rows={loteRows}
@@ -1377,8 +1429,10 @@ const Lotizacion = () => {
                                             setLoteRows(event.rows ?? loteRows);
                                         }}
                                         emptyMessage="No se encontraron lotes."
+                                        exportFilename="Lotes"
                                     >
-                                        <Column header="N°" body={loteIndexBodyTemplate} style={{ width: '80px', textAlign: 'center' }} />
+                                        <Column header="N°" body={loteIndexBodyTemplate} style={{ width: '60px', textAlign: 'center' }} />
+                                        <Column field="id" header="ID" style={{ width: '80px', textAlign: 'center' }} />
                                         <Column field="numero" header="Numero" style={{ minWidth: '120px' }} />
                                         <Column field="manzana.etapa.urbanizacion.nombre" header="Urbanizacion" style={{ minWidth: '200px' }} />
                                         <Column field="manzana.etapa.nombre" header="Etapa" style={{ minWidth: '160px' }} />

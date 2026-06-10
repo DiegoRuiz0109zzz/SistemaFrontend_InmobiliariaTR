@@ -270,3 +270,24 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: #94a3b8;
 }
+
+/* =====================================
+   Corregir contraste y adecuar colores de botones en inputs (N° Cuotas, Calendar)
+   ===================================== */
+.detallecontrato-page .p-inputnumber-button,
+.detallecontrato-page .p-datepicker-trigger {
+    color: var(--topbar-text, #ffffff) !important;
+    background: linear-gradient(135deg, var(--theme-primary, #3b82f6) 0%, var(--theme-primary-dark, #1d4ed8) 100%) !important;
+    border: none !important;
+    box-shadow: var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05)) !important;
+}
+
+.detallecontrato-page .p-inputnumber-button:hover,
+.detallecontrato-page .p-datepicker-trigger:hover {
+    filter: brightness(1.1) !important;
+}
+
+.detallecontrato-page .p-inputnumber-button .pi,
+.detallecontrato-page .p-datepicker-trigger .pi {
+    color: var(--topbar-text, #ffffff) !important;
+}

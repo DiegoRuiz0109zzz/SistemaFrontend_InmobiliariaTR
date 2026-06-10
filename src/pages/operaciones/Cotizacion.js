@@ -279,6 +279,21 @@ const Cotizacion = ({ embedded = false }) => {
             toast.current?.show({ severity: 'warn', summary: 'Validación', detail: 'El DNI debe tener 8 dígitos.' });
             return;
         }
+
+        const listadoInteresados = Array.isArray(interesados) ? interesados : [];
+        const interesadoExistente = listadoInteresados.find((item) => (item?.numeroDocumento || '').trim() === dniCo);
+        if (interesadoExistente) {
+            const resumenCoComprador = {
+                ...interesadoExistente,
+                nombreCompleto: `${interesadoExistente.nombres || ''} ${interesadoExistente.apellidos || ''}`.trim(),
+                detalleDocumento: `${interesadoExistente.tipoDocumento || 'DNI'}: ${(interesadoExistente.numeroDocumento || '').trim() || 'N/A'}`
+            };
+            setCoCompradorSeleccionado(resumenCoComprador);
+            setMostrarCoComprador(true);
+            setCoCompradorModalVisible(false);
+            toast.current?.show({ severity: 'info', summary: 'Interesado', detail: 'El interesado ya está registrado y ha sido seleccionado.' });
+            return;
+        }
         try {
             const response = await ReniecService.consultarDNI(dniCo, axiosInstance);
             if (!response?.success) {
@@ -290,8 +305,19 @@ const Cotizacion = ({ embedded = false }) => {
             const apellidoPaterno = data.apellidoPaterno || data.apellido_paterno || '';
             const apellidoMaterno = data.apellidoMaterno || data.apellido_materno || '';
             const apellidos = data.apellidos || `${apellidoPaterno} ${apellidoMaterno}`.trim();
-            setCoCompradorDraft((prev) => ({ ...prev, nombres, apellidos }));
-            toast.current?.show({ severity: 'success', summary: 'RENIEC', detail: 'Datos cargados correctamente.' });
+            
+            const resumenCoComprador = {
+                ...coCompradorDraft,
+                nombres,
+                apellidos,
+                nombreCompleto: `${nombres} ${apellidos}`.trim(),
+                detalleDocumento: `${coCompradorDraft.tipoDocumento || 'DNI'}: ${dniCo}`
+            };
+            
+            setCoCompradorSeleccionado(resumenCoComprador);
+            setMostrarCoComprador(true);
+            setCoCompradorModalVisible(false);
+            toast.current?.show({ severity: 'success', summary: 'RENIEC', detail: 'Datos cargados y seleccionados correctamente.' });
         } catch (error) {
             toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo consultar RENIEC.' });
         }
@@ -986,7 +1012,7 @@ const Cotizacion = ({ embedded = false }) => {
                                                     type="button"
                                                     icon="pi pi-times"
                                                     label="Limpiar"
-                                                    className="p-button-text p-button-sm"
+                                                    className="p-button-text p-button-sm p-button-danger"
                                                     onClick={() => {
                                                         setCoCompradorSeleccionado(null);
                                                         setMostrarCoComprador(false);
@@ -996,19 +1022,30 @@ const Cotizacion = ({ embedded = false }) => {
                                             )}
                                         </div>
                                     </div>
-                                    {mostrarCoComprador && coCompradorSeleccionado && !coCompradorSeleccionado.id && (
-                                        <div className="mb-2 p-3 border-1 border-dashed border-300 border-round surface-50">
-                                            <div className="text-sm font-bold text-700 mb-1">
-                                                {coCompradorSeleccionado?.nombreCompleto || 'Co-comprador nuevo'}
+                                    {mostrarCoComprador && coCompradorSeleccionado && (
+                                        <div className="mb-2 p-3 border-1 border-dashed border-300 border-round surface-50 flex justify-content-between align-items-center">
+                                            <div>
+                                                <div className="text-sm font-bold text-700 mb-1">
+                                                    {coCompradorSeleccionado?.nombreCompleto || 'Co-comprador'}
+                                                </div>
+                                                <div className="text-xs text-500">
+                                                    {coCompradorSeleccionado?.detalleDocumento || 'Pendiente de guardar'}
+                                                </div>
+                                                {coCompradorSeleccionado.id ? (
+                                                    <Tag severity="info" value="Registrado en sistema" className="mt-2 text-xs" />
+                                                ) : (
+                                                    <Tag severity="warning" value="Borrador local" className="mt-2 text-xs" />
+                                                )}
                                             </div>
-                                            <div className="text-xs text-500">
-                                                {coCompradorSeleccionado?.detalleDocumento || 'Borrador local pendiente de guardar.'}
-                                            </div>
+                                            <Button icon="pi pi-pencil" className="p-button-rounded p-button-text" onClick={() => {
+                                                setCoCompradorDraft({ ...crearCoCompradorVacio(), ...coCompradorSeleccionado });
+                                                setCoCompradorModalVisible(true);
+                                            }} />
                                         </div>
                                     )}
-                                    {mostrarCoComprador && (
+                                    {mostrarCoComprador && !coCompradorSeleccionado && (
                                         <Dropdown
-                                            value={coCompradorSeleccionado?.id ? coCompradorSeleccionado : null}
+                                            value={null}
                                             options={coCompradoresOptions}
                                             onChange={(e) => {
                                                 setCoCompradorSeleccionado(e.value);
@@ -1437,6 +1474,12 @@ const Cotizacion = ({ embedded = false }) => {
                                     const val = e.target.value || '';
                                     const filtered = filtrarDocumento(val, coCompradorDraft.tipoDocumento || 'DNI');
                                     setCoCompradorDraft((prev) => ({ ...prev, numeroDocumento: filtered }));
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        buscarDniCoComprador();
+                                    }
                                 }}
                                 keyfilter="pint"
                                 maxLength={maxLengthDocumento(coCompradorDraft.tipoDocumento)}
