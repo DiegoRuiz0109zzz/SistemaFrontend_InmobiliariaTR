@@ -6,6 +6,7 @@ import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
 import { InputNumber } from 'primereact/inputnumber';
 import { Dropdown } from 'primereact/dropdown';
+import { Calendar } from 'primereact/calendar';
 import { Toast } from 'primereact/toast';
 import { FileUpload } from 'primereact/fileupload';
 import { Tag } from 'primereact/tag';
@@ -14,6 +15,7 @@ import PageHeader from '../../components/ui/PageHeader';
 import ActionToolbar from '../../components/ui/ActionToolbar';
 import { useAuth } from '../../context/AuthContext';
 import { PagoService } from '../../service/PagoService';
+import { ContratoHistorialService } from '../../service/ContratoHistorialService';
 import '../Usuario.css';
 
 const bancosOptions = [
@@ -41,11 +43,19 @@ const ArqueoCaja = () => {
     const [depositos, setDepositos] = useState([{ banco: '', operacion: '', monto: 0, file: null }]);
     const [conciliando, setConciliando] = useState(false);
 
+    const [rangoFechas, setRangoFechas] = useState(null);
+    const [estadoDocumento, setEstadoDocumento] = useState('TODOS');
+    const [historialGeneral, setHistorialGeneral] = useState([]);
+
     const cargarReporte = useCallback(async () => {
         setLoading(true);
         try {
-            const data = await PagoService.obtenerReporteCaja(axiosInstance);
+            const [data, hist] = await Promise.all([
+                PagoService.obtenerReporteCaja(axiosInstance),
+                ContratoHistorialService.listarTodo(axiosInstance).catch(() => [])
+            ]);
             setReporte(data || null);
+            setHistorialGeneral(hist || []);
         } catch (error) {
             toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo cargar el reporte de caja.' });
         } finally {
@@ -59,12 +69,38 @@ const ArqueoCaja = () => {
 
     const recibos = useMemo(() => {
         const detalle = reporte?.detalleRecibos || {};
-        return Object.keys(detalle).map((numeroRecibo) => {
+        let lista = Object.keys(detalle).map((numeroRecibo) => {
             const pagos = detalle[numeroRecibo] || [];
             const montoTotal = pagos.reduce((acc, pago) => acc + (Number(pago.montoAbonado || pago.monto || 0)), 0);
-            return { numeroRecibo, pagos, montoTotal };
+            const fechaPago = pagos[0]?.fechaPago || null;
+
+            const documentoSubido = historialGeneral.some(h =>
+                (h.rutaDocumentoPdf || h.ruta_documento_pdf || '').includes(numeroRecibo)
+            );
+
+            return { numeroRecibo, pagos, montoTotal, fechaPago, documentoSubido };
         });
-    }, [reporte]);
+
+        if (rangoFechas && rangoFechas[0] && rangoFechas[1]) {
+            const fd = new Date(rangoFechas[0]);
+            fd.setHours(0, 0, 0, 0);
+            const fh = new Date(rangoFechas[1]);
+            fh.setHours(23, 59, 59, 999);
+            lista = lista.filter(r => {
+                if (!r.fechaPago) return false;
+                const d = new Date(r.fechaPago);
+                return d >= fd && d <= fh;
+            });
+        }
+
+        if (estadoDocumento === 'SUBIDO') {
+            lista = lista.filter(r => r.documentoSubido);
+        } else if (estadoDocumento === 'NO_SUBIDO') {
+            lista = lista.filter(r => !r.documentoSubido);
+        }
+
+        return lista;
+    }, [reporte, rangoFechas, estadoDocumento]);
 
     const totalEsperado = useMemo(() => reciboActivo?.montoTotal || 0, [reciboActivo]);
 
@@ -166,13 +202,15 @@ const ArqueoCaja = () => {
                 onClick={() => handleVerReciboPdf(row.numeroRecibo)}
                 disabled={row.numeroRecibo === 'SIN_RECIBO_ANTIGUO'}
             />
-            <Button
-                icon="pi pi-upload"
-                className="p-button-rounded p-button-text p-button-warning"
-                tooltip="Subir firma"
-                onClick={() => abrirDialogoFirma(row)}
-                disabled={row.numeroRecibo === 'SIN_RECIBO_ANTIGUO'}
-            />
+            {!row.documentoSubido && (
+                <Button
+                    icon="pi pi-upload"
+                    className="p-button-rounded p-button-text p-button-warning"
+                    tooltip="Subir firma"
+                    onClick={() => abrirDialogoFirma(row)}
+                    disabled={row.numeroRecibo === 'SIN_RECIBO_ANTIGUO'}
+                />
+            )}
             <Button
                 icon="pi pi-briefcase"
                 className="p-button-rounded p-button-text p-button-success"
@@ -220,6 +258,35 @@ const ArqueoCaja = () => {
                             </div>
                         </div>
 
+                        <div className="flex flex-column md:flex-row gap-3 mb-4 surface-0 p-4 border-round-2xl shadow-1 border-1 surface-border">
+                            <div className="flex-1 flex flex-column gap-2">
+                                <label className="text-sm font-bold text-700">Rango de Fechas</label>
+                                <Calendar
+                                    value={rangoFechas}
+                                    onChange={(e) => setRangoFechas(e.value)}
+                                    selectionMode="range"
+                                    readOnlyInput
+                                    hideOnRangeSelection
+                                    showIcon
+                                    placeholder="Seleccione un rango"
+                                    className="w-full"
+                                />
+                            </div>
+                            <div className="flex-1 flex flex-column gap-2">
+                                <label className="text-sm font-bold text-700">Estado de Documento</label>
+                                <Dropdown
+                                    value={estadoDocumento}
+                                    options={[
+                                        { label: 'Todos', value: 'TODOS' },
+                                        { label: 'Documento Subido', value: 'SUBIDO' },
+                                        { label: 'Falta Subir', value: 'NO_SUBIDO' }
+                                    ]}
+                                    onChange={(e) => setEstadoDocumento(e.value)}
+                                    className="w-full"
+                                />
+                            </div>
+                        </div>
+
                         <ActionToolbar
                             onSearch={setGlobalFilter}
                             searchValue={globalFilter}
@@ -245,7 +312,9 @@ const ArqueoCaja = () => {
                             className="p-datatable-sm shadow-1 border-round-lg overflow-hidden mt-3"
                         >
                             <Column field="numeroRecibo" header="Nro Recibo" sortable></Column>
-                            <Column header="Monto Total" body={(r) => `S/ ${r.montoTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}`} align="right" sortable></Column>
+                            <Column header="Fecha" body={(r) => r.fechaPago ? new Date(r.fechaPago).toLocaleDateString('es-PE') : '-'} sortable></Column>
+                            <Column header="Documento" body={(r) => <Tag severity={r.documentoSubido ? 'success' : 'warning'} value={r.documentoSubido ? 'Subido' : 'Pendiente'} />} align="center"></Column>
+                            <Column header="Monto Total" body={(r) => <span className="font-bold text-green-700">S/ {r.montoTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>} align="right" sortable></Column>
                             <Column header="Acciones" body={accionesTemplate} align="center"></Column>
                         </DataTable>
                     </div>
@@ -270,11 +339,21 @@ const ArqueoCaja = () => {
                         onSelect={(e) => setArchivoFirma(e.files?.[0] || null)}
                     />
                     {archivoFirma && (
-                        <small className="text-500">Archivo: {archivoFirma.name}</small>
+                        <div className="flex align-items-center gap-2 bg-blue-50 p-2 border-round">
+                            <i className="pi pi-file text-blue-500"></i>
+                            <small className="text-700 font-bold flex-1">{archivoFirma.name}</small>
+                            <Button
+                                type="button"
+                                icon="pi pi-eye"
+                                className="p-button-rounded p-button-info p-button-text"
+                                tooltip="Ver documento seleccionado"
+                                onClick={() => openBlob(archivoFirma)}
+                            />
+                        </div>
                     )}
                     <div className="flex justify-content-end gap-2">
                         <Button label="Cancelar" className="p-button-text" onClick={() => setDialogoFirma(false)} />
-                        <Button label="Subir" icon="pi pi-upload" loading={subiendoFirma} onClick={subirFirma} />
+                        <Button label="Subir" icon="pi pi-upload" className='text-white' loading={subiendoFirma} onClick={subirFirma} />
                     </div>
                 </div>
             </Dialog>
@@ -294,8 +373,8 @@ const ArqueoCaja = () => {
 
                     {depositos.map((dep, index) => (
                         <div key={index} className="surface-0 border-round-lg border-1 surface-border p-3">
-                            <div className="grid align-items-end">
-                                <div className="col-12 md:col-3">
+                            <div className="flex flex-column md:flex-row align-items-end gap-3 w-full">
+                                <div className="flex-1 w-full">
                                     <label className="text-sm font-bold text-700 block mb-2">Banco</label>
                                     <Dropdown
                                         value={dep.banco}
@@ -305,7 +384,7 @@ const ArqueoCaja = () => {
                                         placeholder="Seleccione"
                                     />
                                 </div>
-                                <div className="col-12 md:col-3">
+                                <div className="flex-1 w-full">
                                     <label className="text-sm font-bold text-700 block mb-2">Operacion</label>
                                     <InputText
                                         value={dep.operacion}
@@ -314,7 +393,7 @@ const ArqueoCaja = () => {
                                         placeholder="Ej: 123456"
                                     />
                                 </div>
-                                <div className="col-12 md:col-3">
+                                <div className="flex-1 w-full">
                                     <label className="text-sm font-bold text-700 block mb-2">Monto</label>
                                     <InputNumber
                                         value={dep.monto}
@@ -324,23 +403,39 @@ const ArqueoCaja = () => {
                                         className="w-full"
                                     />
                                 </div>
-                                <div className="col-12 md:col-2">
+                                <div className="flex-1 w-full">
                                     <label className="text-sm font-bold text-700 block mb-2">Voucher</label>
-                                    <input
-                                        type="file"
-                                        className="w-full"
-                                        accept="image/*,application/pdf"
-                                        onChange={(e) => actualizarDeposito(index, 'file', e.target.files?.[0] || null)}
-                                    />
+                                    <div className="flex align-items-center gap-2">
+                                        <div className="flex-1 overflow-hidden">
+                                            <FileUpload
+                                                mode="basic"
+                                                chooseLabel={dep.file ? "Cambiar" : "Subir"}
+                                                chooseOptions={{ icon: 'pi pi-upload', className: 'p-button-outlined p-button-sm w-full' }}
+                                                accept="image/*,application/pdf"
+                                                customUpload
+                                                auto={false}
+                                                onSelect={(e) => actualizarDeposito(index, 'file', e.files?.[0] || null)}
+                                            />
+                                        </div>
+                                        {dep.file && (
+                                            <Button
+                                                type="button"
+                                                icon="pi pi-eye"
+                                                className="p-button-rounded p-button-sm p-button-info p-button-text m-0 p-0"
+                                                tooltip="Ver voucher"
+                                                onClick={() => openBlob(dep.file)}
+                                            />
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="col-12 md:col-1 flex justify-content-end">
+                                <div className="flex align-items-center justify-content-center mb-1">
                                     <button
                                         type="button"
                                         className="p-button p-button-danger p-button-rounded p-button-text"
                                         onClick={() => eliminarDeposito(index)}
                                         title="Eliminar deposito"
                                     >
-                                        <Trash2 size={16} />
+                                        <Trash2 size={20} />
                                     </button>
                                 </div>
                             </div>
@@ -369,6 +464,7 @@ const ArqueoCaja = () => {
                             disabled={sumaDepositos !== totalEsperado || conciliando}
                             loading={conciliando}
                             onClick={conciliarRecibo}
+                            className='text-white'
                         />
                     </div>
                 </div>

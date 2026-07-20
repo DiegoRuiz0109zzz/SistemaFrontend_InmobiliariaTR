@@ -11,6 +11,12 @@ export const ContratoHistorialService = {
         return response.data;
     },
 
+    listarTodo: async (httpClient) => {
+        const client = resolveClient(httpClient);
+        const response = await client.get(`${RESOURCE}`);
+        return response.data;
+    },
+
     obtener: async (id, httpClient) => {
         const client = resolveClient(httpClient);
         const response = await client.get(`${RESOURCE}/${id}`);

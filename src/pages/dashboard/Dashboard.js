@@ -192,11 +192,11 @@ const Dashboard = () => {
                             <div className="flex flex-wrap gap-4 mb-4">
                                 <div className="px-4 py-3 border-round-xl" style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)', border: '1px solid rgba(255,255,255,0.2)' }}>
                                     <p className="text-xs mb-1 font-bold uppercase" style={{ color: '#a5b4fc' }}>Ingresos Asegurados (Vendido)</p>
-                                    <p className="text-2xl font-bold m-0" style={{ color: '#6ee7b7' }}>{formatCurrency(data.kpis.valorVendido)} <span className="text-sm font-normal text-white ml-1">({data.kpis.porcentajeVentasMonto}%)</span></p>
+                                    <p className="text-2xl font-bold m-0" style={{ color: '#6ee7b7' }}>{formatCurrency(data.kpis.valorVendido)} <span className="text-sm font-normal text-white ml-1">({data.kpis.valorTotal ? ((data.kpis.valorVendido / data.kpis.valorTotal) * 100).toFixed(2) : 0}%)</span></p>
                                 </div>
                                 <div className="px-4 py-3 border-round-xl" style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)', border: '1px solid rgba(255,255,255,0.2)' }}>
                                     <p className="text-xs mb-1 font-bold uppercase" style={{ color: '#a5b4fc' }}>Ingresos Potenciales (Por Vender)</p>
-                                    <p className="text-2xl font-bold m-0" style={{ color: '#fbbf24' }}>{formatCurrency(data.kpis.valorPotencial)} <span className="text-sm font-normal text-white ml-1">({(100 - (data.kpis.porcentajeVentasMonto || 0)).toFixed(2)}%)</span></p>
+                                    <p className="text-2xl font-bold m-0" style={{ color: '#fbbf24' }}>{formatCurrency(data.kpis.valorPotencial)} <span className="text-sm font-normal text-white ml-1">({data.kpis.valorTotal ? ((data.kpis.valorPotencial / data.kpis.valorTotal) * 100).toFixed(2) : 0}%)</span></p>
                                 </div>
                             </div>
 
@@ -252,7 +252,7 @@ const Dashboard = () => {
                             </div>
                         </div>
 
-                        {/* Valor de Lotes */}
+                        {/* Eficiencia de Cobro */}
                         <div className="col-12 lg:col-4">
                             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 h-full flex flex-column justify-content-center relative overflow-hidden group">
                                 <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
@@ -262,16 +262,16 @@ const Dashboard = () => {
                                     <div className="w-3rem h-3rem flex align-items-center justify-content-center bg-emerald-100 rounded-full mr-3 text-emerald-600">
                                         <DollarSign size={24} />
                                     </div>
-                                    <h3 className="text-lg font-bold text-gray-800 m-0">Valorización de Ventas</h3>
+                                    <h3 className="text-lg font-bold text-gray-800 m-0">Eficiencia de Cobro</h3>
                                 </div>
                                 <div className="flex justify-content-between align-items-end mt-2 relative z-10">
                                     <div>
-                                        <p className="text-sm text-gray-500 mb-1">Dinero Vendido</p>
-                                        <p className="text-3xl font-black text-gray-800 m-0">{formatCurrency(data.kpis.valorVendido)}</p>
+                                        <p className="text-sm text-gray-500 mb-1">Meta (Vendido): {formatCurrency(data.kpis.totalContratado)}</p>
+                                        <p className="text-3xl font-black text-gray-800 m-0">{formatCurrency(data.kpis.totalRecaudado)}</p>
                                     </div>
                                     <div className="text-right">
                                         <span className="inline-flex align-items-center px-2 py-1 rounded-md text-sm font-bold bg-emerald-100 text-emerald-700">
-                                            {data.kpis.porcentajeVentasMonto}% DEL TOTAL
+                                            {data.kpis.porcentajeRecaudacion}% COBRADO
                                         </span>
                                     </div>
                                 </div>
@@ -328,16 +328,12 @@ const Dashboard = () => {
                                             />
                                             <RechartsTooltip 
                                                 cursor={{fill: '#f8fafc'}}
-                                                formatter={(value) => [formatCurrency(value), "Monto Vendido"]}
+                                                formatter={(value) => formatCurrency(value)}
                                                 contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                                             />
-                                            <Bar dataKey="montoVendido" radius={[4, 4, 0, 0]}>
-                                                {data.ventasPorMes && data.ventasPorMes.map((entry, index) => {
-                                                    const maxVenta = Math.max(...data.ventasPorMes.map(d => d.montoVendido));
-                                                    const isMax = entry.montoVendido === maxVenta && maxVenta > 0;
-                                                    return <Cell key={`cell-${index}`} fill={isMax ? '#4f46e5' : '#a5b4fc'} />;
-                                                })}
-                                            </Bar>
+                                            <Legend verticalAlign="top" height={36}/>
+                                            <Bar dataKey="montoVendido" name="Proyección (Vendido)" fill="#a5b4fc" radius={[4, 4, 0, 0]} />
+                                            <Bar dataKey="montoRecaudado" name="Recaudado (Real)" fill="#2dd4bf" radius={[4, 4, 0, 0]} />
                                         </BarChart>
                                     </ResponsiveContainer>
                                 </div>
