@@ -95,8 +95,7 @@ const Cotizacion = ({ embedded = false }) => {
 
     // Parámetros Flexibles (Cuotas Especiales)
     const [isFlexible, setIsFlexible] = useState(false);
-    const [cuotasEspeciales, setCuotasEspeciales] = useState(0);
-    const [montoEspecial, setMontoEspecial] = useState(0);
+    const [bloquesFlexibles, setBloquesFlexibles] = useState([{ cantidad: 0, monto: 0 }]);
 
     // Tipo de Inicial
     const [tipoInicial, setTipoInicial] = useState(null);
@@ -172,8 +171,7 @@ const Cotizacion = ({ embedded = false }) => {
         setCuotas(36);
         setFechaInicio(new Date(new Date().setMonth(new Date().getMonth() + 1)));
         setIsFlexible(false);
-        setCuotasEspeciales(3);
-        setMontoEspecial(1000);
+        setBloquesFlexibles([{ cantidad: 0, monto: 0 }]);
         setTipoInicial(null);
         setObservacion('');
         setCronograma([]);
@@ -305,7 +303,7 @@ const Cotizacion = ({ embedded = false }) => {
             const apellidoPaterno = data.apellidoPaterno || data.apellido_paterno || '';
             const apellidoMaterno = data.apellidoMaterno || data.apellido_materno || '';
             const apellidos = data.apellidos || `${apellidoPaterno} ${apellidoMaterno}`.trim();
-            
+
             const resumenCoComprador = {
                 ...coCompradorDraft,
                 nombres,
@@ -313,7 +311,7 @@ const Cotizacion = ({ embedded = false }) => {
                 nombreCompleto: `${nombres} ${apellidos}`.trim(),
                 detalleDocumento: `${coCompradorDraft.tipoDocumento || 'DNI'}: ${dniCo}`
             };
-            
+
             setCoCompradorSeleccionado(resumenCoComprador);
             setMostrarCoComprador(true);
             setCoCompradorModalVisible(false);
@@ -537,8 +535,7 @@ const Cotizacion = ({ embedded = false }) => {
                 setInicialAcordada(0);
                 setAbonoReal(0);
                 setIsFlexible(false);
-                setCuotasEspeciales(0);
-                setMontoEspecial(0);
+                setBloquesFlexibles([{ cantidad: 3, monto: 1000 }]);
                 setTipoInicial(null);
                 setCronograma([]);
                 setDescripcionGenerada('');
@@ -649,16 +646,26 @@ const Cotizacion = ({ embedded = false }) => {
                 montoInicial: inicialAcordada,
                 cantidadCuotas: cuotas,
                 fechaInicioPago: getLocalYMD(fechaInicio),
-                cuotasEspeciales: isFlexible ? cuotasEspeciales : 0,
-                montoCuotaEspecial: isFlexible ? montoEspecial : 0
+                cuotasEspeciales: 0,
+                montoCuotaEspecial: 0,
+                bloquesFlexibles: isFlexible ? bloquesFlexibles : []
             };
 
             const respuesta = await ContratoService.simular(simulacionRequest, axiosInstance);
+
+            let arrayRespuesta = null;
             if (Array.isArray(respuesta)) {
+                arrayRespuesta = respuesta;
+            } else if (respuesta && (respuesta.cronograma || respuesta.proyeccion || respuesta.cuotas)) {
+                arrayRespuesta = respuesta.cronograma || respuesta.proyeccion || respuesta.cuotas;
+            }
+
+            if (arrayRespuesta) {
                 const fechaCuotaCero = inicialCompletaParcial ? getLocalYMD(new Date()) : getLocalYMD(fechaLimiteInicial);
                 const estadoCuotaCero = tipoInicial === 'PARCIAL'
                     ? (inicialCompletaParcial ? 'SEPARADO' : 'PAGADO_PARCIAL')
                     : 'PAGADO_TOTAL';
+
                 const cuotaInicial = {
                     numero: 0,
                     tipoCuota: 'INICIAL',
@@ -669,25 +676,27 @@ const Cotizacion = ({ embedded = false }) => {
                     estado: estadoCuotaCero
                 };
 
-                const cuotasBackend = respuesta.map((item) => {
-                    const esEspecial = isFlexible && Number(item.numeroCuota) <= Number(cuotasEspeciales || 0);
+                const cuotasBackend = arrayRespuesta.map((item, index) => {
+                    let cantidadEspeciales = 0;
+                    if (isFlexible && bloquesFlexibles) {
+                        cantidadEspeciales = bloquesFlexibles.reduce((acc, b) => acc + (b.cantidad || 0), 0);
+                    }
+                    const num = item?.numeroCuota ?? item?.numero ?? index + 1;
+                    const esEspecial = isFlexible && Number(num) <= cantidadEspeciales;
+                    const m = Number(item?.montoTotal ?? item?.monto ?? 0);
                     return {
-                        numero: item.numeroCuota,
-                        tipoCuota: esEspecial ? 'ESPECIAL' : 'MENSUAL',
-                        montoTotal: item.monto,
-                        montoPagado: 0,
-                        saldoPendiente: item.monto,
-                        fecha: item.fechaVencimiento,
-                        estado: 'PENDIENTE'
+                        numero: num,
+                        tipoCuota: item?.tipoCuota || (esEspecial ? 'ESPECIAL' : 'MENSUAL'),
+                        montoTotal: m,
+                        montoPagado: Number(item?.montoPagado ?? 0),
+                        saldoPendiente: Number(item?.saldoPendiente ?? item?.monto ?? 0),
+                        fecha: item?.fechaVencimiento || item?.fecha || item?.vencimiento || null,
+                        estado: item?.estado || 'PENDIENTE'
                     };
                 });
+
                 setCronograma([cuotaInicial, ...cuotasBackend]);
-                setDescripcionGenerada('Simulación completada');
-                return;
-            }
-            if (respuesta && respuesta.cuotas) {
-                setCronograma(respuesta.cuotas);
-                setDescripcionGenerada(respuesta.descripcion || 'Simulación completada');
+                setDescripcionGenerada(respuesta.descripcion || respuesta.mensajeSugerencia || 'Simulación completada');
                 return;
             }
             toast.current.show({ severity: 'warn', summary: 'Respuesta inesperada', detail: 'El servidor no devolvió los datos esperados.' });
@@ -799,8 +808,9 @@ const Cotizacion = ({ embedded = false }) => {
                 montoAbonadoIncial: abonoEfectivo,
                 cantidadCuotas: cuotas,
                 fechaInicioPago: getLocalYMD(fechaInicio),
-                cuotasEspeciales: isFlexible ? cuotasEspeciales : 0,
-                montoCuotaEspecial: isFlexible ? montoEspecial : 0,
+                cuotasEspeciales: 0,
+                montoCuotaEspecial: 0,
+                bloquesFlexibles: isFlexible ? bloquesFlexibles : [],
                 cuotasFlexibles: isFlexible,
                 diasValidez: 7,
                 montoCuotaCotizacion: montoCuotaCotizacion,
@@ -884,17 +894,19 @@ const Cotizacion = ({ embedded = false }) => {
     };
 
     const montoTemplate = (rowData) => {
+        const montoTotal = Number(rowData.montoTotal || 0);
+        const saldoPendiente = Number(rowData.saldoPendiente || 0);
         if (rowData.numero === 0) {
             return (
                 <div className="flex flex-column text-right">
-                    <span className="font-bold text-blue-700">S/ {rowData.montoTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-                    {rowData.saldoPendiente > 0 && (
-                        <span className="text-xs text-orange-600">Debe: S/ {rowData.saldoPendiente.toLocaleString()}</span>
+                    <span className="font-bold text-blue-700">S/ {montoTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                    {saldoPendiente > 0 && (
+                        <span className="text-xs text-orange-600">Debe: S/ {saldoPendiente.toLocaleString()}</span>
                     )}
                 </div>
             );
         }
-        return <span className="font-bold">S/ {rowData.montoTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>;
+        return <span className="font-bold">S/ {montoTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>;
     };
 
     // MEJORA 2: Template visual para la columna "Tipo" para resaltar la cuota Especial
@@ -1308,15 +1320,38 @@ const Cotizacion = ({ embedded = false }) => {
                     </div>
 
                     {isFlexible && (
-                        <div className="p-fluid grid flexible-box fade-in">
-                            <div className="field col-12 md:col-6 mb-0">
-                                <label className="text-xs font-bold text-orange-800 uppercase">Primeras N Cuotas Fijas</label>
-                                <InputNumber value={cuotasEspeciales} onValueChange={(e) => setCuotasEspeciales(e.value)} placeholder="Ej: 3" />
-                            </div>
-                            <div className="field col-12 md:col-6 mb-0">
-                                <label className="text-xs font-bold text-orange-800 uppercase">Monto Especial Fijo (S/)</label>
-                                <InputNumber value={montoEspecial} onValueChange={(e) => setMontoEspecial(e.value)} mode="currency" currency="PEN" placeholder="Ej: 1000" />
-                            </div>
+                        <div className="p-fluid flexible-blocks-container fade-in mt-3">
+                            <label className="text-xs font-bold text-orange-800 uppercase mb-2 block">Bloques de Cuotas Especiales</label>
+                            {bloquesFlexibles.map((bloque, index) => (
+                                <div key={index} className="grid align-items-end mb-2">
+                                    <div className="field col-5 mb-0">
+                                        <label className="text-xs font-bold text-600">N° Cuotas Fijas</label>
+                                        <InputNumber value={bloque.cantidad} onValueChange={(e) => {
+                                            const nuevos = [...bloquesFlexibles];
+                                            nuevos[index].cantidad = e.value;
+                                            setBloquesFlexibles(nuevos);
+                                        }} placeholder="Ej: 3" />
+                                    </div>
+                                    <div className="field col-5 mb-0">
+                                        <label className="text-xs font-bold text-600">Monto Fijo (S/)</label>
+                                        <InputNumber value={bloque.monto} onValueChange={(e) => {
+                                            const nuevos = [...bloquesFlexibles];
+                                            nuevos[index].monto = e.value;
+                                            setBloquesFlexibles(nuevos);
+                                        }} mode="currency" currency="PEN" placeholder="Ej: 1000" />
+                                    </div>
+                                    <div className="field col-2 mb-0">
+                                        <Button icon="pi pi-trash" className="p-button-danger p-button-outlined" onClick={() => {
+                                            const nuevos = [...bloquesFlexibles];
+                                            nuevos.splice(index, 1);
+                                            setBloquesFlexibles(nuevos);
+                                        }} disabled={bloquesFlexibles.length <= 1} type="button" />
+                                    </div>
+                                </div>
+                            ))}
+                            <Button label="Agregar Bloque" icon="pi pi-plus" className="p-button-text p-button-sm mt-1" onClick={() => {
+                                setBloquesFlexibles([...bloquesFlexibles, { cantidad: 1, monto: 100 }]);
+                            }} type="button" />
                         </div>
                     )}
 
@@ -1345,7 +1380,7 @@ const Cotizacion = ({ embedded = false }) => {
                         <div>
                             <i className="pi pi-check-square text-green-500 text-xl"></i>
                             <span className="font-bold text-xl ml-2 text-800">Proyección Financiera</span>
-                            
+
                         </div>
                         {cronograma.length > 0 && (
                             <Button label="Guardar Cotización" icon="pi pi-save" className="p-button-outlined p-button-lg border-round-xl font-bold" onClick={guardarCotizacion} />

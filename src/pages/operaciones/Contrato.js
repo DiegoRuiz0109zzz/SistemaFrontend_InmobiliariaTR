@@ -87,8 +87,7 @@ const Contrato = ({ embedded = false }) => {
     const [fechaInicio, setFechaInicio] = useState(new Date(new Date().setMonth(new Date().getMonth() + 1)));
 
     const [isFlexible, setIsFlexible] = useState(false);
-    const [cuotasEspeciales, setCuotasEspeciales] = useState(3);
-    const [montoEspecial, setMontoEspecial] = useState(1000);
+    const [bloquesFlexibles, setBloquesFlexibles] = useState([{ cantidad: 3, monto: 1000 }]);
 
     const [tipoInicial, setTipoInicial] = useState('PARCIAL');
     const [cotizacionOrigenId, setCotizacionOrigenId] = useState(null);
@@ -410,22 +409,27 @@ const Contrato = ({ embedded = false }) => {
         const cuotasCargadas = seleccionada.cantidadCuotas || 36;
         const tipoCargado = seleccionada.tipoInicial || 'PARCIAL';
         const abonoCargado = seleccionada.montoAbonadoIncial ?? (tipoCargado === 'TOTAL' ? inicialCargada : (inicialCargada * 0.2));
-        const flexCargado = !!(seleccionada.cuotasFlexibles || seleccionada.cuotasEspeciales || seleccionada.montoCuotaEspecial);
-        const espCargadas = seleccionada.cuotasEspeciales || 0;
-        const mtoEspCargado = seleccionada.montoCuotaEspecial || 0;
+        const flexCargado = !!(seleccionada.cuotasFlexibles || seleccionada.cuotasEspeciales || seleccionada.montoCuotaEspecial || (seleccionada.bloquesFlexibles && seleccionada.bloquesFlexibles.length > 0));
+        let bloques = [];
+        if (seleccionada.bloquesFlexibles && seleccionada.bloquesFlexibles.length > 0) {
+            bloques = seleccionada.bloquesFlexibles;
+        } else if (seleccionada.cuotasEspeciales && seleccionada.montoCuotaEspecial) {
+            bloques = [{ cantidad: seleccionada.cuotasEspeciales, monto: seleccionada.montoCuotaEspecial }];
+        } else {
+            bloques = [{ cantidad: 3, monto: 1000 }];
+        }
 
         setInicialAcordada(inicialCargada);
         setAbonoReal(abonoCargado);
         setCuotas(cuotasCargadas);
         setTipoInicial(tipoCargado);
         setIsFlexible(flexCargado);
-        setCuotasEspeciales(espCargadas);
-        setMontoEspecial(mtoEspCargado);
+        setBloquesFlexibles(bloques);
 
         if (seleccionada.fechaInicioPago) setFechaInicio(parseLocalYMD(seleccionada.fechaInicioPago));
 
         setTimeout(() => {
-            simularConDatos(precioVentaCargado, inicialCargada, cuotasCargadas, tipoCargado, flexCargado, espCargadas, mtoEspCargado);
+            simularConDatos(precioVentaCargado, inicialCargada, cuotasCargadas, tipoCargado, flexCargado, bloques);
         }, 300);
     };
 
@@ -655,7 +659,7 @@ const Contrato = ({ embedded = false }) => {
     // ==========================================
     // SIMULADOR MATEMÁTICO (Incluye Cuota 0)
     // ==========================================
-    const simularConDatos = (pPrecio, pInicial, pCuotas, pTipo, pFlex, pEsp, pMtoEsp) => {
+    const simularConDatos = (pPrecio, pInicial, pCuotas, pTipo, pFlex, pBloquesFlexibles) => {
         const iniEf = pTipo === 'CERO' ? 0 : pInicial;
         const saldo = pPrecio - iniEf;
         if (saldo <= 0 || pCuotas <= 0) return;
@@ -679,11 +683,20 @@ const Contrato = ({ embedded = false }) => {
             });
         }
 
-        let eCant = pFlex ? pEsp : 0;
-        let eMto = pFlex ? pMtoEsp : 0;
+        let eCant = 0;
+        let eTotalMonto = 0;
+        if (pFlex && pBloquesFlexibles && pBloquesFlexibles.length > 0) {
+            pBloquesFlexibles.forEach(b => {
+                eCant += (b.cantidad || 0);
+                eTotalMonto += ((b.cantidad || 0) * (b.monto || 0));
+            });
+        }
         let nCant = pCuotas;
         let nSaldo = saldo;
-        if (pFlex) { nSaldo = saldo - (eCant * eMto); nCant = pCuotas - eCant; }
+        if (pFlex && eCant > 0) {
+            nSaldo = saldo - eTotalMonto;
+            nCant = pCuotas - eCant;
+        }
 
         let base = nCant > 0 ? nSaldo / nCant : 0;
         // Normalizar fechaInicio a una Date local (evita shifts por parseo ISO/UTC)
@@ -697,14 +710,31 @@ const Contrato = ({ embedded = false }) => {
         let dia = bd.getDate();
 
         for (let i = 0; i < pCuotas; i++) {
-            let m = i < eCant ? eMto : base;
-            if (i === pCuotas - 1 && nCant > 0) m = saldo - (eCant * eMto) - (Math.round(base * 100) / 100) * (nCant - 1);
+            let m = base;
+            let esEspecial = false;
+            
+            if (pFlex && pBloquesFlexibles && pBloquesFlexibles.length > 0) {
+                let cuotasAcumuladas = 0;
+                for (let b of pBloquesFlexibles) {
+                    if (i >= cuotasAcumuladas && i < cuotasAcumuladas + (b.cantidad || 0)) {
+                        m = b.monto || 0;
+                        esEspecial = true;
+                        break;
+                    }
+                    cuotasAcumuladas += (b.cantidad || 0);
+                }
+            }
+
+            if (!esEspecial && i === pCuotas - 1 && nCant > 0) {
+               let montoAcumuladoEspeciales = pFlex && pBloquesFlexibles && pBloquesFlexibles.length > 0 ? eTotalMonto : 0;
+               m = saldo - montoAcumuladoEspeciales - (Math.round(base * 100) / 100) * (nCant - 1);
+            }
             let dt = new Date(bd.getFullYear(), bd.getMonth() + i, 1);
             dt.setDate(Math.min(dia, new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate()));
 
             nc.push({
                 numero: i + 1,
-                tipoCuota: (pFlex && i < eCant) ? 'ESPECIAL' : 'MENSUAL',
+                tipoCuota: esEspecial ? 'ESPECIAL' : 'MENSUAL',
                 montoTotal: Math.round(m * 100) / 100,
                 montoPagado: 0,
                 saldoPendiente: Math.round(m * 100) / 100,
@@ -716,7 +746,7 @@ const Contrato = ({ embedded = false }) => {
         setCronograma(nc);
         let desc = pTipo === 'CERO' ? 'Sin cuota inicial. ' : `Cuota Inicial de S/ ${iniEf}. `;
         desc += pFlex && eCant > 0
-            ? `Fraccionado en ${eCant} cuotas de S/ ${eMto} y ${nCant} cuotas con el saldo restante.`
+            ? `Fraccionado con cronograma flexible de ${eCant} cuotas especiales y ${nCant} cuotas regulares.`
             : `Fraccionado en ${pCuotas} cuotas regulares.`;
         setDescripcionGenerada(desc);
     };
@@ -758,18 +788,28 @@ const Contrato = ({ embedded = false }) => {
             montoInicial: inicialAcordada,
             cantidadCuotas: cuotas,
             fechaInicioPago: getLocalYMD(fechaInicioParaEnvio),
-            cuotasEspeciales: isFlexible ? cuotasEspeciales : 0,
-            montoCuotaEspecial: isFlexible ? montoEspecial : 0
+            cuotasEspeciales: 0,
+            montoCuotaEspecial: 0,
+            bloquesFlexibles: isFlexible ? bloquesFlexibles : []
         };
 
         try {
             const respuesta = await ContratoService.simular(simulacionRequest, axiosInstance);
 
+            let arrayRespuesta = null;
             if (Array.isArray(respuesta)) {
+                arrayRespuesta = respuesta;
+            } else if (respuesta && (respuesta.cronograma || respuesta.proyeccion || respuesta.cuotas)) {
+                arrayRespuesta = respuesta.cronograma || respuesta.proyeccion || respuesta.cuotas;
+            }
+
+            if (arrayRespuesta) {
+                const abonoEf = tipoInicial === 'TOTAL' ? inicialAcordada : abonoReal;
                 const fechaCuotaCero = inicialCompletaParcial ? getLocalYMD(new Date()) : getLocalYMD(fechaLimiteInicial);
                 const estadoCuotaCero = tipoInicial === 'PARCIAL'
                     ? (inicialCompletaParcial ? 'SEPARADO' : 'PAGADO_PARCIAL')
                     : 'PAGADO_TOTAL';
+                
                 const cuotaInicial = {
                     numero: 0,
                     tipoCuota: 'INICIAL',
@@ -780,40 +820,28 @@ const Contrato = ({ embedded = false }) => {
                     estado: estadoCuotaCero
                 };
 
-                const cuotasBackend = respuesta.map((item) => {
-                    const cuotaNormalizada = normalizarCuotaSimulada(item, item?.numeroCuota ? Number(item.numeroCuota) - 1 : 0);
-                    const esEspecial = isFlexible && Number(item.numeroCuota) <= Number(cuotasEspeciales || 0);
+                const cuotasNormalizadas = arrayRespuesta.map((item, index) => {
+                    const cuotaNormalizada = normalizarCuotaSimulada(item, index);
+                    let cantidadEspeciales = 0;
+                    if (isFlexible && bloquesFlexibles) {
+                        cantidadEspeciales = bloquesFlexibles.reduce((acc, b) => acc + (b.cantidad || 0), 0);
+                    }
+                    const esEspecial = isFlexible && Number(cuotaNormalizada.numero) <= cantidadEspeciales;
                     return {
                         ...cuotaNormalizada,
-                        numero: item.numeroCuota,
-                        tipoCuota: esEspecial ? 'ESPECIAL' : 'MENSUAL',
-                        fecha: item.fechaVencimiento || item.fecha || cuotaNormalizada.fecha
+                        tipoCuota: esEspecial ? 'ESPECIAL' : 'MENSUAL'
                     };
                 });
 
-                setCronograma([cuotaInicial, ...cuotasBackend]);
-                setDescripcionGenerada('Simulación completada');
-                return;
-            }
-
-            if (respuesta && respuesta.cuotas) {
-                const cuotasNormalizadas = respuesta.cuotas.map((item, index) => {
-                    const cuota = normalizarCuotaSimulada(item, index);
-                    return {
-                        ...cuota,
-                        fecha: item?.fechaVencimiento || item?.fecha || cuota.fecha
-                    };
-                });
-
-                setCronograma(cuotasNormalizadas);
-                setDescripcionGenerada(respuesta.descripcion || 'Simulación completada');
+                setCronograma([cuotaInicial, ...cuotasNormalizadas]);
+                setDescripcionGenerada(respuesta.descripcion || respuesta.mensajeSugerencia || 'Simulación completada');
                 return;
             }
 
             toast.current.show({ severity: 'warn', summary: 'Respuesta inesperada', detail: 'El servidor no devolvió los datos esperados.' });
         } catch (error) {
             toast.current.show({ severity: 'error', summary: 'Error en simulación', detail: error.response?.data?.message || 'No se pudo simular el cronograma.' });
-            simularConDatos(lotePrecio, inicialAcordada, cuotas, tipoInicial, isFlexible, cuotasEspeciales, montoEspecial);
+            simularConDatos(lotePrecio, inicialAcordada, cuotas, tipoInicial, isFlexible, bloquesFlexibles);
         }
     };
 
@@ -912,8 +940,9 @@ const Contrato = ({ embedded = false }) => {
                 fechaLimiteInicial: tipoInicial !== 'CERO' ? getLocalYMD(fechaLimiteInicial) : null,
                 cantidadCuotas: guardarCronograma ? cuotas : null,
                 fechaInicioPago: guardarCronograma ? getLocalYMD(fechaInicio) : null,
-                cuotasEspeciales: guardarCronograma && isFlexible ? cuotasEspeciales : null,
-                montoCuotaEspecial: guardarCronograma && isFlexible ? montoEspecial : null,
+                cuotasEspeciales: 0,
+                montoCuotaEspecial: 0,
+                bloquesFlexibles: guardarCronograma && isFlexible ? bloquesFlexibles : [],
                 cotizacionId: cotizacionOrigenId,
                 tipoInicial: tipoInicial,
                 cuotasFlexibles: guardarCronograma && isFlexible
@@ -979,15 +1008,17 @@ const Contrato = ({ embedded = false }) => {
     };
 
     const montoTemplate = (rowData) => {
+        const montoTotal = Number(rowData.montoTotal || 0);
+        const saldoPendiente = Number(rowData.saldoPendiente || 0);
         if (rowData.numero === 0) {
             return (
                 <div className="flex flex-column text-right">
-                    <span className="font-bold text-blue-700">S/ {rowData.montoTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-                    {rowData.saldoPendiente > 0 && <span className="text-xs text-orange-600">Debe: S/ {rowData.saldoPendiente.toLocaleString()}</span>}
+                    <span className="font-bold text-blue-700">S/ {montoTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                    {saldoPendiente > 0 && <span className="text-xs text-orange-600">Debe: S/ {saldoPendiente.toLocaleString()}</span>}
                 </div>
             );
         }
-        return <span className="font-bold">S/ {rowData.montoTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>;
+        return <span className="font-bold">S/ {montoTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>;
     };
 
     const tipoTemplate = (rowData) => {
@@ -1408,15 +1439,38 @@ const Contrato = ({ embedded = false }) => {
                                                 <label htmlFor="flexible" className="ml-2 font-medium text-sm text-700 cursor-pointer">Simulación Especial (Cuotas Mixtas)</label>
                                             </div>
                                             {isFlexible && (
-                                                <div className="grid mt-2 fade-in">
-                                                    <div className="field col-6 mb-0">
-                                                        <label className="text-xs font-bold text-orange-800 uppercase">Primeras N Cuotas Fijas</label>
-                                                        <InputNumber value={cuotasEspeciales} onValueChange={(e) => setCuotasEspeciales(e.value)} />
-                                                    </div>
-                                                    <div className="field col-6 mb-0">
-                                                        <label className="text-xs font-bold text-orange-800 uppercase">Monto Especial Fijo (S/)</label>
-                                                        <InputNumber value={montoEspecial} onValueChange={(e) => setMontoEspecial(e.value)} mode="currency" currency="PEN" />
-                                                    </div>
+                                                <div className="p-fluid flexible-blocks-container fade-in mt-3">
+                                                    <label className="text-xs font-bold text-orange-800 uppercase mb-2 block">Bloques de Cuotas Especiales</label>
+                                                    {bloquesFlexibles.map((bloque, index) => (
+                                                        <div key={index} className="grid align-items-end mb-2">
+                                                            <div className="field col-5 mb-0">
+                                                                <label className="text-xs font-bold text-600">N° Cuotas Fijas</label>
+                                                                <InputNumber value={bloque.cantidad} onValueChange={(e) => {
+                                                                    const nuevos = [...bloquesFlexibles];
+                                                                    nuevos[index].cantidad = e.value;
+                                                                    setBloquesFlexibles(nuevos);
+                                                                }} placeholder="Ej: 3" />
+                                                            </div>
+                                                            <div className="field col-5 mb-0">
+                                                                <label className="text-xs font-bold text-600">Monto Fijo (S/)</label>
+                                                                <InputNumber value={bloque.monto} onValueChange={(e) => {
+                                                                    const nuevos = [...bloquesFlexibles];
+                                                                    nuevos[index].monto = e.value;
+                                                                    setBloquesFlexibles(nuevos);
+                                                                }} mode="currency" currency="PEN" placeholder="Ej: 1000" />
+                                                            </div>
+                                                            <div className="field col-2 mb-0">
+                                                                <Button icon="pi pi-trash" className="p-button-danger p-button-outlined" onClick={() => {
+                                                                    const nuevos = [...bloquesFlexibles];
+                                                                    nuevos.splice(index, 1);
+                                                                    setBloquesFlexibles(nuevos);
+                                                                }} disabled={bloquesFlexibles.length <= 1} type="button" />
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                    <Button label="Agregar Bloque" icon="pi pi-plus" className="p-button-text p-button-sm mt-1" onClick={() => {
+                                                        setBloquesFlexibles([...bloquesFlexibles, { cantidad: 1, monto: 100 }]);
+                                                    }} type="button" />
                                                 </div>
                                             )}
                                         </div>

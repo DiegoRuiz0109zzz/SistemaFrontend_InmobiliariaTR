@@ -21,7 +21,7 @@ const ReportePagos = () => {
     const [pagos, setPagos] = useState([]);
     const [loading, setLoading] = useState(false);
     const [totalRecords, setTotalRecords] = useState(0);
-    
+
     // Pagination state
     const [lazyParams, setLazyParams] = useState({
         first: 0,
@@ -41,14 +41,13 @@ const ReportePagos = () => {
         { label: 'Transferencia', value: 'TRANSFERENCIA' },
         { label: 'Depósito', value: 'DEPOSITO' },
         { label: 'Yape', value: 'YAPE' },
-        { label: 'Plin', value: 'PLIN' },
-        { label: 'Tarjeta', value: 'TARJETA' }
+        { label: 'Plin', value: 'PLIN' }
+
     ];
 
     const comprobantesList = [
         { label: 'Recibo de Ingreso', value: 'RECIBO_INGRESO' },
         { label: 'Boleta', value: 'BOLETA' },
-        { label: 'Factura', value: 'FACTURA' },
         { label: 'Nota de Abono', value: 'NOTA_ABONO' }
     ];
 
@@ -83,10 +82,10 @@ const ReportePagos = () => {
             };
 
             const data = await PagoService.listarPagosPaginados(lazyParams.page, lazyParams.rows, filtros, axiosInstance);
-            
+
             let content = [];
             let total = 0;
-            
+
             if (data && data.content) {
                 // Spring Boot Page<T> directo
                 content = data.content;
@@ -104,7 +103,7 @@ const ReportePagos = () => {
                 content = data.data;
                 total = data.data.length;
             }
-            
+
             setPagos(content);
             setTotalRecords(total);
         } catch (error) {
@@ -162,7 +161,7 @@ const ReportePagos = () => {
             if (!Number.isNaN(d.getTime())) return d.toLocaleDateString('es-PE');
         }
         const [anio, mes, dia] = dateString.split('-');
-        if(anio && mes && dia) return `${dia}/${mes}/${anio}`;
+        if (anio && mes && dia) return `${dia}/${mes}/${anio}`;
         return dateString;
     };
 
@@ -180,9 +179,6 @@ const ReportePagos = () => {
             case 'RECIBO_INGRESO': return 'Recibo de Ingreso';
             case 'NOTA_ABONO': return 'Nota de Abono';
             case 'BOLETA': return 'Boleta';
-            case 'FACTURA': return 'Factura';
-            case 'NOTA_CREDITO': return 'Nota de Crédito';
-            case 'NOTA_DEBITO': return 'Nota de Débito';
             default: return 'Comprobante';
         }
     };
@@ -318,7 +314,7 @@ const ReportePagos = () => {
         const nombre = cliente ? `${cliente.nombres} ${cliente.apellidos}`.trim() : 'N/A';
         const doc = cliente?.numeroDocumento || '';
         const contratoNro = r.cuota?.contrato?.nroContrato || `C-${r.cuota?.contrato?.id}`;
-        
+
         return (
             <div className="flex flex-column">
                 <span className="font-bold text-800 text-sm">{nombre}</span>
@@ -370,13 +366,13 @@ const ReportePagos = () => {
                             exportFilename="Reporte_Pagos_Efectuados"
                             className="p-datatable-sm shadow-1 border-round-lg overflow-hidden mt-3"
                         >
-                            <Column field="numeroComprobante" header="Comprobante" body={comprobanteTemplate} style={{width: '12%'}}></Column>
-                            <Column header="Cliente y Contrato" body={clienteContratoTemplate} style={{width: '25%'}}></Column>
-                            <Column field="fechaPago" header="Fecha de Pago" body={(r) => formatDate(r.fechaPago)} style={{width: '12%'}}></Column>
-                            <Column field="cuota.numeroCuota" header="Cuota N°" body={(r) => r.cuota?.numeroCuota === 0 ? 'Inicial' : (r.cuota?.numeroCuota || r.cuota?.numero)} align="center" style={{width: '8%'}}></Column>
-                            <Column header="Método y Operación" body={operacionTemplate} style={{width: '15%'}}></Column>
-                            <Column field="montoAbonado" header="Monto (S/)" body={(r) => <span className="font-bold text-green-700">{formatCurrency(r.montoAbonado)}</span>} align="right" style={{width: '10%'}}></Column>
-                            <Column field="estado" header="Estado" body={estadoBodyTemplate} align="center" style={{width: '10%'}}></Column>
+                            <Column field="numeroComprobante" header="Comprobante" body={comprobanteTemplate} style={{ width: '12%' }}></Column>
+                            <Column header="Cliente y Contrato" body={clienteContratoTemplate} style={{ width: '25%' }}></Column>
+                            <Column field="fechaPago" header="Fecha de Pago" body={(r) => formatDate(r.fechaPago)} style={{ width: '12%' }}></Column>
+                            <Column field="cuota.numeroCuota" header="Cuota N°" body={(r) => r.cuota?.numeroCuota === 0 ? 'Inicial' : (r.cuota?.numeroCuota || r.cuota?.numero)} align="center" style={{ width: '8%' }}></Column>
+                            <Column header="Método y Operación" body={operacionTemplate} style={{ width: '15%' }}></Column>
+                            <Column field="montoAbonado" header="Monto (S/)" body={(r) => <span className="font-bold text-green-700">{formatCurrency(r.montoAbonado)}</span>} align="right" style={{ width: '10%' }}></Column>
+                            <Column field="estado" header="Estado" body={estadoBodyTemplate} align="center" style={{ width: '10%' }}></Column>
                             <Column header="Acciones" body={(r) => (
                                 <div className="flex align-items-center justify-content-center">
                                     {(r.numeroComprobante || r.id) && (
@@ -388,7 +384,7 @@ const ReportePagos = () => {
                                         />
                                     )}
                                 </div>
-                            )} align="center" style={{width: '8%'}}></Column>
+                            )} align="center" style={{ width: '8%' }}></Column>
                         </DataTable>
                     </div>
                 </div>

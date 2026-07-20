@@ -39,6 +39,12 @@ export const PagoService = {
         return response.data;
     },
 
+    registrarSunat: async (payload, httpClient) => {
+        const client = resolveClient(httpClient);
+        const response = await client.post(`${RESOURCE}/facturacion/registrar-pago`, payload);
+        return response.data;
+    },
+
     procesarPendiente: async (id, formData, httpClient) => {
         const client = resolveClient(httpClient);
         const response = await client.put(`${RESOURCE}/${id}/procesar`, formData, {
@@ -65,6 +71,14 @@ export const PagoService = {
     descargarComprobantePdf: async (numeroComprobante, httpClient) => {
         const client = resolveClient(httpClient);
         const response = await client.get(`${RESOURCE}/comprobante/${numeroComprobante}/pdf`, {
+            responseType: 'blob'
+        });
+        return response.data;
+    },
+
+    descargarComprobanteSunatPdf: async (numeroComprobante, httpClient) => {
+        const client = resolveClient(httpClient);
+        const response = await client.get(`${RESOURCE}/comprobante-sunat/${numeroComprobante}/pdf`, {
             responseType: 'blob'
         });
         return response.data;

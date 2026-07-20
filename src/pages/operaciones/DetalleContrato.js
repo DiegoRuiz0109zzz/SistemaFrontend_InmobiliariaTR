@@ -13,6 +13,7 @@ import { Divider } from 'primereact/divider';
 import { useAuth } from '../../context/AuthContext';
 import { ContratoService } from '../../service/ContratoService';
 import { ClienteService } from '../../service/ClienteService';
+import { RucService } from '../../service/RucService';
 import { LoteService } from '../../service/LoteService';
 import { CuotaService } from '../../service/CuotaService';
 import { PagoService } from '../../service/PagoService';
@@ -77,7 +78,8 @@ const DetalleContrato = () => {
     // Estados para Registro de Pago
     const [cuotaPagar, setCuotaPagar] = useState(null);
     const [montoAbonar, setMontoAbonar] = useState(0);
-    const [metodoPago, setMetodoPago] = useState('Transferencia BCP');
+    const [metodoPago, setMetodoPago] = useState('BCP');
+    const [esDepCta, setEsDepCta] = useState(false);
     const [tipoComprobante, setTipoComprobante] = useState(TipoComprobante.NOTA_ABONO);
     const [numOperacion, setNumOperacion] = useState('');
     const [descripcionPago, setDescripcionPago] = useState('');
@@ -86,7 +88,9 @@ const DetalleContrato = () => {
 
     // Estados para Procesar Pagos Pendientes
     const [pagoPendiente, setPagoPendiente] = useState(null);
-    const [metodoPagoPendiente, setMetodoPagoPendiente] = useState('Transferencia BCP');
+    const [metodoPagoPendiente, setMetodoPagoPendiente] = useState('BCP');
+    const [esDepCtaPendiente, setEsDepCtaPendiente] = useState(false);
+    const [tipoComprobantePendiente, setTipoComprobantePendiente] = useState(TipoComprobante.NOTA_ABONO);
     const [numOperacionPendiente, setNumOperacionPendiente] = useState('');
     const [descripcionPagoPendiente, setDescripcionPagoPendiente] = useState('');
     const [voucherFilePendiente, setVoucherFilePendiente] = useState(null);
@@ -124,8 +128,13 @@ const DetalleContrato = () => {
     const [mostrarPanelMedidas, setMostrarPanelMedidas] = useState(false);
 
     const metodosPago = [
-        { label: 'Transferencia BCP', value: 'Transferencia BCP' },
-        { label: 'Transferencia BBVA', value: 'Transferencia BBVA' },
+        { label: 'BCP', value: 'BCP' },
+        { label: 'CAJA PIURA', value: 'CAJA PIURA' },
+        { label: 'BANCO NACION', value: 'BANCO NACION' },
+        { label: 'MI BANCO', value: 'MI BANCO' },
+        { label: 'INTERBANK', value: 'INTERBANK' },
+        { label: 'SCOTIABANK', value: 'SCOTIABANK' },
+        { label: 'BBVA', value: 'BBVA' },
         { label: 'Yape / Plin', value: 'Yape / Plin' },
         { label: 'Efectivo (Caja)', value: 'EFECTIVO' }
     ];
@@ -134,19 +143,43 @@ const DetalleContrato = () => {
 
     const tipoComprobanteOptions = useMemo(() => {
         if (esIngresoCaja) {
-            return TipoComprobanteOptions.filter((item) => item.value === TipoComprobante.RECIBO_INGRESO);
+            return TipoComprobanteOptions.filter((item) => 
+                item.value === TipoComprobante.RECIBO_INGRESO || 
+                item.value === TipoComprobante.BOLETA
+            );
         }
         return TipoComprobanteOptions.filter((item) => item.value !== TipoComprobante.RECIBO_INGRESO);
     }, [esIngresoCaja]);
 
     useEffect(() => {
-        if (esIngresoCaja && tipoComprobante !== TipoComprobante.RECIBO_INGRESO) {
+        if (esIngresoCaja && tipoComprobante !== TipoComprobante.RECIBO_INGRESO && tipoComprobante !== TipoComprobante.BOLETA) {
             setTipoComprobante(TipoComprobante.RECIBO_INGRESO);
         }
         if (!esIngresoCaja && tipoComprobante === TipoComprobante.RECIBO_INGRESO) {
             setTipoComprobante(TipoComprobante.NOTA_ABONO);
         }
     }, [esIngresoCaja, tipoComprobante]);
+
+    const esIngresoCajaPendiente = metodoPagoPendiente === 'EFECTIVO' && (!numOperacionPendiente || !numOperacionPendiente.trim());
+
+    const tipoComprobantePendienteOptions = useMemo(() => {
+        if (esIngresoCajaPendiente) {
+            return TipoComprobanteOptions.filter((item) => 
+                item.value === TipoComprobante.RECIBO_INGRESO || 
+                item.value === TipoComprobante.BOLETA
+            );
+        }
+        return TipoComprobanteOptions.filter((item) => item.value !== TipoComprobante.RECIBO_INGRESO);
+    }, [esIngresoCajaPendiente]);
+
+    useEffect(() => {
+        if (esIngresoCajaPendiente && tipoComprobantePendiente !== TipoComprobante.RECIBO_INGRESO && tipoComprobantePendiente !== TipoComprobante.BOLETA) {
+            setTipoComprobantePendiente(TipoComprobante.RECIBO_INGRESO);
+        }
+        if (!esIngresoCajaPendiente && tipoComprobantePendiente === TipoComprobante.RECIBO_INGRESO) {
+            setTipoComprobantePendiente(TipoComprobante.NOTA_ABONO);
+        }
+    }, [esIngresoCajaPendiente, tipoComprobantePendiente]);
 
     useEffect(() => {
         if (metodoPago === 'EFECTIVO') {
@@ -744,8 +777,16 @@ const DetalleContrato = () => {
             };
 
             const respuesta = await ContratoService.simular(payload, axiosInstance);
+
+            let arrayRespuesta = null;
             if (Array.isArray(respuesta)) {
-                const cronogramaSimulado = respuesta.map((item) => {
+                arrayRespuesta = respuesta;
+            } else if (respuesta && (respuesta.cronograma || respuesta.proyeccion || respuesta.cuotas)) {
+                arrayRespuesta = respuesta.cronograma || respuesta.proyeccion || respuesta.cuotas;
+            }
+
+            if (arrayRespuesta) {
+                const cronogramaSimulado = arrayRespuesta.map((item) => {
                     const fecha = item?.fechaVencimiento || item?.fecha || item?.vencimiento || null;
                     return {
                         numero: item?.numeroCuota ?? item?.numero,
@@ -756,12 +797,7 @@ const DetalleContrato = () => {
                     };
                 });
                 setConversionCronograma(cronogramaSimulado);
-                setConversionDescripcion('Simulación completada');
-                return;
-            }
-            if (respuesta && respuesta.cuotas) {
-                setConversionCronograma(respuesta.cuotas || []);
-                setConversionDescripcion(respuesta.descripcion || 'Simulación completada');
+                setConversionDescripcion(respuesta?.descripcion || respuesta?.mensajeSugerencia || 'Simulación completada');
                 return;
             }
 
@@ -1011,18 +1047,35 @@ const DetalleContrato = () => {
 
         setRegistrandoPago(true);
         try {
-            const formData = new FormData();
-            formData.append('cuotaId', cuotaPagar.id);
-            formData.append('montoAbonado', montoAbonar);
-            formData.append('metodoPago', metodoPago);
-            formData.append('tipoComprobante', tipoComprobante);
-            if (numOperacion) formData.append('numeroOperacion', numOperacion);
-            if (descripcionPago) formData.append('descripcion', descripcionPago);
-            if (voucherFileRegistro) {
-                formData.append('voucher', voucherFileRegistro);
-            }
+            const metodoFinal = esDepCta && metodoPago !== 'EFECTIVO' && metodoPago !== 'Yape / Plin' ? `DEP.CTA.${metodoPago}` : metodoPago;
 
-            await PagoService.registrar(formData, axiosInstance);
+            if (tipoComprobante === TipoComprobante.BOLETA) {
+                const payload = {
+                    cuotaId: cuotaPagar.id,
+                    montoAbonado: montoAbonar,
+                    metodoPago: metodoFinal,
+                    descripcion: descripcionPago || '',
+                    numeroOperacion: numOperacion || '',
+                    tipoComprobante: tipoComprobante,
+                    serie: 'B001',
+                    tipoIgv: '20',
+                    tipoDoc: '1'
+                };
+                await PagoService.registrarSunat(payload, axiosInstance);
+            } else {
+                const formData = new FormData();
+                formData.append('cuotaId', cuotaPagar.id);
+                formData.append('montoAbonado', montoAbonar);
+                formData.append('metodoPago', metodoFinal);
+                formData.append('tipoComprobante', tipoComprobante);
+                if (numOperacion) formData.append('numeroOperacion', numOperacion);
+                if (descripcionPago) formData.append('descripcion', descripcionPago);
+                if (voucherFileRegistro) {
+                    formData.append('voucher', voucherFileRegistro);
+                }
+
+                await PagoService.registrar(formData, axiosInstance);
+            }
 
             // Recargar el contrato para actualizar los datos
             await cargarDetalleContrato(contrato.id);
@@ -1034,9 +1087,9 @@ const DetalleContrato = () => {
             setMontoAbonar(0);
             setNumOperacion('');
             setDescripcionPago('');
-            setMetodoPago('Transferencia BCP');
+            setMetodoPago('BCP');
+            setEsDepCta(false);
             setTipoComprobante(TipoComprobante.NOTA_ABONO);
-            // Nota: La cuota se actualizará automáticamente al recargar el contrato
             setCuotaSeleccionada(null);
         } catch (error) {
             toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo registrar el pago.' });
@@ -1154,7 +1207,15 @@ const DetalleContrato = () => {
 
     const abrirDialogoProcesar = (pago) => {
         setPagoPendiente(pago);
-        setMetodoPagoPendiente(pago.metodoPago || 'Transferencia BCP');
+        const originalMetodo = pago.metodoPago || 'BCP';
+        if (originalMetodo.startsWith('DEP.CTA.')) {
+            setMetodoPagoPendiente(originalMetodo.substring(8));
+            setEsDepCtaPendiente(true);
+        } else {
+            setMetodoPagoPendiente(originalMetodo);
+            setEsDepCtaPendiente(false);
+        }
+        setTipoComprobantePendiente(pago.tipoComprobante || TipoComprobante.NOTA_ABONO);
         setNumOperacionPendiente(pago.numeroOperacion || '');
         setDescripcionPagoPendiente(pago.descripcion || '');
         setVoucherFilePendiente(null);
@@ -1162,8 +1223,10 @@ const DetalleContrato = () => {
 
     const procesarPagoPendiente = async () => {
         try {
+            const metodoFinal = esDepCtaPendiente && metodoPagoPendiente !== 'EFECTIVO' && metodoPagoPendiente !== 'Yape / Plin' ? `DEP.CTA.${metodoPagoPendiente}` : metodoPagoPendiente;
             const formData = new FormData();
-            formData.append('metodoPago', metodoPagoPendiente);
+            formData.append('metodoPago', metodoFinal);
+            formData.append('tipoComprobante', tipoComprobantePendiente);
             if (numOperacionPendiente) formData.append('numeroOperacion', numOperacionPendiente);
             if (descripcionPagoPendiente) formData.append('descripcion', descripcionPagoPendiente);
             if (voucherFilePendiente) {
@@ -1190,8 +1253,6 @@ const DetalleContrato = () => {
                 return 'Nota de Abono';
             case 'BOLETA':
                 return 'Boleta';
-            case 'FACTURA':
-                return 'Factura';
             case 'NOTA_CREDITO':
                 return 'Nota de Credito';
             case 'NOTA_DEBITO':
@@ -1208,8 +1269,11 @@ const DetalleContrato = () => {
 
             let blob = null;
             if (pago?.numeroComprobante) {
-                if ((pago?.tipoComprobante || '').toUpperCase() === 'RECIBO_INGRESO') {
+                const tipoUpper = (pago?.tipoComprobante || '').toUpperCase();
+                if (tipoUpper === 'RECIBO_INGRESO') {
                     blob = await PagoService.descargarReciboIngresoPdf(pago.numeroComprobante, axiosInstance);
+                } else if (tipoUpper === 'BOLETA') {
+                    blob = await PagoService.descargarComprobanteSunatPdf(pago.numeroComprobante, axiosInstance);
                 } else {
                     blob = await PagoService.descargarComprobantePdf(pago.numeroComprobante, axiosInstance);
                 }
@@ -1397,6 +1461,21 @@ const DetalleContrato = () => {
             </div>
         );
     }
+
+    const formatDescripcion = (desc) => {
+        if (!desc) return '';
+        let formatted = desc;
+        const startProj = formatted.indexOf(' PROYECTO DENOMINADO');
+        const endProj = formatted.indexOf('**PAGO ANTICIPADO**');
+        
+        if (startProj !== -1 && endProj !== -1) {
+            const afterProj = formatted.substring(endProj + '**PAGO ANTICIPADO**'.length);
+            formatted = formatted.substring(0, startProj) + afterProj;
+        } else if (startProj !== -1) {
+            formatted = formatted.substring(0, startProj);
+        }
+        return formatted.trim();
+    };
 
     if (!contrato) return <div>Contrato no encontrado</div>;
 
@@ -1607,7 +1686,17 @@ const DetalleContrato = () => {
                         </div>
                         <div className="field mb-3">
                             <label className="font-medium text-700 block mb-2">Método de Pago</label>
-                            <Dropdown value={metodoPagoPendiente} options={metodosPago} onChange={(e) => setMetodoPagoPendiente(e.value)} placeholder='Selecione metodo de pago' />
+                            <Dropdown value={metodoPagoPendiente} options={metodosPago} onChange={(e) => setMetodoPagoPendiente(e.value)} placeholder='Selecione metodo de pago' className="w-full" />
+                            {metodoPagoPendiente !== 'EFECTIVO' && metodoPagoPendiente !== 'Yape / Plin' && (
+                                <div className="flex align-items-center mt-2">
+                                    <Checkbox inputId="depCtaPendiente" checked={esDepCtaPendiente} onChange={(e) => setEsDepCtaPendiente(e.checked)} />
+                                    <label htmlFor="depCtaPendiente" className="ml-2 font-medium text-700 cursor-pointer">Es Depósito en Cuenta (DEP.CTA.)</label>
+                                </div>
+                            )}
+                        </div>
+                        <div className="field mb-3">
+                            <label className="font-medium text-700 block mb-2">Tipo de Comprobante</label>
+                            <Dropdown value={tipoComprobantePendiente} options={tipoComprobantePendienteOptions} onChange={(e) => setTipoComprobantePendiente(e.value)} placeholder="Seleccione un comprobante" />
                         </div>
                         {metodoPagoPendiente === 'EFECTIVO' ? (
                             <Tag
@@ -2379,8 +2468,8 @@ const DetalleContrato = () => {
                                 >
                                     <Column field="numero" header="N°" body={(r) => r.numero === 0 ? '0 (Ini)' : r.numero} headerStyle={{ textAlign: 'center', fontSize: '1rem', fontWeight: 'bold' }} style={{ width: '10%', fontWeight: 'bold', textAlign: 'center' }}></Column>
                                     <Column field="vencimiento" header="Vence" body={(r) => <div className="flex align-items-center justify-content-center gap-2"><i className="pi pi-calendar text-400"></i>{r.vencimiento}</div>} headerStyle={{ textAlign: 'center', fontSize: '1rem', fontWeight: 'bold' }} style={{ textAlign: 'center' }}></Column>
-                                    <Column header="Monto" body={(r) => <span className="font-bold text-800">S/ {r.montoTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>} headerStyle={{ textAlign: 'center', fontSize: '1rem', fontWeight: 'bold' }} style={{ textAlign: 'center' }}></Column>
-                                    <Column header="Deuda" body={(r) => r.montoTotal - r.montoPagado > 0 ? <span className="font-bold text-orange-600">S/ {(r.montoTotal - r.montoPagado).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span> : '-'} headerStyle={{ textAlign: 'center', fontSize: '1rem', fontWeight: 'bold' }} style={{ textAlign: 'center' }}></Column>
+                                    <Column header="Monto" body={(r) => <span className="font-bold text-800">S/ {Number(r.montoTotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>} headerStyle={{ textAlign: 'center', fontSize: '1rem', fontWeight: 'bold' }} style={{ textAlign: 'center' }}></Column>
+                                    <Column header="Deuda" body={(r) => Number(r.montoTotal || 0) - Number(r.montoPagado || 0) > 0 ? <span className="font-bold text-orange-600">S/ {(Number(r.montoTotal || 0) - Number(r.montoPagado || 0)).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span> : '-'} headerStyle={{ textAlign: 'center', fontSize: '1rem', fontWeight: 'bold' }} style={{ textAlign: 'center' }}></Column>
                                     <Column header="Estado" body={estadoCuotaTemplate} headerStyle={{ textAlign: 'center', fontSize: '1rem', fontWeight: 'bold' }} style={{ textAlign: 'center' }}></Column>
                                     <Column header="Atraso" body={retrasoTemplate} headerStyle={{ textAlign: 'center', fontSize: '1rem', fontWeight: 'bold' }} style={{ textAlign: 'center', width: '10%' }}></Column>
                                     <Column body={() => <i className="pi pi-chevron-right text-400"></i>} style={{ width: '5%', textAlign: 'center' }}></Column>
@@ -2415,11 +2504,11 @@ const DetalleContrato = () => {
                                             <div className="bg-blue-50 border-round p-3 mb-4 border-1 border-blue-200">
                                                 <div className="flex justify-content-between mb-2">
                                                     <span className="text-lg font-bold text-blue-700">Monto Total de Cuota</span>
-                                                    <span className="font-bold text-blue-900 text-lg">S/ {cuotaPagar.montoTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                                    <span className="font-bold text-blue-900 text-lg">S/ {Number(cuotaPagar.montoTotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                                                 </div>
                                                 <div className="flex justify-content-between align-items-center">
                                                     <span className="text-lg font-bold text-blue-700">Falta Pagar</span>
-                                                    <span className="font-bold text-lg text-blue-700">S/ {(cuotaPagar.montoTotal - cuotaPagar.montoPagado).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                                                    <span className="font-bold text-lg text-blue-700">S/ {(Number(cuotaPagar.montoTotal || 0) - Number(cuotaPagar.montoPagado || 0)).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                                                 </div>
                                             </div>
 
@@ -2432,6 +2521,12 @@ const DetalleContrato = () => {
                                             <div className="field mb-3">
                                                 <label className="font-medium text-700 block mb-2">Método de Pago</label>
                                                 <Dropdown value={metodoPago} options={metodosPago} onChange={(e) => setMetodoPago(e.value)} className="w-full" />
+                                                {metodoPago !== 'EFECTIVO' && metodoPago !== 'Yape / Plin' && (
+                                                    <div className="flex align-items-center mt-2">
+                                                        <Checkbox inputId="depCta" checked={esDepCta} onChange={(e) => setEsDepCta(e.checked)} />
+                                                        <label htmlFor="depCta" className="ml-2 font-medium text-700 cursor-pointer">Es Depósito en Cuenta (DEP.CTA.)</label>
+                                                    </div>
+                                                )}
                                             </div>
 
                                             <div className="field mb-3">
@@ -2441,13 +2536,11 @@ const DetalleContrato = () => {
                                                     options={tipoComprobanteOptions}
                                                     onChange={(e) => setTipoComprobante(e.value)}
                                                     className="w-full"
-                                                    disabled={esIngresoCaja}
                                                 />
                                                 {esIngresoCaja && (
-                                                    <small className="text-500">Al pagar en caja sin operación, el sistema emite un Recibo de Ingreso.</small>
+                                                    <small className="text-500">Puede emitir un Recibo Interno o Boleta.</small>
                                                 )}
                                             </div>
-
                                             {metodoPago === 'EFECTIVO' ? (
                                                 <Tag
                                                     severity="warning"
@@ -2508,7 +2601,7 @@ const DetalleContrato = () => {
                                         <div className="fade-in">
                                             <div className="bg-blue-50 border-1 border-blue-100 border-round-2xl p-4 text-center shadow-sm mb-4">
                                                 <span className="font-bold text-blue-600 uppercase tracking-widest">Cuota N° {cuotaSeleccionada.numero === 0 ? '0 (Inicial)' : cuotaSeleccionada.numero}</span>
-                                                <div className="text-5xl font-bold text-blue-900 mt-2 mb-3">S/ {cuotaSeleccionada.montoTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+                                                <div className="text-5xl font-bold text-blue-900 mt-2 mb-3">S/ {Number(cuotaSeleccionada.montoTotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
                                                 <div className="flex justify-content-center align-items-center gap-3">
                                                     <span className="flex align-items-center font-bold gap-2 text-lg"><i className="pi pi-calendar text-blue-500"></i> {cuotaSeleccionada.vencimiento}</span>
                                                     <span className="text-300">|</span>
@@ -2567,8 +2660,7 @@ const DetalleContrato = () => {
                                                                     <i className={`pi ${pago.fotoVoucherUrl ? 'pi-image text-blue-500' : 'pi-file text-400'} text-lg`}></i>
                                                                     <div className="flex flex-column">
                                                                         <span className="font-bold text-700">{pago.numeroComprobante || pago.id}</span>
-                                                                        {pago.numeroOperacion && <small className="text-500">Operación: {pago.numeroOperacion}</small>}
-                                                                        {pago.descripcion && <small className="text-500">Nota: {pago.descripcion}</small>}
+                                                                        {pago.descripcion && <small className="text-500">Nota: {formatDescripcion(pago.descripcion)}</small>}
                                                                     </div>
                                                                 </div>
                                                                 <div className="flex align-items-center gap-2">
