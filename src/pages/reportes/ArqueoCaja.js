@@ -44,7 +44,6 @@ const ArqueoCaja = () => {
     const [conciliando, setConciliando] = useState(false);
 
     const [rangoFechas, setRangoFechas] = useState(null);
-    const [estadoDocumento, setEstadoDocumento] = useState('TODOS');
     const [historialGeneral, setHistorialGeneral] = useState([]);
 
     const cargarReporte = useCallback(async () => {
@@ -74,11 +73,11 @@ const ArqueoCaja = () => {
             const montoTotal = pagos.reduce((acc, pago) => acc + (Number(pago.montoAbonado || pago.monto || 0)), 0);
             const fechaPago = pagos[0]?.fechaPago || null;
 
-            const documentoSubido = historialGeneral.some(h =>
+            const historialDocumento = historialGeneral.find(h =>
                 (h.rutaDocumentoPdf || h.ruta_documento_pdf || '').includes(numeroRecibo)
             );
 
-            return { numeroRecibo, pagos, montoTotal, fechaPago, documentoSubido };
+            return { numeroRecibo, pagos, montoTotal, fechaPago, historialDocumento };
         });
 
         if (rangoFechas && rangoFechas[0] && rangoFechas[1]) {
@@ -93,14 +92,8 @@ const ArqueoCaja = () => {
             });
         }
 
-        if (estadoDocumento === 'SUBIDO') {
-            lista = lista.filter(r => r.documentoSubido);
-        } else if (estadoDocumento === 'NO_SUBIDO') {
-            lista = lista.filter(r => !r.documentoSubido);
-        }
-
         return lista;
-    }, [reporte, rangoFechas, estadoDocumento]);
+    }, [reporte, rangoFechas]);
 
     const totalEsperado = useMemo(() => reciboActivo?.montoTotal || 0, [reciboActivo]);
 
@@ -114,44 +107,10 @@ const ArqueoCaja = () => {
         setTimeout(() => URL.revokeObjectURL(url), 10000);
     };
 
-    const handleVerReciboPdf = async (numeroRecibo) => {
-        try {
-            const blob = await PagoService.descargarReciboIngresoPdf(numeroRecibo, axiosInstance);
-            openBlob(blob);
-        } catch (error) {
-            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo generar el recibo.' });
-        }
-    };
-
-    const abrirDialogoFirma = (row) => {
-        setReciboActivo(row);
-        setArchivoFirma(null);
-        setDialogoFirma(true);
-    };
-
     const abrirDialogoConciliar = (row) => {
         setReciboActivo(row);
         setDepositos([{ banco: '', operacion: '', monto: 0, file: null }]);
         setDialogoConciliar(true);
-    };
-
-    const subirFirma = async () => {
-        if (!reciboActivo?.numeroRecibo || !archivoFirma) {
-            toast.current?.show({ severity: 'warn', summary: 'Validacion', detail: 'Seleccione un archivo valido.' });
-            return;
-        }
-
-        setSubiendoFirma(true);
-        try {
-            await PagoService.subirReciboFirmado(reciboActivo.numeroRecibo, archivoFirma, axiosInstance);
-            toast.current?.show({ severity: 'success', summary: 'Listo', detail: 'Recibo firmado cargado correctamente.' });
-            setDialogoFirma(false);
-            await cargarReporte();
-        } catch (error) {
-            toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudo subir el recibo firmado.' });
-        } finally {
-            setSubiendoFirma(false);
-        }
     };
 
     const agregarDeposito = () => {
@@ -195,22 +154,6 @@ const ArqueoCaja = () => {
 
     const accionesTemplate = (row) => (
         <div className="flex align-items-center gap-2 justify-content-center">
-            <Button
-                icon="pi pi-file-pdf"
-                className="p-button-rounded p-button-text p-button-danger"
-                tooltip="Ver PDF provisional"
-                onClick={() => handleVerReciboPdf(row.numeroRecibo)}
-                disabled={row.numeroRecibo === 'SIN_RECIBO_ANTIGUO'}
-            />
-            {!row.documentoSubido && (
-                <Button
-                    icon="pi pi-upload"
-                    className="p-button-rounded p-button-text p-button-warning"
-                    tooltip="Subir firma"
-                    onClick={() => abrirDialogoFirma(row)}
-                    disabled={row.numeroRecibo === 'SIN_RECIBO_ANTIGUO'}
-                />
-            )}
             <Button
                 icon="pi pi-briefcase"
                 className="p-button-rounded p-button-text p-button-success"
@@ -272,19 +215,6 @@ const ArqueoCaja = () => {
                                     className="w-full"
                                 />
                             </div>
-                            <div className="flex-1 flex flex-column gap-2">
-                                <label className="text-sm font-bold text-700">Estado de Documento</label>
-                                <Dropdown
-                                    value={estadoDocumento}
-                                    options={[
-                                        { label: 'Todos', value: 'TODOS' },
-                                        { label: 'Documento Subido', value: 'SUBIDO' },
-                                        { label: 'Falta Subir', value: 'NO_SUBIDO' }
-                                    ]}
-                                    onChange={(e) => setEstadoDocumento(e.value)}
-                                    className="w-full"
-                                />
-                            </div>
                         </div>
 
                         <ActionToolbar
@@ -313,50 +243,12 @@ const ArqueoCaja = () => {
                         >
                             <Column field="numeroRecibo" header="Nro Recibo" sortable></Column>
                             <Column header="Fecha" body={(r) => r.fechaPago ? new Date(r.fechaPago).toLocaleDateString('es-PE') : '-'} sortable></Column>
-                            <Column header="Documento" body={(r) => <Tag severity={r.documentoSubido ? 'success' : 'warning'} value={r.documentoSubido ? 'Subido' : 'Pendiente'} />} align="center"></Column>
                             <Column header="Monto Total" body={(r) => <span className="font-bold text-green-700">S/ {r.montoTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>} align="right" sortable></Column>
                             <Column header="Acciones" body={accionesTemplate} align="center"></Column>
                         </DataTable>
                     </div>
                 </div>
             </div>
-
-            <Dialog
-                header={`Subir recibo firmado: ${reciboActivo?.numeroRecibo || ''}`}
-                visible={dialogoFirma}
-                onHide={() => setDialogoFirma(false)}
-                style={{ width: '32rem' }}
-                modal
-            >
-                <div className="flex flex-column gap-3">
-                    <p className="text-sm text-600 m-0">Adjunta la foto o PDF firmado por el cliente.</p>
-                    <FileUpload
-                        mode="basic"
-                        chooseLabel="Seleccionar archivo"
-                        accept="image/*,application/pdf"
-                        customUpload
-                        auto={false}
-                        onSelect={(e) => setArchivoFirma(e.files?.[0] || null)}
-                    />
-                    {archivoFirma && (
-                        <div className="flex align-items-center gap-2 bg-blue-50 p-2 border-round">
-                            <i className="pi pi-file text-blue-500"></i>
-                            <small className="text-700 font-bold flex-1">{archivoFirma.name}</small>
-                            <Button
-                                type="button"
-                                icon="pi pi-eye"
-                                className="p-button-rounded p-button-info p-button-text"
-                                tooltip="Ver documento seleccionado"
-                                onClick={() => openBlob(archivoFirma)}
-                            />
-                        </div>
-                    )}
-                    <div className="flex justify-content-end gap-2">
-                        <Button label="Cancelar" className="p-button-text" onClick={() => setDialogoFirma(false)} />
-                        <Button label="Subir" icon="pi pi-upload" className='text-white' loading={subiendoFirma} onClick={subirFirma} />
-                    </div>
-                </div>
-            </Dialog>
 
             <Dialog
                 header={`Conciliando Recibo: ${reciboActivo?.numeroRecibo || ''}`}

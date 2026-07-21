@@ -115,6 +115,20 @@ export const PagoService = {
         const client = resolveClient(httpClient);
         const response = await client.get(`${RESOURCE}/reporte-caja`);
         return response.data;
+    },
+
+    convertirBoleta: async (numeroNotaAbono, prefijoSerieBoleta, params = {}, httpClient) => {
+        const client = resolveClient(httpClient);
+        const urlParams = new URLSearchParams();
+        urlParams.append('numeroNotaAbono', numeroNotaAbono);
+        urlParams.append('prefijoSerieBoleta', prefijoSerieBoleta);
+        if (params.tipoIgv) urlParams.append('tipoIgv', params.tipoIgv);
+        if (params.ruc) urlParams.append('ruc', params.ruc);
+        if (params.razonSocial) urlParams.append('razonSocial', params.razonSocial);
+        if (params.direccionFactura) urlParams.append('direccionFactura', params.direccionFactura);
+
+        const response = await client.post(`${RESOURCE}/convertir-boleta?${urlParams.toString()}`);
+        return response.data;
     }
 };
 
