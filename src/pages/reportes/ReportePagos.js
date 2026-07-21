@@ -166,6 +166,23 @@ const ReportePagos = () => {
     };
 
     const estadoBodyTemplate = (rowData) => {
+        const tipo = (rowData.tipoComprobante || '').toUpperCase();
+        
+        if (tipo === 'BOLETA') {
+            const stSunat = (rowData.estadoSunat || rowData.facturacion?.estadoSunat || rowData.estado || 'PENDIENTE').toUpperCase();
+            let severity = 'info';
+            if (stSunat === 'ACEPTADO' || stSunat === 'PROCESADO') severity = 'success';
+            else if (stSunat === 'RECHAZADO' || stSunat === 'ANULADO') severity = 'danger';
+            else severity = 'warning'; // PENDIENTE o NO_ENVIADO
+            
+            return (
+                <div className="flex flex-column align-items-center gap-1">
+                    <Tag value={stSunat} severity={severity} className="font-bold px-2 py-1" />
+                    <small className="text-xs text-500 font-bold" style={{ fontSize: '0.65rem' }}>SUNAT</small>
+                </div>
+            );
+        }
+
         const st = (rowData.estado || rowData.estadoPago || '').toUpperCase();
         let severity = 'info';
         if (st === 'PROCESADO') severity = 'success';

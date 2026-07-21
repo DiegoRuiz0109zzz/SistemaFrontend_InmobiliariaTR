@@ -124,6 +124,18 @@ const DetalleContrato = () => {
     const [descargandoActaTitular, setDescargandoActaTitular] = useState(false);
     const [descargandoActaLote, setDescargandoActaLote] = useState(false);
 
+    // Estados para Convertir Nota de Abono a Boleta
+    const [dialogoConvertirBoleta, setDialogoConvertirBoleta] = useState(false);
+    const [pagoConvertir, setPagoConvertir] = useState(null);
+    const [convertirDatos, setConvertirDatos] = useState({
+        prefijoSerieBoleta: 'B001',
+        tipoIgv: '20',
+        ruc: '',
+        razonSocial: '',
+        direccionFactura: ''
+    });
+    const [convirtiendoBoleta, setConvirtiendoBoleta] = useState(false);
+
     // Estado para mostrar panel de medidas si falta completarlas
     const [mostrarPanelMedidas, setMostrarPanelMedidas] = useState(false);
 
@@ -1446,6 +1458,44 @@ const DetalleContrato = () => {
         });
     }, [conversionDisponible, conversionPrompted]);
 
+    const abrirDialogoConvertir = (pago) => {
+        setPagoConvertir(pago);
+        setConvertirDatos({
+            prefijoSerieBoleta: 'B001',
+            tipoIgv: '20',
+            ruc: '',
+            razonSocial: '',
+            direccionFactura: ''
+        });
+        setDialogoConvertirBoleta(true);
+    };
+
+    const confirmarConvertirBoleta = async () => {
+        setConvirtiendoBoleta(true);
+        try {
+            await PagoService.convertirBoleta(
+                pagoConvertir.numeroComprobante || pagoConvertir.id, 
+                convertirDatos.prefijoSerieBoleta,
+                {
+                    tipoIgv: convertirDatos.tipoIgv,
+                    ruc: convertirDatos.ruc,
+                    razonSocial: convertirDatos.razonSocial,
+                    direccionFactura: convertirDatos.direccionFactura
+                },
+                axiosInstance
+            );
+            toast.current?.show({ severity: 'success', summary: 'Éxito', detail: 'Nota de Abono convertida a Boleta exitosamente' });
+            setDialogoConvertirBoleta(false);
+            if (id) {
+                cargarDetalleContrato(id);
+            }
+        } catch (error) {
+            toast.current?.show({ severity: 'error', summary: 'Error', detail: error.response?.data?.message || 'Error al convertir a boleta' });
+        } finally {
+            setConvirtiendoBoleta(false);
+        }
+    };
+
 
 
     if (loading) {
@@ -1744,6 +1794,33 @@ const DetalleContrato = () => {
                         </div>
                     </div>
                 )}
+            </Dialog>
+
+            {/* MODAL: CONVERTIR A BOLETA */}
+            <Dialog header={<><i className="pi pi-sync text-info mr-2"></i>Convertir Nota de Abono a Boleta</>} visible={dialogoConvertirBoleta} style={{ width: '500px' }} modal onHide={() => setDialogoConvertirBoleta(false)}>
+                <div className="detallecontrato-page flex flex-column gap-3 mt-3">
+                    <div className="bg-blue-50 border-1 border-blue-200 border-round p-3 mb-2">
+                        <span className="font-bold text-blue-700 block mb-1">Comprobante Actual:</span>
+                        <span className="text-blue-900">{pagoConvertir?.numeroComprobante || pagoConvertir?.id}</span>
+                    </div>
+                    
+                    <div className="bg-orange-50 border-1 border-orange-200 border-round p-3 mb-2">
+                        <span className="font-bold text-orange-700 block mb-2">Detalles del Cliente (Se usarán para la boleta):</span>
+                        <div className="text-orange-900 line-height-3">
+                            <div><strong>Nombre:</strong> {contrato?.cliente?.nombres} {contrato?.cliente?.apellidos}</div>
+                            <div><strong>Documento:</strong> {contrato?.cliente?.numeroDocumento}</div>
+                        </div>
+                    </div>
+                    
+                    <div className="bg-green-50 border-1 border-green-200 border-round p-3 mb-0">
+                        <span className="font-bold text-green-700 block mb-1">Serie de Boleta a Emitir:</span>
+                        <span className="text-green-900 font-bold">{convertirDatos.prefijoSerieBoleta}</span>
+                    </div>
+                </div>
+                <div className="flex justify-content-end gap-2 mt-4">
+                    <Button label="Cancelar" icon="pi pi-times" className="p-button-text p-button-secondary" onClick={() => setDialogoConvertirBoleta(false)} disabled={convirtiendoBoleta} />
+                    <Button label="Confirmar Conversión" icon="pi pi-check" className="p-button-success shadow-2 border-round-xl font-bold text-white" onClick={confirmarConvertirBoleta} loading={convirtiendoBoleta} />
+                </div>
             </Dialog>
 
             {/* MODAL: EDITAR INICIAL */}
@@ -2670,6 +2747,14 @@ const DetalleContrato = () => {
                                                                             className="p-button-rounded p-button-danger p-button-text"
                                                                             tooltip={`Descargar ${getEtiquetaComprobante(pago.tipoComprobante)}`}
                                                                             onClick={(e) => { e.stopPropagation(); handleDescargarComprobante(pago); }}
+                                                                        />
+                                                                    )}
+                                                                    {pago.tipoComprobante === 'NOTA_ABONO' && (
+                                                                        <Button
+                                                                            icon="pi pi-sync"
+                                                                            className="p-button-rounded p-button-info p-button-text"
+                                                                            tooltip="Convertir a Boleta"
+                                                                            onClick={(e) => { e.stopPropagation(); abrirDialogoConvertir(pago); }}
                                                                         />
                                                                     )}
                                                                     <span className="text-x font-bold text-600 surface-100 px-3 py-2 border-round-md">{pago.fechaPago}</span>

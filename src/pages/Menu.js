@@ -92,7 +92,6 @@ const Menu = () => {
         menu.push({
             label: 'Reportes',
             items: [
-                { label: 'Reporte de Anticuamiento', icon: 'pi pi-fw pi-chart-line', to: 'reportes' },
                 { label: 'Reporte Maestro', icon: 'pi pi-fw pi-table', to: 'reportes/maestro' },
                 { label: 'Reporte de Lotes', icon: 'pi pi-fw pi-map', to: 'reportes/lotes' },
                 { label: 'Reporte de Comisiones', icon: 'pi pi-fw pi-percentage', to: 'reportes/comisiones' },
