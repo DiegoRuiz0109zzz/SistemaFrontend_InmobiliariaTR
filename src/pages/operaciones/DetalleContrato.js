@@ -53,6 +53,7 @@ const DetalleContrato = () => {
     const [conversionFlexible, setConversionFlexible] = useState(false);
     const [conversionCuotasEspeciales, setConversionCuotasEspeciales] = useState(0);
     const [conversionMontoEspecial, setConversionMontoEspecial] = useState(0);
+    const [conversionBloquesFlexibles, setConversionBloquesFlexibles] = useState([{ cantidad: 3, monto: 1000 }]);
     const [conversionCronograma, setConversionCronograma] = useState([]);
     const [conversionDescripcion, setConversionDescripcion] = useState('');
     const [simulandoConversion, setSimulandoConversion] = useState(false);
@@ -747,18 +748,28 @@ const DetalleContrato = () => {
             setConversionFlexible(flex);
             setConversionCuotasEspeciales(cuotasEsp);
             setConversionMontoEspecial(montoEsp);
+            
+            let bloques = [];
+            if (origen.bloquesFlexibles && origen.bloquesFlexibles.length > 0) {
+                bloques = origen.bloquesFlexibles;
+            } else if (cuotasEsp && montoEsp) {
+                bloques = [{ cantidad: cuotasEsp, monto: montoEsp }];
+            } else {
+                bloques = [{ cantidad: 3, monto: 1000 }];
+            }
+            setConversionBloquesFlexibles(bloques);
+
             simularConversionConDatos({
                 cuotas: cuotasOrigen,
                 fechaInicio: fechaOrigen,
                 flexible: flex,
-                cuotasEspeciales: cuotasEsp,
-                montoEspecial: montoEsp
+                bloquesFlexibles: bloques
             });
         }
         setMostrarConversionModal(true);
     };
 
-    const simularConversionConDatos = async ({ cuotas, fechaInicio, flexible, cuotasEspeciales, montoEspecial }) => {
+    const simularConversionConDatos = async ({ cuotas, fechaInicio, flexible, bloquesFlexibles }) => {
         if (!cuotas || cuotas <= 0) {
             toast.current?.show({ severity: 'warn', summary: 'Validación', detail: 'Ingrese un número de cuotas válido.' });
             return;
@@ -775,8 +786,9 @@ const DetalleContrato = () => {
                 montoInicial: contrato?.finanzas?.montoInicial || 0,
                 cantidadCuotas: cuotas,
                 fechaInicioPago: getLocalYMD(fechaInicio),
-                cuotasEspeciales: flexible ? cuotasEspeciales : 0,
-                montoCuotaEspecial: flexible ? montoEspecial : 0
+                cuotasEspeciales: 0,
+                montoCuotaEspecial: 0,
+                bloquesFlexibles: flexible ? (bloquesFlexibles || conversionBloquesFlexibles) : []
             };
 
             const respuesta = await ContratoService.simular(payload, axiosInstance);
@@ -817,8 +829,7 @@ const DetalleContrato = () => {
             cuotas: conversionCuotas,
             fechaInicio: conversionFechaInicio,
             flexible: conversionFlexible,
-            cuotasEspeciales: conversionCuotasEspeciales,
-            montoEspecial: conversionMontoEspecial
+            bloquesFlexibles: conversionBloquesFlexibles
         });
     };
 
@@ -877,8 +888,10 @@ const DetalleContrato = () => {
                 loteId: contrato?.lote?.id || null,
                 cantidadCuotas: conversionCuotas,
                 fechaInicioPago: getLocalYMD(conversionFechaInicio),
-                cuotasEspeciales: conversionFlexible ? conversionCuotasEspeciales : 0,
-                montoCuotaEspecial: conversionFlexible ? conversionMontoEspecial : 0
+                cuotasEspeciales: 0,
+                montoCuotaEspecial: 0,
+                bloquesFlexibles: conversionFlexible ? conversionBloquesFlexibles : [],
+                cuotasFlexibles: conversionFlexible
             };
 
             await ContratoService.actualizar(contrato.id, payload, axiosInstance);
@@ -1569,15 +1582,38 @@ const DetalleContrato = () => {
                             </div>
 
                             {conversionFlexible && (
-                                <div className="grid">
-                                    <div className="field col-12 md:col-6">
-                                        <label className="text-xs font-bold text-orange-800 uppercase">Cuotas especiales</label>
-                                        <InputNumber value={conversionCuotasEspeciales} onValueChange={(e) => setConversionCuotasEspeciales(e.value)} min={0} className="w-full" />
-                                    </div>
-                                    <div className="field col-12 md:col-6">
-                                        <label className="text-xs font-bold text-orange-800 uppercase">Monto especial (S/)</label>
-                                        <InputNumber value={conversionMontoEspecial} onValueChange={(e) => setConversionMontoEspecial(e.value)} mode="currency" currency="PEN" className="w-full" />
-                                    </div>
+                                <div className="p-fluid flexible-blocks-container fade-in mt-3">
+                                    <label className="text-xs font-bold text-orange-800 uppercase mb-2 block">Bloques de Cuotas Especiales</label>
+                                    {conversionBloquesFlexibles.map((bloque, index) => (
+                                        <div key={index} className="grid align-items-end mb-2">
+                                            <div className="field col-5 mb-0">
+                                                <label className="text-xs font-bold text-600">N° Cuotas Fijas</label>
+                                                <InputNumber value={bloque.cantidad} onValueChange={(e) => {
+                                                    const nuevos = [...conversionBloquesFlexibles];
+                                                    nuevos[index].cantidad = e.value;
+                                                    setConversionBloquesFlexibles(nuevos);
+                                                }} placeholder="Ej: 3" />
+                                            </div>
+                                            <div className="field col-5 mb-0">
+                                                <label className="text-xs font-bold text-600">Monto Fijo (S/)</label>
+                                                <InputNumber value={bloque.monto} onValueChange={(e) => {
+                                                    const nuevos = [...conversionBloquesFlexibles];
+                                                    nuevos[index].monto = e.value;
+                                                    setConversionBloquesFlexibles(nuevos);
+                                                }} mode="currency" currency="PEN" placeholder="Ej: 1000" />
+                                            </div>
+                                            <div className="field col-2 mb-0">
+                                                <Button icon="pi pi-trash" className="p-button-danger p-button-outlined" onClick={() => {
+                                                    const nuevos = [...conversionBloquesFlexibles];
+                                                    nuevos.splice(index, 1);
+                                                    setConversionBloquesFlexibles(nuevos);
+                                                }} disabled={conversionBloquesFlexibles.length <= 1} type="button" />
+                                            </div>
+                                        </div>
+                                    ))}
+                                    <Button label="Agregar Bloque" icon="pi pi-plus" className="p-button-text p-button-sm mt-1" onClick={() => {
+                                        setConversionBloquesFlexibles([...conversionBloquesFlexibles, { cantidad: 1, monto: 100 }]);
+                                    }} type="button" />
                                 </div>
                             )}
 
@@ -1623,7 +1659,7 @@ const DetalleContrato = () => {
                                         <div className="col-12 md:col-4">
                                             <div className="summary-box bg-white h-full p-3">
                                                 <span className="summary-title">Cuotas Especiales</span>
-                                                <span className="summary-value">{conversionFlexible ? `${conversionCuotasEspeciales} x S/ ${conversionMontoEspecial}` : 'N/A'}</span>
+                                                <span className="summary-value">{conversionFlexible ? conversionBloquesFlexibles.map(b => `${b.cantidad} x S/${b.monto}`).join(', ') : 'N/A'}</span>
                                             </div>
                                         </div>
                                     </div>
