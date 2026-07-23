@@ -1,7 +1,8 @@
 import React from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
-import { PrimeReactProvider } from 'primereact/api';
+import { PrimeReactProvider, addLocale, locale } from 'primereact/api';
+
 
 import "primereact/resources/themes/lara-light-blue/theme.css";
 import "primereact/resources/primereact.min.css";
@@ -41,6 +42,18 @@ import ReporteMaestro from './pages/reportes/ReporteMaestro';
 import ReportePagos from './pages/reportes/ReportePagos';
 import ArqueoCaja from './pages/reportes/ArqueoCaja';
 import DepositosBancarios from './pages/reportes/DepositosBancarios';
+
+addLocale('es', {
+    firstDayOfWeek: 1,
+    dayNames: ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'],
+    dayNamesShort: ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'],
+    dayNamesMin: ['D', 'L', 'M', 'X', 'J', 'V', 'S'],
+    monthNames: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'],
+    monthNamesShort: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+    today: 'Hoy',
+    clear: 'Limpiar'
+});
+locale('es');
 
 function App() {
   return (
