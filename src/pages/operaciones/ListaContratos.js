@@ -237,7 +237,7 @@ const ListaContratos = () => {
                 };
             }));
 
-            listaFormateada.sort((a, b) => b.id - a.id);
+            listaFormateada.sort((a, b) => new Date(b.fechaEmision || 0) - new Date(a.fechaEmision || 0));
             setContratos(listaFormateada);
         } catch (error) {
             console.error(error);
