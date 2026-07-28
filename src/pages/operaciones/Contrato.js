@@ -87,7 +87,7 @@ const Contrato = ({ embedded = false }) => {
     const [fechaInicio, setFechaInicio] = useState(new Date(new Date().setMonth(new Date().getMonth() + 1)));
 
     const [isFlexible, setIsFlexible] = useState(false);
-    const [bloquesFlexibles, setBloquesFlexibles] = useState([{ cantidad: 3, monto: 1000 }]);
+    const [bloquesFlexibles, setBloquesFlexibles] = useState([{ cantidad: 0, monto: 0 }]);
 
     const [tipoInicial, setTipoInicial] = useState('PARCIAL');
     const [cotizacionOrigenId, setCotizacionOrigenId] = useState(null);
@@ -416,7 +416,7 @@ const Contrato = ({ embedded = false }) => {
         } else if (seleccionada.cuotasEspeciales && seleccionada.montoCuotaEspecial) {
             bloques = [{ cantidad: seleccionada.cuotasEspeciales, monto: seleccionada.montoCuotaEspecial }];
         } else {
-            bloques = [{ cantidad: 3, monto: 1000 }];
+            bloques = [{ cantidad: 0, monto: 0 }];
         }
 
         setInicialAcordada(inicialCargada);
@@ -712,7 +712,7 @@ const Contrato = ({ embedded = false }) => {
         for (let i = 0; i < pCuotas; i++) {
             let m = base;
             let esEspecial = false;
-            
+
             if (pFlex && pBloquesFlexibles && pBloquesFlexibles.length > 0) {
                 let cuotasAcumuladas = 0;
                 for (let b of pBloquesFlexibles) {
@@ -726,8 +726,8 @@ const Contrato = ({ embedded = false }) => {
             }
 
             if (!esEspecial && i === pCuotas - 1 && nCant > 0) {
-               let montoAcumuladoEspeciales = pFlex && pBloquesFlexibles && pBloquesFlexibles.length > 0 ? eTotalMonto : 0;
-               m = saldo - montoAcumuladoEspeciales - (Math.round(base * 100) / 100) * (nCant - 1);
+                let montoAcumuladoEspeciales = pFlex && pBloquesFlexibles && pBloquesFlexibles.length > 0 ? eTotalMonto : 0;
+                m = saldo - montoAcumuladoEspeciales - (Math.round(base * 100) / 100) * (nCant - 1);
             }
             let dt = new Date(bd.getFullYear(), bd.getMonth() + i, 1);
             dt.setDate(Math.min(dia, new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate()));
@@ -809,7 +809,7 @@ const Contrato = ({ embedded = false }) => {
                 const estadoCuotaCero = tipoInicial === 'PARCIAL'
                     ? (inicialCompletaParcial ? 'SEPARADO' : 'PAGADO_PARCIAL')
                     : 'PAGADO_TOTAL';
-                
+
                 const cuotaInicial = {
                     numero: 0,
                     tipoCuota: 'INICIAL',
@@ -928,7 +928,6 @@ const Contrato = ({ embedded = false }) => {
                 }
             }
 
-            const guardarCronograma = tipoInicial === 'TOTAL';
             const contratoPayload = {
                 loteId: loteSeleccionado.id,
                 clienteId: idClienteFinal,
@@ -938,14 +937,15 @@ const Contrato = ({ embedded = false }) => {
                 montoInicialAcordado: inicialAcordada,
                 abonoInicialReal: abonoEfectivo,
                 fechaLimiteInicial: tipoInicial !== 'CERO' ? getLocalYMD(fechaLimiteInicial) : null,
-                cantidadCuotas: guardarCronograma ? cuotas : null,
-                fechaInicioPago: guardarCronograma ? getLocalYMD(fechaInicio) : null,
+                cantidadCuotas: cuotas,
+                fechaInicioPago: getLocalYMD(fechaInicio),
                 cuotasEspeciales: 0,
                 montoCuotaEspecial: 0,
-                bloquesFlexibles: guardarCronograma && isFlexible ? bloquesFlexibles : [],
+                bloquesFlexibles: isFlexible ? bloquesFlexibles : [],
                 cotizacionId: cotizacionOrigenId,
                 tipoInicial: tipoInicial,
-                cuotasFlexibles: guardarCronograma && isFlexible
+                cuotasFlexibles: isFlexible,
+                cuotas: cronograma
             };
 
             const response = await ContratoService.crear(contratoPayload, axiosInstance);

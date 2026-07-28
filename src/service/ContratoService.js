@@ -47,6 +47,14 @@ export const ContratoService = {
         return response.data;
     },
 
+    liberarLote: async (id, observacion, httpClient) => {
+        const client = resolveClient(httpClient);
+        const response = await client.post(`${RESOURCE}/${id}/liberar`, null, {
+            params: { observacion }
+        });
+        return response.data;
+    },
+
     subirDocumentoFirmado: async (id, archivo, motivo, httpClient) => {
         const client = resolveClient(httpClient);
         const formData = new FormData();

@@ -9,6 +9,7 @@ import { Calendar } from 'primereact/calendar';
 import { ProgressBar } from 'primereact/progressbar';
 import { Toast } from 'primereact/toast';
 import { Dialog } from 'primereact/dialog';
+import { InputTextarea } from 'primereact/inputtextarea';
 import PageHeader from '../../components/ui/PageHeader';
 import { useAuth } from '../../context/AuthContext';
 import { ContratoService } from '../../service/ContratoService';
@@ -42,8 +43,43 @@ const ListaContratos = () => {
         if (dt.current) {
             dt.current.exportCSV();
         }
+    };    const [dialogoLiberarVisible, setDialogoLiberarVisible] = useState(false);
+    const [contratoALiberar, setContratoALiberar] = useState(null);
+    const [observacionLiberacion, setObservacionLiberacion] = useState('');
+    const [liberando, setLiberando] = useState(false);
+
+    const abrirDialogoLiberar = (contrato) => {
+        setContratoALiberar(contrato);
+        setObservacionLiberacion('');
+        setDialogoLiberarVisible(true);
     };
 
+    const confirmarLiberacion = async () => {
+        setLiberando(true);
+        try {
+            await ContratoService.liberarLote(contratoALiberar.id, observacionLiberacion, axiosInstance);
+            toast.current.show({ severity: 'success', summary: 'Éxito', detail: 'El contrato ha sido liberado correctamente.' });
+            setDialogoLiberarVisible(false);
+            cargarContratos();
+        } catch (error) {
+            toast.current.show({ severity: 'error', summary: 'Error', detail: error.response?.data?.error || error.message || 'No se pudo liberar el contrato.' });
+        } finally {
+            setLiberando(false);
+        }
+    };
+
+    const ocultarDialogoLiberar = () => {
+        setDialogoLiberarVisible(false);
+        setContratoALiberar(null);
+        setObservacionLiberacion('');
+    };
+
+    const footerLiberar = (
+        <div>
+            <Button label="Cancelar" icon="pi pi-times" onClick={ocultarDialogoLiberar} className="p-button-text" disabled={liberando} />
+            <Button label="Confirmar Liberación" icon="pi pi-check" onClick={confirmarLiberacion} className="p-button-danger" loading={liberando} />
+        </div>
+    );
 
     // Filter states
     const [globalFilter, setGlobalFilter] = useState('');
@@ -155,6 +191,27 @@ const ListaContratos = () => {
                     estadoLoteValue = 'ACTIVO';
                 }
 
+                if (progresoReal >= 100 && (estadoLoteValue === 'ACTIVO' || estadoLoteValue === 'FINALIZADO')) {
+                    estadoLoteValue = 'FINALIZADO';
+                }
+
+                let alertaSeparacionMsj = null;
+                let alertaSeparacionDias = null;
+                if (estadoLoteValue === 'SEPARADO') {
+                    try {
+                        const alertaRes = await ContratoService.obtenerAlertaSeparacion(item.id, axiosInstance);
+                        if (alertaRes && alertaRes.mensaje) {
+                            alertaSeparacionMsj = alertaRes.mensaje;
+                            const matchDias = alertaSeparacionMsj.match(/hace (\d+) días/);
+                            if (matchDias) {
+                                alertaSeparacionDias = matchDias[1];
+                            }
+                        }
+                    } catch (e) {
+                        console.error("Error obteniendo alerta separacion:", e);
+                    }
+                }
+
                 const documentoFirmadoUrl = typeof item.urlDocumentoFirmado === 'string'
                     ? item.urlDocumentoFirmado.trim()
                     : '';
@@ -174,11 +231,13 @@ const ListaContratos = () => {
                     estadoPago,
                     tieneDocumento: Boolean(documentoFirmadoUrl),
                     tipoInicialFmt,
-                    tieneEspeciales: !!item.cuotasEspeciales && item.cuotasEspeciales > 0
+                    tieneEspeciales: !!item.cuotasEspeciales && item.cuotasEspeciales > 0,
+                    alertaSeparacion: alertaSeparacionMsj,
+                    alertaSeparacionDias
                 };
             }));
 
-            listaFormateada.sort((a, b) => b.id - a.id);
+            listaFormateada.sort((a, b) => new Date(b.fechaEmision || 0) - new Date(a.fechaEmision || 0));
             setContratos(listaFormateada);
         } catch (error) {
             console.error(error);
@@ -189,8 +248,21 @@ const ListaContratos = () => {
     };
 
     // Filter Options
-    const estadoContratoOptions = [{ label: 'Todos', value: 'Todos' }, { label: 'Activo', value: 'ACTIVO' }, { label: 'Separado', value: 'SEPARADO' }];
-    const estadoPagosOptions = [{ label: 'Todas las Deudas', value: 'Todas las Deudas' }, { label: 'Al Día', value: 'AL DIA' }, { label: 'Atrasado', value: 'ATRASADO' }, { label: 'Cancelado', value: 'CANCELADO' }];
+    const estadoContratoOptions = [
+        { label: 'Todos', value: 'Todos' },
+        { label: 'Activo', value: 'ACTIVO' },
+        { label: 'Separado', value: 'SEPARADO' },
+        { label: 'Liberado', value: 'LIBERADO' },
+        { label: 'Desestimiento', value: 'DESESTIMIENTO' },
+        { label: 'Finalizado', value: 'FINALIZADO' }
+    ];
+    const estadoPagosOptions = [
+        { label: 'Todas las Deudas', value: 'Todas las Deudas' },
+        { label: 'Al Día', value: 'AL DIA' },
+        { label: 'Atrasado', value: 'ATRASADO' },
+        { label: 'Cancelado', value: 'CANCELADO' },
+        { label: 'Separación Vencida', value: 'SEPARACION_VENCIDA' }
+    ];
     const documentoOptions = [{ label: 'Todos', value: 'Todos' }, { label: 'Firmado', value: 'FIRMADO' }, { label: 'Sin Firmar', value: 'SIN_FIRMAR' }];
 
     const etapaOptions = useMemo(() => {
@@ -235,7 +307,17 @@ const ListaContratos = () => {
                 if (!cliente.includes(search) && !doc.includes(search) && !code.includes(search)) match = false;
             }
             if (estadoContratoFilter !== 'Todos' && item.estadoLote !== estadoContratoFilter) match = false;
-            if (estadoPagosFilter !== 'Todas las Deudas' && item.estadoPago !== estadoPagosFilter) match = false;
+            if (estadoPagosFilter !== 'Todas las Deudas') {
+                if (estadoPagosFilter === 'ATRASADO' && !item.estadoPago.includes('VENCIDO')) {
+                    match = false;
+                } else if (estadoPagosFilter === 'CANCELADO' && item.estadoPago !== 'PAGADO TOTAL') {
+                    match = false;
+                } else if (estadoPagosFilter === 'AL DIA' && item.estadoPago !== 'AL DIA') {
+                    match = false;
+                } else if (estadoPagosFilter === 'SEPARACION_VENCIDA' && !item.alertaSeparacion) {
+                    match = false;
+                }
+            }
             if (documentoFilter === 'FIRMADO' && !item.tieneDocumento) match = false;
             if (documentoFilter === 'SIN_FIRMAR' && item.tieneDocumento) match = false;
             
@@ -313,15 +395,22 @@ const ListaContratos = () => {
         );
     };
 
-    const estadoDocTemplate = (row) => (
-        <div className="flex flex-column align-items-center gap-2">
-            <span className={`dt-tag ${row.estadoLote === 'ACTIVO' ? 'dt-tag-activo' : 'dt-tag-separado'}`}>{row.estadoLote}</span>
-            <div className={`flex align-items-center justify-content-center border-round px-2 py-1 ${row.tieneDocumento ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                <i className={row.tieneDocumento ? "pi pi-file-check mr-1" : "pi pi-file-excel mr-1"} style={{ fontSize: '0.8rem' }}></i>
-                <span className="text-xs font-bold" style={{ fontSize: '0.7rem' }}>{row.tieneDocumento ? 'Firmado' : 'Sin Doc'}</span>
+    const estadoDocTemplate = (row) => {
+        let tagClass = 'dt-tag-activo';
+        if (row.estadoLote === 'SEPARADO') tagClass = 'dt-tag-separado';
+        else if (row.estadoLote === 'LIBERADO' || row.estadoLote === 'DESESTIMIENTO') tagClass = 'dt-tag-destiempo';
+        else if (row.estadoLote === 'FINALIZADO') tagClass = 'dt-tag-pagado-total';
+
+        return (
+            <div className="flex flex-column align-items-center gap-2">
+                <span className={`dt-tag ${tagClass}`}>{row.estadoLote}</span>
+                <div className={`flex align-items-center justify-content-center border-round px-2 py-1 ${row.tieneDocumento ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    <i className={row.tieneDocumento ? "pi pi-file-check mr-1" : "pi pi-file-excel mr-1"} style={{ fontSize: '0.8rem' }}></i>
+                    <span className="text-xs font-bold" style={{ fontSize: '0.7rem' }}>{row.tieneDocumento ? 'Firmado' : 'Sin Doc'}</span>
+                </div>
             </div>
-        </div>
-    );
+        );
+    };
 
     const precioVentaTemplate = (row) => (
         <span className="font-black text-800">S/ {row.precioTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
@@ -352,6 +441,19 @@ const ListaContratos = () => {
                     </div>
                     <ProgressBar value={row.progreso} displayValueTemplate={() => ''} style={{ height: '6px', width: '100%', borderRadius: '4px' }} color={colorBarra}></ProgressBar>
                 </div>
+                {row.alertaSeparacion && (
+                    <div className="mt-2 flex justify-content-center w-full" title={row.alertaSeparacion}>
+                        <div className="bg-red-50 border-1 border-red-300 text-red-700 font-bold border-round px-2 py-1 flex flex-column align-items-center w-full shadow-1">
+                            <span className="flex align-items-center gap-1" style={{ fontSize: '0.7rem' }}>
+                                <i className="pi pi-exclamation-triangle"></i>
+                                SEP. VENCIDA
+                            </span>
+                            <span className="text-red-900 mt-1" style={{ fontSize: '0.8rem' }}>
+                                Hace {row.alertaSeparacionDias ? `${row.alertaSeparacionDias} días` : 'varios días'}
+                            </span>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     };
@@ -377,16 +479,37 @@ const ListaContratos = () => {
 
     const accionesTemplate = (row) => (
         <div className="flex align-items-center justify-content-center gap-4 dt-actions-group">
-
             <Button icon="pi pi-file-pdf" className="p-button-text p-button-info p-button-rounded text-3xl" onClick={() => abrirVisorDocumento(row)} tooltip="Ver Documento" tooltipOptions={{ position: 'top' }} />
             <Button label="Ver Detalle" className="btn-primary-custom shadow-2 border-round-xl font-bold" onClick={() => navigate(`/detalle_contrato/${row.id}`)} />
-            {/* <Button icon="pi pi-file-edit" className="p-button-text p-button-danger p-button-rounded text-3xl" tooltip="Editar" tooltipOptions={{ position: 'top' }} /> */}
+            {row.estadoContrato !== 'LIBERADO' && (
+                <Button icon="pi pi-unlock" className="p-button-text p-button-danger p-button-rounded text-3xl" onClick={() => abrirDialogoLiberar(row)} tooltip="Liberar Contrato" tooltipOptions={{ position: 'top' }} />
+            )}
         </div>
     );
 
     return (
         <div className="listacontratos-premium">
             <Toast ref={toast} />
+
+            <Dialog header={<><i className="pi pi-unlock text-red-500 mr-2"></i>Liberar Contrato</>} visible={dialogoLiberarVisible} style={{ width: '450px' }} onHide={ocultarDialogoLiberar} modal footer={footerLiberar}>
+                <div className="flex flex-column gap-3 mt-2">
+                    <p className="m-0 text-700">
+                        ¿Está seguro que desea liberar el contrato <b>{contratoALiberar?.codigo}</b>?
+                        El lote volverá a estar <b>DISPONIBLE</b> y este contrato se marcará como <b>LIBERADO</b>.
+                    </p>
+                    <div className="flex flex-column gap-2 mt-2">
+                        <label htmlFor="observacionLib" className="font-bold text-700">Observación (Opcional)</label>
+                        <InputTextarea 
+                            id="observacionLib"
+                            value={observacionLiberacion} 
+                            onChange={(e) => setObservacionLiberacion(e.target.value)} 
+                            rows={3} 
+                            placeholder="Ej. Liberación de lote por falta de pago..." 
+                            className="w-full"
+                        />
+                    </div>
+                </div>
+            </Dialog>
 
             <Dialog header={<><i className="pi pi-file-pdf text-blue-500 mr-2"></i>Documento Firmado</>} visible={documentoVisible} style={{ width: 'min(900px, 95vw)', height: '80vh' }} onHide={cerrarDocumentoDialog} modal>
                 {documentoUrl && (
