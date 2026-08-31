@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Dropdown } from 'primereact/dropdown';
 import { Toast } from 'primereact/toast';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import { Home, DollarSign, TrendingUp, AlertCircle, Calendar } from 'lucide-react';
+import { Home, DollarSign, TrendingUp, AlertCircle, Calendar, Map } from 'lucide-react';
 
 import { useAuth } from '../../context/AuthContext';
 import { DashboardService } from '../../service/DashboardService';
@@ -227,7 +227,7 @@ const Dashboard = () => {
                     {/* KPI Cards */}
                     <div className="grid mb-6">
                         {/* Inventario de Lotes */}
-                        <div className="col-12 lg:col-4">
+                        <div className="col-12 lg:col-3">
                             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 h-full flex flex-column justify-content-center relative overflow-hidden group">
                                 <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                                     <Home size={80} />
@@ -253,7 +253,7 @@ const Dashboard = () => {
                         </div>
 
                         {/* Eficiencia de Cobro */}
-                        <div className="col-12 lg:col-4">
+                        <div className="col-12 lg:col-3">
                             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 h-full flex flex-column justify-content-center relative overflow-hidden group">
                                 <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                                     <DollarSign size={80} />
@@ -279,7 +279,7 @@ const Dashboard = () => {
                         </div>
 
                         {/* Finanzas: Cobrado vs Por Cobrar */}
-                        <div className="col-12 lg:col-4">
+                        <div className="col-12 lg:col-3">
                             <div className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-orange-500 h-full flex flex-column justify-content-center relative overflow-hidden group">
                                 <div className="flex align-items-center justify-content-between mb-3 relative z-10">
                                     <div className="flex align-items-center">
@@ -302,6 +302,38 @@ const Dashboard = () => {
                                         <p className="text-xs text-gray-500 font-bold uppercase mb-1">Por Cobrar</p>
                                         <p className="text-xl font-black text-orange-600 m-0">{formatCurrency(data.kpis.totalPorCobrar)}</p>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {/* Área Comercializada */}
+                        <div className="col-12 lg:col-3">
+                            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 h-full flex flex-column justify-content-center relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                    <Map size={80} />
+                                </div>
+                                <div className="flex align-items-center mb-3">
+                                    <div className="w-3rem h-3rem flex align-items-center justify-content-center bg-indigo-100 rounded-full mr-3 text-indigo-600">
+                                        <Map size={24} />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-gray-800 m-0">Área Comercializada</h3>
+                                </div>
+                                <div className="flex justify-content-between align-items-end mt-2 relative z-10">
+                                    <div>
+                                        <p className="text-sm text-gray-500 mb-1">Vendida / Total</p>
+                                        <p className="text-xl font-black text-gray-800 m-0">{data.kpis.areaVendidaManzana || 0} <span className="text-sm text-gray-400 font-medium">/ {data.kpis.areaTotalManzana || 0} m²</span></p>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className="inline-flex align-items-center px-2 py-1 rounded-md text-xs font-bold bg-indigo-100 text-indigo-700">
+                                            {data.kpis.areaTotalManzana ? ((data.kpis.areaVendidaManzana / data.kpis.areaTotalManzana) * 100).toFixed(1) : 0}% 
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="w-full bg-gray-200 border-round-xl h-1rem mt-3 overflow-hidden relative z-10">
+                                    <div 
+                                        className="bg-indigo-500 h-full border-round-xl" 
+                                        style={{ width: `${data.kpis.areaTotalManzana ? Math.min((data.kpis.areaVendidaManzana / data.kpis.areaTotalManzana) * 100, 100) : 0}%` }}
+                                    ></div>
                                 </div>
                             </div>
                         </div>

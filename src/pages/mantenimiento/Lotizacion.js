@@ -25,7 +25,7 @@ import '../Usuario.css';
 import './Lotizacion.css';
 
 const Lotizacion = () => {
-    const { axiosInstance } = useAuth();
+    const { axiosInstance, user } = useAuth();
     const toast = useRef(null);
     const dtLote = useRef(null);
 
@@ -1209,6 +1209,7 @@ const Lotizacion = () => {
                                         <Column field="nombre" header="Nombre" style={{ minWidth: '200px' }} />
                                         <Column field="etapa.urbanizacion.nombre" header="Urbanizacion" style={{ minWidth: '200px' }} />
                                         <Column field="etapa.nombre" header="Etapa" style={{ minWidth: '200px' }} />
+                                        <Column field="areaTotal" header="Area Total (m²)" style={{ minWidth: '150px' }} />
                                         <Column header="Acciones" body={(rowData) => actionBodyTemplate(rowData, editManzana, (data) => confirmDelete('Eliminar manzana?', () => deleteManzana(data)))} style={{ minWidth: '140px', textAlign: 'center' }} />
                                     </DataTable>
                                 </div>
@@ -1431,15 +1432,13 @@ const Lotizacion = () => {
                                         emptyMessage="No se encontraron lotes."
                                         exportFilename="Lotes"
                                     >
-                                        <Column header="N°" body={loteIndexBodyTemplate} style={{ width: '60px', textAlign: 'center' }} />
-                                        <Column field="id" header="ID" style={{ width: '80px', textAlign: 'center' }} />
-                                        <Column field="numero" header="Numero" style={{ minWidth: '120px' }} />
+                                        <Column field="numero" header="N°" style={{ minWidth: '120px' }} />
                                         <Column field="manzana.etapa.urbanizacion.nombre" header="Urbanizacion" style={{ minWidth: '200px' }} />
                                         <Column field="manzana.etapa.nombre" header="Etapa" style={{ minWidth: '160px' }} />
                                         <Column field="manzana.nombre" header="Manzana" style={{ minWidth: '160px' }} />
                                         <Column header="Area" body={formatArea} style={{ minWidth: '120px' }} />
-                                        <Column header="Precio m2" field="precioMetroCuadrado" style={{ minWidth: '120px' }} />
-                                        <Column header="Costo" body={formatPrecioCosto} style={{ minWidth: '140px' }} />
+                                        {!['ADMINISTRADORA', 'ASISTENTE_ADMINISTRATIVO'].includes(user?.role) && <Column header="Precio m2" field="precioMetroCuadrado" style={{ minWidth: '120px' }} />}
+                                        {!['ADMINISTRADORA', 'ASISTENTE_ADMINISTRATIVO'].includes(user?.role) && <Column header="Costo" body={formatPrecioCosto} style={{ minWidth: '140px' }} />}
                                         <Column header="Precio venta" body={formatPrecio} style={{ minWidth: '140px' }} />
                                         <Column field="estadoVenta" header="Estado" style={{ minWidth: '140px' }} />
                                         <Column header="Acciones" body={(rowData) => actionBodyTemplate(rowData, editLote, (data) => confirmDelete('Eliminar lote?', () => deleteLote(data)))} style={{ minWidth: '140px', textAlign: 'center' }} />
@@ -1588,6 +1587,16 @@ const Lotizacion = () => {
                             disabled={!manzanaDialogUrbanizacion}
                         />
                         {manzanaSubmitted && !manzanaEdit.etapa && <small className="p-error">Etapa requerida.</small>}
+                    </div>
+                    <div className="field col-12 md:col-6">
+                        <label htmlFor="manzanaAreaTotalDialog">Area Total (m²)</label>
+                        <InputText
+                            id="manzanaAreaTotalDialog"
+                            type="number"
+                            value={manzanaEdit.areaTotal || ''}
+                            onChange={(e) => setManzanaEdit((prev) => ({ ...prev, areaTotal: parseFloat(e.target.value) || 0 }))}
+                            placeholder="Ej. 15000"
+                        />
                     </div>
                 </div>
             </Dialog>
