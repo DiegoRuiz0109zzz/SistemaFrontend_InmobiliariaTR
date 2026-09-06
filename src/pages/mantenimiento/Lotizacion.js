@@ -24,6 +24,8 @@ import { LoteService } from '../../service/LoteService';
 import '../Usuario.css';
 import './Lotizacion.css';
 
+import { exportarDesdeDataTable } from '../../utils/excelUtils';
+
 const Lotizacion = () => {
     const { axiosInstance, user } = useAuth();
     const toast = useRef(null);
@@ -1406,7 +1408,7 @@ const Lotizacion = () => {
                                             </span>
                                             <Button
                                                 icon="pi pi-download"
-                                                tooltip="Exportar a CSV"
+                                                tooltip="Exportar en Excel"
                                                 tooltipOptions={{ position: 'bottom' }}
                                                 className="btn-export p-button-outlined p-button-secondary ml-2"
                                                 onClick={exportCSVLote}

@@ -14,6 +14,7 @@ import PageHeader from '../../components/ui/PageHeader';
 import { useAuth } from '../../context/AuthContext';
 import { ContratoService } from '../../service/ContratoService';
 import { CuotaService } from '../../service/CuotaService';
+import { exportarExcelHistorialComercial } from '../../utils/excelUtils';
 
 import './ListaContratos.css';
 
@@ -40,10 +41,20 @@ const ListaContratos = () => {
     const dt = useRef(null);
 
     const exportCSV = () => {
-        if (dt.current) {
-            dt.current.exportCSV();
-        }
-    };    const [dialogoLiberarVisible, setDialogoLiberarVisible] = useState(false);
+        const filtros = {
+            estadoContrato: estadoContratoFilter,
+            estadoPagos: estadoPagosFilter,
+            documento: documentoFilter,
+            etapa: etapaFilter,
+            manzana: manzanaFilter,
+            lote: loteFilter,
+            fechaRango: fechaRangoFilter,
+            busqueda: globalFilter
+        };
+        exportarExcelHistorialComercial(filteredContratos, filtros, 'Historial_Comercial');
+    };
+
+    const [dialogoLiberarVisible, setDialogoLiberarVisible] = useState(false);
     const [contratoALiberar, setContratoALiberar] = useState(null);
     const [observacionLiberacion, setObservacionLiberacion] = useState('');
     const [liberando, setLiberando] = useState(false);
@@ -127,6 +138,40 @@ const ListaContratos = () => {
                     }
                 } catch (error) {
                     console.warn(`No se pudieron cargar cuotas de contrato ${item.id}`, error);
+                }
+
+                let totalCuotas = cuotasList.length;
+                let cuotasPagadasCount = 0;
+                let ultimoPagoFechaObj = null;
+                let ultimoPagoMonto = 0;
+
+                if (cuotasList.length > 0) {
+                    cuotasList.forEach(c => {
+                        const estUpper = (c.estado || '').toUpperCase();
+                        if (estUpper === 'PAGADO' || estUpper === 'CANCELADO' || estUpper === 'PAGADO_TOTAL' || c.montoPagado > 0) {
+                            // Si monto pagado es el total o parcial, podemos considerarla al menos parcialmente pagada
+                            if (estUpper === 'PAGADO' || estUpper === 'CANCELADO' || estUpper === 'PAGADO_TOTAL' || (c.montoPagado > 0 && c.montoPagado >= (c.montoTotal || c.monto))) {
+                                cuotasPagadasCount++;
+                            }
+                            
+                            const fechaPagoStr = c.fechaPagoRaw || c.fechaPago || c.fechaPagoFmt || c.fechaRegistro || c.updatedAt;
+                            if (fechaPagoStr) {
+                                let fp = new Date(fechaPagoStr);
+                                if (!isNaN(fp) && (!ultimoPagoFechaObj || fp > ultimoPagoFechaObj)) {
+                                    ultimoPagoFechaObj = fp;
+                                    ultimoPagoMonto = c.montoPagado || 0;
+                                }
+                            }
+                        }
+                    });
+                }
+
+                let ultimoPagoFmt = 'Sin pagos';
+                if (ultimoPagoFechaObj) {
+                    const dia = String(ultimoPagoFechaObj.getDate()).padStart(2, '0');
+                    const mes = String(ultimoPagoFechaObj.getMonth() + 1).padStart(2, '0');
+                    const anio = ultimoPagoFechaObj.getFullYear();
+                    ultimoPagoFmt = `${dia}/${mes}/${anio}`;
                 }
 
                 const progresoReal = Math.min(100, Math.round((totalPagadoReal / precioTotalCalculado) * 100));
@@ -233,7 +278,10 @@ const ListaContratos = () => {
                     tipoInicialFmt,
                     tieneEspeciales: !!item.cuotasEspeciales && item.cuotasEspeciales > 0,
                     alertaSeparacion: alertaSeparacionMsj,
-                    alertaSeparacionDias
+                    alertaSeparacionDias,
+                    totalCuotasInfo: totalCuotas > 0 ? `${cuotasPagadasCount} / ${totalCuotas}` : '0 / 0',
+                    ultimoPagoFmt,
+                    ultimoPagoMonto
                 };
             }));
 

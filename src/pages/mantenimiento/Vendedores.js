@@ -17,6 +17,8 @@ import { ReniecService } from '../../service/ReniecService';
 import { filtrarDocumento, validarDocumento, maxLengthDocumento, placeholderDocumento } from '../../utils/documentoUtils';
 import '../Usuario.css';
 
+import { exportarDesdeDataTable } from '../../utils/excelUtils';
+
 const Vendedores = () => {
     const { axiosInstance } = useAuth();
     const emptyVendedor = { ...VendedorEntity };
@@ -209,7 +211,7 @@ const Vendedores = () => {
 
     const exportCSV = () => {
         if (dt.current) {
-            dt.current.exportCSV();
+            exportarDesdeDataTable(dt.current, 'Vendedores');
         }
     };
 
@@ -252,7 +254,7 @@ const Vendedores = () => {
                             extraActions={
                                 <Button
                                     icon="pi pi-download"
-                                    tooltip="Exportar a CSV"
+                                    tooltip="Exportar en Excel"
                                     tooltipOptions={{ position: 'bottom' }}
                                     className="btn-export"
                                     onClick={exportCSV}
