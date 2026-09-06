@@ -761,6 +761,51 @@ const Cotizacion = ({ embedded = false }) => {
                 }
             }
 
+            // Actualizar datos del Interesado/Cliente si ya existía para reflejar cambios en la UI
+            if (idInteresadoFinal) {
+                const original = await InteresadoService.obtenerPorId(idInteresadoFinal, axiosInstance).catch(() => null);
+                if (original) {
+                    const interesadoUpdate = {
+                        ...original,
+                        tipoDocumento: cliente.tipoDocumento || original.tipoDocumento || 'DNI',
+                        numeroDocumento: (cliente.numeroDocumento || dni || '').trim(),
+                        nombres: cliente.nombres,
+                        apellidos: cliente.apellidos || '',
+                        estadoCivil: (cliente.estadoCivil || '').trim(),
+                        telefono: (cliente.telefono || '').trim(),
+                        email: cliente.email || '',
+                        direccion: (cliente.direccion || '').trim(),
+                        departamento: cliente.departamento || '',
+                        provincia: cliente.provincia || '',
+                        distrito: cliente.distrito || '',
+                        ubigeo: cliente.ubigeo || ''
+                    };
+                    await InteresadoService.actualizar(idInteresadoFinal, interesadoUpdate, axiosInstance);
+                }
+            }
+
+            if (cliente?.id) {
+                const originalCli = await ClienteService.obtenerPorId(cliente.id, axiosInstance).catch(() => null);
+                if (originalCli) {
+                    const clienteUpdate = {
+                        ...originalCli,
+                        tipoDocumento: cliente.tipoDocumento || originalCli.tipoDocumento || 'DNI',
+                        numeroDocumento: (cliente.numeroDocumento || dni || '').trim(),
+                        nombres: cliente.nombres,
+                        apellidos: cliente.apellidos || '',
+                        estadoCivil: (cliente.estadoCivil || '').trim(),
+                        telefono: (cliente.telefono || '').trim(),
+                        email: cliente.email || '',
+                        direccion: (cliente.direccion || '').trim(),
+                        departamento: cliente.departamento || '',
+                        provincia: cliente.provincia || '',
+                        distrito: cliente.distrito || '',
+                        ubigeo: cliente.ubigeo || ''
+                    };
+                    await ClienteService.actualizar(cliente.id, clienteUpdate, axiosInstance);
+                }
+            }
+
             if (coCompradorNuevo) {
                 const nombresCo = (coCompradorNuevo.nombres || '').trim();
                 const apellidosCo = (coCompradorNuevo.apellidos || '').trim();
@@ -790,6 +835,27 @@ const Cotizacion = ({ embedded = false }) => {
                 coCompradorTemporalId = resCo?.data?.id || resCo?.id || null;
                 if (!coCompradorTemporalId) {
                     throw new Error('No se pudo registrar el co-comprador.');
+                }
+            } else if (coCompradorConId?.id) {
+                // Actualizar co-comprador existente
+                const originalCo = await InteresadoService.obtenerPorId(coCompradorConId.id, axiosInstance).catch(() => null);
+                if (originalCo) {
+                    const coCompradorUpdate = {
+                        ...originalCo,
+                        tipoDocumento: coCompradorConId.tipoDocumento || originalCo.tipoDocumento || 'DNI',
+                        numeroDocumento: (coCompradorConId.numeroDocumento || '').trim(),
+                        nombres: (coCompradorConId.nombres || '').trim(),
+                        apellidos: (coCompradorConId.apellidos || '').trim(),
+                        estadoCivil: (coCompradorConId.estadoCivil || '').trim(),
+                        telefono: (coCompradorConId.telefono || '').trim(),
+                        email: (coCompradorConId.email || '').trim(),
+                        direccion: (coCompradorConId.direccion || '').trim(),
+                        departamento: coCompradorConId.departamento || '',
+                        provincia: coCompradorConId.provincia || '',
+                        distrito: coCompradorConId.distrito || '',
+                        ubigeo: coCompradorConId.ubigeo || ''
+                    };
+                    await InteresadoService.actualizar(coCompradorConId.id, coCompradorUpdate, axiosInstance);
                 }
             }
 
