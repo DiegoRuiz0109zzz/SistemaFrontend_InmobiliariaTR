@@ -55,10 +55,18 @@ const ReporteComisiones = () => {
             // Map data for global filter text searching
             let mappedData = data.map(c => {
                 let beneficiarioNombre = '';
-                if (c.rolBeneficiario === 'VENDEDOR' && c.vendedor) {
-                    beneficiarioNombre = `${c.vendedor.nombres || ''} ${c.vendedor.apellidos || ''}`.trim();
-                } else if (c.rolBeneficiario === 'JEFE_VENTAS' && c.jefeVentas) {
-                    beneficiarioNombre = `${c.jefeVentas.nombres || ''} ${c.jefeVentas.apellidos || ''}`.trim();
+                if (c.rolBeneficiario === 'VENDEDOR') {
+                    if (c.vendedor) {
+                        beneficiarioNombre = `${c.vendedor.nombres || ''} ${c.vendedor.apellidos || ''}`.trim();
+                    } else if (c.jefeVentas) {
+                        beneficiarioNombre = `${c.jefeVentas.nombres || ''} ${c.jefeVentas.apellidos || ''}`.trim();
+                    }
+                } else if (c.rolBeneficiario === 'JEFE_VENTAS') {
+                    if (c.jefeVentas) {
+                        beneficiarioNombre = `${c.jefeVentas.nombres || ''} ${c.jefeVentas.apellidos || ''}`.trim();
+                    } else if (c.vendedor) {
+                        beneficiarioNombre = `${c.vendedor.nombres || ''} ${c.vendedor.apellidos || ''}`.trim();
+                    }
                 }
 
                 const ubz = c.contrato?.lote?.manzana?.etapa?.urbanizacion?.nombre || '';
