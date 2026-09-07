@@ -17,6 +17,8 @@ import { useAuth } from '../../context/AuthContext';
 import { ComisionService } from '../../service/ComisionService';
 import '../Usuario.css';
 
+import { exportarDesdeDataTable } from '../../utils/excelUtils';
+
 const ReporteComisiones = () => {
     const { axiosInstance } = useAuth();
     const [comisiones, setComisiones] = useState([]);
@@ -53,10 +55,18 @@ const ReporteComisiones = () => {
             // Map data for global filter text searching
             let mappedData = data.map(c => {
                 let beneficiarioNombre = '';
-                if (c.rolBeneficiario === 'VENDEDOR' && c.vendedor) {
-                    beneficiarioNombre = `${c.vendedor.nombres || ''} ${c.vendedor.apellidos || ''}`.trim();
-                } else if (c.rolBeneficiario === 'JEFE_VENTAS' && c.jefeVentas) {
-                    beneficiarioNombre = `${c.jefeVentas.nombres || ''} ${c.jefeVentas.apellidos || ''}`.trim();
+                if (c.rolBeneficiario === 'VENDEDOR') {
+                    if (c.vendedor) {
+                        beneficiarioNombre = `${c.vendedor.nombres || ''} ${c.vendedor.apellidos || ''}`.trim();
+                    } else if (c.jefeVentas) {
+                        beneficiarioNombre = `${c.jefeVentas.nombres || ''} ${c.jefeVentas.apellidos || ''}`.trim();
+                    }
+                } else if (c.rolBeneficiario === 'JEFE_VENTAS') {
+                    if (c.jefeVentas) {
+                        beneficiarioNombre = `${c.jefeVentas.nombres || ''} ${c.jefeVentas.apellidos || ''}`.trim();
+                    } else if (c.vendedor) {
+                        beneficiarioNombre = `${c.vendedor.nombres || ''} ${c.vendedor.apellidos || ''}`.trim();
+                    }
                 }
 
                 const ubz = c.contrato?.lote?.manzana?.etapa?.urbanizacion?.nombre || '';
@@ -72,7 +82,7 @@ const ReporteComisiones = () => {
                     documentoCliente: c.contrato?.cliente?.numeroDocumento || '-',
                     documentoVendedor: c.vendedor?.numeroDocumento || c.jefeVentas?.numeroDocumento || '-',
                     fechaIngreso: c.contrato?.fechaContrato || c.contrato?.fechaRegistro || null,
-                    totalAbonado: c.contrato?.montoAbonadoIncial || 0
+                    totalAbonado: c.totalAbonado || 0
                 };
             });
 
@@ -185,7 +195,7 @@ const ReporteComisiones = () => {
     };
 
     const exportCSV = () => {
-        dt.current?.exportCSV();
+        exportarDesdeDataTable(dt.current, 'ReporteComisiones');
     };
 
     // Formatter functions
@@ -323,7 +333,7 @@ const ReporteComisiones = () => {
                             />
                         </div>
                         <Button icon="pi pi-filter-slash" className="p-button-outlined p-button-secondary" tooltip="Limpiar todos los filtros" tooltipOptions={{ position: 'bottom' }} onClick={limpiarFiltros} style={{ borderRadius: '8px' }} />
-                        <Button icon="pi pi-download" className="btn-export" tooltip="Exportar a CSV" tooltipOptions={{ position: 'bottom' }} onClick={exportCSV} />
+                        <Button icon="pi pi-download" className="btn-export" tooltip="Exportar en Excel" tooltipOptions={{ position: 'bottom' }} onClick={exportCSV} />
                     </div>
                 </div>
             </div>
@@ -391,8 +401,8 @@ const ReporteComisiones = () => {
                             
                             <Column field="montoBase" header="Comision Base" body={(row) => formatCurrency(row.montoBase)} style={{ minWidth: '130px' }} />
                             <Column field="montoBonoGlobal" header="Bono Global" body={(row) => formatCurrency(row.montoBonoGlobal)} style={{ minWidth: '120px' }} />
-                            <Column header="Bono 35%" body={(row) => row.porcentajeBonoDiferencia === 35 ? formatCurrency(row.montoBonoDiferencia) : '-'} style={{ minWidth: '110px', textAlign: 'center' }} />
-                            <Column header="Bono 15%" body={(row) => row.porcentajeBonoDiferencia === 15 ? formatCurrency(row.montoBonoDiferencia) : '-'} style={{ minWidth: '110px', textAlign: 'center' }} />
+                            <Column header="Bono 35%" body={(row) => row.montoBono35 > 0 ? formatCurrency(row.montoBono35) : '-'} style={{ minWidth: '110px', textAlign: 'center' }} />
+                            <Column header="Bono 15%" body={(row) => row.montoBono15 > 0 ? formatCurrency(row.montoBono15) : '-'} style={{ minWidth: '110px', textAlign: 'center' }} />
                             <Column field="totalComision" header="Total Comision" body={(row) => formatCurrency(row.totalComision)} style={{ minWidth: '140px' }} className="font-bold text-primary" />
                             <Column field="estadoPago" header="Estado y Obs." body={estadoObsBodyTemplate} style={{ minWidth: '200px' }} />
                             <Column header="Acciones" body={actionBodyTemplate} align="center" style={{ minWidth: '80px' }} />
@@ -451,3 +461,4 @@ const ReporteComisiones = () => {
 };
 
 export default ReporteComisiones;
+

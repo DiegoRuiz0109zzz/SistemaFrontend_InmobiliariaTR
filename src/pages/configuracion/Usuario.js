@@ -21,6 +21,8 @@ import ActionToolbar from '../../components/ui/ActionToolbar';
 import '../Usuario.css';
 import { ReniecService } from '../../service/ReniecService';
 
+import { exportarDesdeDataTable } from '../../utils/excelUtils';
+
 export const Usuario = () => {
 
     let empty = { ...UsuarioEntity, role: null, tipoDocumento: 'DNI' };
@@ -327,7 +329,7 @@ export const Usuario = () => {
 
 
     const exportCSV = () => {
-        dt.current.exportCSV();
+        exportarDesdeDataTable(dt.current, 'Usuario');
     }
 
     const onInputChange = (e, name) => {
@@ -479,7 +481,7 @@ export const Usuario = () => {
                             extraActions={
                                 <Button
                                     icon="pi pi-download"
-                                    tooltip="Exportar a CSV"
+                                    tooltip="Exportar en Excel"
                                     tooltipOptions={{ position: 'bottom' }}
                                     className="btn-export"
                                     onClick={exportCSV}

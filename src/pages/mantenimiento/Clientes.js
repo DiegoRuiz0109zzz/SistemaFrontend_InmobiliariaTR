@@ -19,6 +19,8 @@ import { filtrarDocumento, validarDocumento, maxLengthDocumento, placeholderDocu
 import '../Usuario.css';
 import './Clientes.css';
 
+import { exportarDesdeDataTable } from '../../utils/excelUtils';
+
 const Clientes = () => {
     const { axiosInstance } = useAuth();
     const emptyCliente = { ...ClienteEntity };
@@ -322,7 +324,7 @@ const Clientes = () => {
 
     const exportCSV = () => {
         if (dt.current) {
-            dt.current.exportCSV();
+            exportarDesdeDataTable(dt.current, 'Clientes');
         }
     };
 
@@ -365,7 +367,7 @@ const Clientes = () => {
                             extraActions={
                                 <Button
                                     icon="pi pi-download"
-                                    tooltip="Exportar a CSV"
+                                    tooltip="Exportar en Excel"
                                     tooltipOptions={{ position: 'bottom' }}
                                     className="btn-export"
                                     onClick={exportCSV}

@@ -19,6 +19,8 @@ import { filtrarDocumento, validarDocumento, maxLengthDocumento, placeholderDocu
 import '../Usuario.css';
 import './Interesados.css';
 
+import { exportarDesdeDataTable } from '../../utils/excelUtils';
+
 const Interesados = () => {
     const { axiosInstance } = useAuth();
     const emptyInteresado = { ...InteresadoEntity };
@@ -311,7 +313,7 @@ const Interesados = () => {
         }
     };
 
-    const exportCSV = () => { if (dt.current) dt.current.exportCSV(); };
+    const exportCSV = () => { if (dt.current) exportarDesdeDataTable(dt.current, 'Interesados'); };
 
     // ==========================================
     // TEMPLATES DE TABLA
@@ -358,7 +360,7 @@ const Interesados = () => {
                             extraActions={
                                 <Button
                                     icon="pi pi-download"
-                                    tooltip="Exportar a CSV"
+                                    tooltip="Exportar en Excel"
                                     tooltipOptions={{ position: 'bottom' }}
                                     className="btn-export"
                                     onClick={exportCSV}

@@ -19,6 +19,8 @@ import { SerieService } from '../../service/SerieService';
 import '../Usuario.css';
 import './Series.css';
 
+import { exportarDesdeDataTable } from '../../utils/excelUtils';
+
 const Series = () => {
     const { axiosInstance } = useAuth();
     const emptySerie = { ...SerieEntity };
@@ -166,7 +168,7 @@ const Series = () => {
         }
     };
 
-    const exportCSV = () => { if (dt.current) dt.current.exportCSV(); };
+    const exportCSV = () => { if (dt.current) exportarDesdeDataTable(dt.current, 'Series'); };
 
     // ==========================================
     // TEMPLATES DE TABLA
@@ -223,7 +225,7 @@ const Series = () => {
                             extraActions={
                                 <Button
                                     icon="pi pi-download"
-                                    tooltip="Exportar a CSV"
+                                    tooltip="Exportar en Excel"
                                     tooltipOptions={{ position: 'bottom' }}
                                     className="btn-export"
                                     onClick={exportCSV}

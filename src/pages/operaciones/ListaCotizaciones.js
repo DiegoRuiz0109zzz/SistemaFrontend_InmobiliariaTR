@@ -14,6 +14,8 @@ import { CotizacionService } from '../../service/CotizacionService';
 
 import './Cotizacion.css';
 
+import { exportarDesdeDataTable } from '../../utils/excelUtils';
+
 const ListaCotizaciones = () => {
     const { axiosInstance } = useAuth();
     const toast = useRef(null);
@@ -28,7 +30,7 @@ const ListaCotizaciones = () => {
 
     const exportCSV = () => {
         if (dt.current) {
-            dt.current.exportCSV();
+            exportarDesdeDataTable(dt.current, 'ListaCotizaciones');
         }
     };
 

@@ -13,6 +13,8 @@ import { useAuth } from '../../context/AuthContext';
 import { PagoService } from '../../service/PagoService';
 import '../Usuario.css';
 
+import { exportarDesdeDataTable } from '../../utils/excelUtils';
+
 const ReportePagos = () => {
     const { axiosInstance } = useAuth();
     const dt = useRef(null);
@@ -237,7 +239,7 @@ const ReportePagos = () => {
     const exportCSV = () => {
         // En un escenario de lazy load real, exportar exporta solo la página actual.
         // Se requeriría un endpoint backend para exportar todo si el usuario lo necesita.
-        dt.current?.exportCSV();
+        exportarDesdeDataTable(dt.current, 'ReportePagos');
     };
 
     const renderHeader = () => {
@@ -318,7 +320,7 @@ const ReportePagos = () => {
                             />
                         </div>
                         <Button icon="pi pi-filter-slash" className="p-button-outlined p-button-secondary" tooltip="Limpiar todos los filtros" tooltipOptions={{ position: 'bottom' }} onClick={limpiarFiltros} style={{ borderRadius: '8px' }} />
-                        <Button icon="pi pi-download" className="btn-export" tooltip="Exportar a CSV" tooltipOptions={{ position: 'bottom' }} onClick={exportCSV} />
+                        <Button icon="pi pi-download" className="btn-export" tooltip="Exportar en Excel" tooltipOptions={{ position: 'bottom' }} onClick={exportCSV} />
                     </div>
                 </div>
             </div>

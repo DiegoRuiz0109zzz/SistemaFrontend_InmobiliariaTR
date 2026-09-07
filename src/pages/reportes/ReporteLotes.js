@@ -14,7 +14,7 @@ import { useAuth } from '../../context/AuthContext';
 import { LoteService } from '../../service/LoteService';
 import { ContratoService } from '../../service/ContratoService';
 import '../Usuario.css';
-
+import { exportarExcelReporteLotes } from '../../utils/excelUtils';
 const ReporteLotes = () => {
     const { axiosInstance } = useAuth();
     const [lotesReporte, setLotesReporte] = useState([]);
@@ -122,6 +122,7 @@ const ReporteLotes = () => {
             });
 
             setLotesReporte(mappedData);
+            setFilteredLotes(null);
         } catch (error) {
             console.error('Error cargando reporte de lotes', error);
             toast.current?.show({ severity: 'error', summary: 'Error', detail: 'No se pudieron cargar los datos.', life: 3500 });
@@ -158,8 +159,28 @@ const ReporteLotes = () => {
         });
     }, [lotesReporte, fechasVenta]);
 
+    useEffect(() => {
+        setFilteredLotes(null);
+    }, [lotesFiltradosPorFecha]);
+
     const exportCSV = () => {
-        dt.current?.exportCSV();
+        let rangoFechasStr = '';
+        if (fechasVenta && fechasVenta[0]) {
+            const f1 = new Date(fechasVenta[0]).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const f2 = fechasVenta[1] ? new Date(fechasVenta[1]).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : f1;
+            rangoFechasStr = `${f1} al ${f2}`;
+        }
+        
+        const filtrosAplicados = {
+            etapa: filters.etapa.value,
+            mz: filters.mz.value,
+            clienteNombre: filters.clienteNombre.value,
+            estadoVenta: filters.estadoVenta.value,
+            rangoFechas: rangoFechasStr,
+            global: filters.global.value
+        };
+        const dataAExportar = filteredLotes !== null ? filteredLotes : lotesFiltradosPorFecha;
+        exportarExcelReporteLotes(dataAExportar, filtrosAplicados, 'Reporte_Lotes');
     };
 
     const formatCurrency = (value) => {
@@ -200,6 +221,7 @@ const ReporteLotes = () => {
             estadoVenta: { value: null, matchMode: FilterMatchMode.EQUALS }
         });
         setGlobalFilter('');
+        setFilteredLotes(null);
     };
 
     // Plantillas de columnas
@@ -396,7 +418,7 @@ const ReporteLotes = () => {
                         <Button
                             icon="pi pi-download"
                             className="btn-export"
-                            tooltip="Exportar a CSV"
+                            tooltip="Exportar en Excel"
                             tooltipOptions={{ position: 'bottom' }}
                             onClick={exportCSV}
                         />

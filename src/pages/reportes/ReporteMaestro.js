@@ -12,6 +12,7 @@ import PageHeader from '../../components/ui/PageHeader';
 import { useAuth } from '../../context/AuthContext';
 import { ContratoService } from '../../service/ContratoService';
 import '../Usuario.css';
+import { exportarExcelReporteMaestro } from '../../utils/excelUtils';
 
 const ReporteMaestro = () => {
     const { axiosInstance } = useAuth();
@@ -112,6 +113,7 @@ const ReporteMaestro = () => {
             });
 
             setReportes(dataEnriquecida);
+            setFilteredReportes(null);
         } catch (error) {
             console.error('Error cargando el reporte maestro', error);
             toast.current?.show({
@@ -130,7 +132,16 @@ const ReporteMaestro = () => {
     }, [cargarReporteMaestro]);
 
     const exportCSV = () => {
-        dt.current?.exportCSV();
+        const filtrosAplicados = {
+            etapa: filters.etapa.value,
+            manzana: filters.manzana.value,
+            numeroLote: filters.numeroLote.value,
+            nombreVendedor: filters.nombreVendedor.value,
+            estadoContrato: filters.estadoContrato.value,
+            global: filters.global.value
+        };
+        const dataAExportar = filteredReportes !== null ? filteredReportes : reportes;
+        exportarExcelReporteMaestro(dataAExportar, filtrosAplicados, 'Reporte_Maestro');
     };
 
     const limpiarFiltros = () => {
@@ -143,6 +154,7 @@ const ReporteMaestro = () => {
             estadoContrato: { value: null, matchMode: FilterMatchMode.EQUALS }
         });
         setGlobalFilter('');
+        setFilteredReportes(null);
     };
 
     // Formatter functions
@@ -331,7 +343,7 @@ const ReporteMaestro = () => {
                         <Button
                             icon="pi pi-download"
                             className="btn-export"
-                            tooltip="Exportar a CSV"
+                            tooltip="Exportar en Excel"
                             tooltipOptions={{ position: 'bottom' }}
                             onClick={exportCSV}
                         />
