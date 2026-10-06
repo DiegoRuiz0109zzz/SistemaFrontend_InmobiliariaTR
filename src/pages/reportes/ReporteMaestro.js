@@ -103,12 +103,21 @@ const ReporteMaestro = () => {
                 const urb = lote.manzana?.etapa?.urbanizacion?.nombre || 'N/A';
                 const dni = clienteInfo.numeroDocumento || 'N/A';
 
+                let montoCuotaCalc = 0;
+                if (c.saldoFinanciar && c.cantidadCuotas) {
+                    montoCuotaCalc = c.saldoFinanciar / c.cantidadCuotas;
+                }
+                const montoCuotaFinal = item.montoCuota || montoCuotaCalc;
+                const montoVencidoFinal = item.montoTotalVencido || item.montoCuotasVencidas || (montoCuotaFinal * (item.cuotasVencidas || 0));
+
                 return {
                     ...item,
                     urbanizacion: item.urbanizacion && item.urbanizacion !== 'N/A' ? item.urbanizacion : urb,
                     etapa: item.etapa && item.etapa !== 'N/A' ? item.etapa : etapa,
                     manzana: item.manzana && item.manzana !== 'N/A' ? item.manzana : mz,
-                    documentoCliente: dni
+                    documentoCliente: dni,
+                    montoCuota: montoCuotaFinal,
+                    montoTotalVencido: montoVencidoFinal
                 };
             });
 
@@ -396,6 +405,8 @@ const ReporteMaestro = () => {
                             <Column field="manzana" header="Manzana" hidden={true} />
                             <Column field="precioOficinaLote" header="Precio Lote" body={(row) => formatCurrency(row.precioOficinaLote)} sortable style={{ minWidth: '120px' }} />
                             <Column field="precioVentaFinal" header="Precio Final" body={(row) => formatCurrency(row.precioVentaFinal)} sortable style={{ minWidth: '120px' }} />
+                            <Column field="montoCuota" header="Monto Cuota" body={(row) => formatCurrency(row.montoCuota)} sortable style={{ minWidth: '120px' }} />
+                            <Column field="montoTotalVencido" header="Monto Vencido" body={(row) => <span className={row.montoTotalVencido > 0 ? "text-red-500 font-bold" : ""}>{formatCurrency(row.montoTotalVencido)}</span>} sortable style={{ minWidth: '130px' }} />
                             <Column field="cuotasPagas" header="C. Pagas" sortable align="center" style={{ minWidth: '100px' }} />
                             <Column field="cuotasPendientes" header="C. Pendientes" sortable align="center" style={{ minWidth: '110px' }} />
                             <Column field="cuotasVencidas" header="C. Vencidas" body={cuotasVencidasBodyTemplate} sortable align="center" style={{ minWidth: '110px' }} />

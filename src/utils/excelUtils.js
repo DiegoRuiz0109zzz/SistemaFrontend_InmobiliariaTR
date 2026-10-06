@@ -232,6 +232,7 @@ export const exportarExcelHistorialComercial = async (datos, filtros, nombreArch
         { header: 'FECHA EMISION', key: 'fechaEmision', width: 15 },
         { header: 'CLIENTE', key: 'cliente', width: 35 },
         { header: 'DOCUMENTO IDENTIDAD', key: 'documento', width: 20 },
+        { header: 'TELEFONO', key: 'telefono', width: 15 },
         { header: 'URBANIZACION', key: 'urbanizacion', width: 25 },
         { header: 'ETAPA', key: 'etapa', width: 15 },
         { header: 'MANZANA', key: 'manzana', width: 12 },
@@ -277,12 +278,14 @@ export const exportarExcelHistorialComercial = async (datos, filtros, nombreArch
         const docFirmado = item.tieneDocumento ? 'SI' : 'NO';
         const clienteNombres = `${item.cliente?.nombres || ''} ${item.cliente?.apellidos || ''}`.trim();
         const docIdentidad = item.cliente?.numeroDocumento || '';
+        const telefonoCliente = item.cliente?.telefono || '';
 
         const rowData = [
             item.codigo,
             item.fechaEmisionFmt,
             clienteNombres,
             docIdentidad,
+            telefonoCliente,
             urb,
             etapa,
             mz,
@@ -304,9 +307,9 @@ export const exportarExcelHistorialComercial = async (datos, filtros, nombreArch
             cell.value = val;
             
             // Format numbers for currency/percentages if needed
-            if (colIndex === 10 || colIndex === 11 || colIndex === 16) {
+            if (colIndex === 11 || colIndex === 12 || colIndex === 17) {
                 cell.numFmt = '"S/"#,##0.00'; // Soles format
-            } else if (colIndex === 12) {
+            } else if (colIndex === 13) {
                 cell.numFmt = '0"%"'; // Percentage
             }
             
@@ -397,6 +400,8 @@ export const exportarExcelReporteMaestro = async (datos, filtros, nombreArchivo 
         { header: 'LOTE', width: 10 },
         { header: 'PRECIO LOTE', width: 15 },
         { header: 'PRECIO FINAL', width: 15 },
+        { header: 'MONTO CUOTA', width: 15 },
+        { header: 'MONTO VENCIDO', width: 18 },
         { header: 'C. PAGAS', width: 12 },
         { header: 'C. PENDIENTES', width: 15 },
         { header: 'C. VENCIDAS', width: 15 },
@@ -444,6 +449,8 @@ export const exportarExcelReporteMaestro = async (datos, filtros, nombreArchivo 
             item.numeroLote,
             item.precioOficinaLote,
             item.precioVentaFinal,
+            item.montoCuota || 0,
+            item.montoTotalVencido || 0,
             item.cuotasPagas,
             item.cuotasPendientes,
             item.cuotasVencidas,
@@ -455,7 +462,7 @@ export const exportarExcelReporteMaestro = async (datos, filtros, nombreArchivo 
             cell.value = val;
             
             // Format numbers for currency
-            if (colIndex === 10 || colIndex === 11) {
+            if (colIndex === 10 || colIndex === 11 || colIndex === 12 || colIndex === 13) {
                 cell.numFmt = '"S/"#,##0.00';
             }
             
